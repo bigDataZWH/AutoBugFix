@@ -54,3 +54,42 @@
 - Task 4 depends on setup-lightrag-retrieval-engine（ainsert/SIMILAR_TO/社区摘要）
 - Task 5 depends on Task 4
 - 双闸门位于 A4→A5 之间，依赖 implement-dual-graph-validation 的交叉验证结论
+
+- [ ] Task 6: 编写 UT 测试套件（覆盖 17 个用例，目标覆盖率 ≥85%）
+  - [ ] SubTask 6.1: 搭建 pytest + pytest-asyncio 测试骨架，配置 mock LightRAG 重排器/BGE-M3/SSE 回调 fixture（测试配置 τ=0.6、max_rewrite_rounds=3）
+  - [ ] SubTask 6.2: 编写 CRAG 三分类与重写轮次 UT（UT-1~UT-4，覆盖 relevant/ambiguous/irrelevant/超限降级）
+  - [ ] SubTask 6.3: 编写 HIL 阈值触发/通过/决策/超时 UT（UT-5~UT-9，τ=0.6 边界 + confirm/reject/timeout）
+  - [ ] SubTask 6.4: 编写飞轮 schema/抽取/向量化/ainsert/边/社区摘要 UT（UT-10~UT-15，BGE-M3 dim=1024 + SIMILAR_TO 边）
+  - [ ] SubTask 6.5: 编写双闸门顺序与绕过 UT（UT-16~UT-17，CRAG→HIL 短路与高置信直通）
+  - [ ] SubTask 6.6: 接入覆盖率工具（pytest-cov），输出 line+branch 报告，达标 ≥85%
+  - **验证**: 17 个用例全部通过；line+branch 覆盖率 ≥85%；CRAG 三分类/HIL 阈值/闸门顺序 UT 通过
+
+- [ ] Task 7: 编写 E2E 测试套件（覆盖 6 个场景）
+  - [ ] SubTask 7.1: 搭建 E2E 编排层（真实 RCAState 状态机 + mock 外部依赖隔离）
+  - [ ] SubTask 7.2: 编写双闸门全链路 E2E（E2E-1 e2e_crag_hil_full_gate，CRAG→HIL→confirm→A5）
+  - [ ] SubTask 7.3: 编写飞轮回写全链路 E2E（E2E-2 e2e_flywheel_writeback，验证 SIMILAR_TO 边创建与社区摘要更新）
+  - [ ] SubTask 7.4: 编写 HIL 人机闭环 E2E（E2E-3 e2e_hil_human_loop，modify 回退 A4 重新生成）
+  - [ ] SubTask 7.5: 编写 CRAG 重写循环 E2E（E2E-4 e2e_crag_rewrite_loop，max_rewrite_rounds=3）
+  - [ ] SubTask 7.6: 编写飞轮复用 E2E（E2E-5 e2e_flywheel_reuse，历史根因命中置信提升）
+  - [ ] SubTask 7.7: 编写高置信直通 E2E（E2E-6 e2e_high_confidence_bypass，跳过 HIL 直达 A5）
+  - **验证**: 6 个场景全部通过；飞轮回写 E2E 验证 SIMILAR_TO 边创建；飞轮复用 E2E 验证历史根因命中
+
+- [ ] Task 8: 编写跨模块集成测试套件（覆盖 6 个集成场景）
+  - [ ] SubTask 8.1: 搭建集成测试骨架，在 conftest.py 注册 Fixture 工厂与 Mock 注册器（τ=0.6、max_rewrite_rounds=3、dedup_cosine_threshold=0.95）
+  - [ ] SubTask 8.2: 编写 integ_agent4_to_crag（A4 Top-3 → CRAG 三分类，验证 LightRAG reranker 检索与 verdict/score 映射）
+  - [ ] SubTask 8.3: 编写 integ_crag_to_hil（CRAG ambiguous 收敛 + confidence<τ=0.6 → HIL_PENDING 触发，验证 CRAG→HIL 顺序）
+  - [ ] SubTask 8.4: 编写 integ_hil_to_agent5（accept→A5 继续 / reject→回退 A4 / timeout 降级三路径，验证状态机迁移）
+  - [ ] SubTask 8.5: 编写 integ_agent5_to_flywheel（A5 Solution → FlywheelPayload 五字段提取，验证 root_cause/function/path/patch/case 映射）
+  - [ ] SubTask 8.6: 编写 integ_flywheel_to_lightrag_ainsert（向量化→ainsert→SIMILAR_TO 边→社区摘要，验证调用参数与边创建）
+  - [ ] SubTask 8.7: 编写 integ_full_pipeline_gate_flywheel（A4→CRAG→HIL→A5→飞轮回写→后续工单复用全链路，验证 gate_state 贯穿与 SIMILAR_TO 命中）
+  - [ ] SubTask 8.8: 编写上下游依赖关系表断言，验证模块间调用顺序与数据结构流转（CragTriage/HilDecision/FlywheelPayload/SimilarToEdge 边界契约）
+  - **验证**: 6 个集成场景全部通过；crag_gate/hil_gate/flywheel_writeback 真实执行且业务逻辑正确；mock 外部依赖不产生真实调用
+
+- [ ] Task 9: 搭建测试数据与 Mock 基础设施（Fixture 工厂 + Mock 注册 + HIL 回调模拟器）
+  - [ ] SubTask 9.1: 建立 Fixture 工厂（make_crag_triage/make_hil_decision/make_flywheel_payload/make_similar_edge/make_solution），支持参数化变体
+  - [ ] SubTask 9.2: 落盘 tests/fixtures/gate/ 目录（crag/hil/flywheel 子目录 + gate_config.json + init_db.sql），共 13 个 JSON 样本
+  - [ ] SubTask 9.3: 实现 Mock 注册器（mock_lightrag_reranker 三分类 / mock_lightrag_ainsert 参数验证 / mock_bge_m3 dim=1024 / mock_agent_a4 / mock_agent_a5）
+  - [ ] SubTask 9.4: 实现 HIL 回调模拟器（accept/reject/timeout 三路径决策注入 + SSE 回调验证，模拟人工决策回调）
+  - [ ] SubTask 9.5: 实现测试数据库初始化（内存 dict mock LightRAG Postgres 优先 / testcontainers 次选），预置历史根因与 SIMILAR_TO 边基线（≥10 条）
+  - [ ] SubTask 9.6: 实现 load_fixture(path) 加载器与 @pytest.mark.parametrize 阈值边界矩阵（0.59/0.60/0.61 + 三档 verdict + 三路径决策）
+  - **验证**: 7 类 Mock 样本（CragTriage/HilDecision/FlywheelPayload/SimilarToEdge/Solution/embedding/τ配置）就绪；Fixture 文件组织符合 tests/fixtures/gate/ 约定；mock 不产生真实外部调用；HIL 回调模拟器三路径覆盖

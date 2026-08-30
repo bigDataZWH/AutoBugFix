@@ -252,3 +252,241 @@ CODE2CN_SUMMARY_MAX_CHARS=512
 - 异常路径检出率 ≥ 80%（`try/catch`、自定义抛出、提前 `return` 进入 `failure_paths`）。
 - MCP 工具 `code2cn_outline` 缓存命中响应 < 50ms；未命中端到端 < 5s（单函数）。
 - LLM 配额受限兜底成功率 ≥ 99%（降级不阻断主流程）。
+
+## UT 测试方案
+
+测试框架：Python `pytest` + `pytest-asyncio` + `pytest-mock`；被测组件按模块隔离，LLM / DB / 缓存 / MCP 外部依赖全部 mock。目标覆盖率 ≥ 80%（line + branch）。每个用例包含：用例名、被测组件、输入、预期输出、mock 策略。
+
+| # | 用例名 | 被测组件 | 输入 | 预期输出 | mock 策略 |
+|---|--------|----------|------|----------|-----------|
+| 1 | `test_codeoutline_schema_validation` | CodeOutline JSON Schema 校验器 | ①缺 `symbol` 字段 ②`symbol` 类型为 int ③`cn_summary` 超 512 字符 ④合法完整 JSON | ①②③ 抛 `ValidationError` 并给出字段级错误；④ 通过校验 | 无 mock（纯 schema 校验，使用 `jsonschema` 直验） |
+| 2 | `test_ast_function_splitter` | AST 函数切分器（复用 tree-sitter） | Java / Go / Python / TypeScript 各 1 个含多函数的源码片段 | 正确提取每个函数边界，输出 `AstFunctionNode` 列表（`symbol` / `start_line` / `end_line` / `signature` / `source_code` 完整） | mock CodeGraph tree-sitter 解析桩，断言函数数量与边界行号 |
+| 3 | `test_prompt_construction` | 中文化 Prompt 模板构造器 | `AstFunctionNode`（含签名 + 源码） | Prompt 含"保留原文符号"指令与"标注外部调用（DB/RPC/缓存）"指令，占位符正确填充且 `symbol` 原文未被翻译 | 无 mock（纯模板渲染，字符串断言） |
+| 4 | `test_llm_role_switch` | LLM client 角色级模型路由 | 抽取角色调用 vs 推理角色调用 | 抽取走 `EXTRACT_LLM_MODEL=qwen2.5-coder`、推理走 `QUERY_LLM_MODEL=deepseek-v3`，同一 client 仅 `model` 字段不同 | mock OpenAI 兼容 `/v1/chat/completions`，断言请求体 `model` 字段值 |
+| 5 | `test_llm_quota_fallback` | LLM client 配额兜底逻辑 | 连续 3 次 429 / 连续 3 次超时 | 降级走本地小模型，返回 `degraded=true`，`external_calls` / `failure_paths` 置空，无异常抛出 | mock client 依次抛 `429` / `asyncio.TimeoutError`，mock 兜底模型返回基础大纲 |
+| 6 | `test_external_call_detection` | 外部调用识别器 | 含 DB 读写 / RPC 调用 / 缓存访问的函数源码 | `external_calls` 数组准确列出 DB / RPC / 缓存三类，检出率 ≥ 85% | mock LLM 返回标注结果，断言数组内容与召回率 |
+| 7 | `test_failure_path_extraction` | 异常路径提取器 | 含 `try/catch` / 抛自定义异常 / 提前 `return` 的源码 | `failure_paths` 枚举各异常分支，不遗漏提前返回路径 | mock LLM 返回异常分支，断言数组覆盖各分支 |
+| 8 | `test_large_function_chunking` | 大函数拆分器 | > 200 行（超 `CODE2CN_MAX_FN_LINES`）函数源码 | 按 AST 逻辑块切分为 ≥ 2 段，分别生成后聚合 `cn_summary` 且 ≤ 512 字符 | mock LLM 逐段返回分步描述，断言段数与 summary 长度 |
+| 9 | `test_cache_hit_miss` | 缓存层（`CODE2CN_CACHE_ENABLED`） | 同一 `symbol` 连续两次请求 | 首次未命中触发生成、二次命中直接返回缓存，命中路径 P95 < 50ms | mock LLM（仅首次调用）、mock 缓存 backend，`time.perf_counter` 采样 ≥ 100 次计时断言 |
+| 10 | `test_mcp_tool_response` | MCP 工具 `code2cn_outline(symbol)` | `symbol` 参数（如 `OrderService.create`） | 返回 `CodeOutline` 完整结构（`symbol` / `file` / `cn_summary` / `external_calls` / `failure_paths` / `degraded` 六字段齐全）且 Schema 合规 | mock 生成器返回固定 outline，断言响应 Schema 校验通过 |
+
+> 用例 4、5、9 为 async 用例（`@pytest.mark.asyncio`），使用 `pytest-mock` 的 `mocker.patch` 替换 LLM client 与缓存 backend；用例 9 的 P95 时序断言使用 `time.perf_counter` 采样 ≥ 100 次。用例 6、7 的检出率阈值与"验收指标"对齐（外部调用 ≥ 85%、异常路径 ≥ 80%）。
+
+## E2E 测试方案
+
+测试框架：FastAPI 接口用 `httpx.AsyncClient`（`ASGITransport` 直连 app）；MCP 工具用 mock transport；依赖服务（SQLite / Redis 缓存 / git 仓库）用 `testcontainers` 起真实实例以保证全链路真实。每个场景断言点量化可测。
+
+| # | 场景名 | 前置条件 | 测试步骤 | 预期结果 | 断言点 |
+|---|--------|----------|----------|----------|--------|
+| 1 | `e2e_full_generate_flow` | opencode LLM mock 就绪、CodeGraph 符号提取可用 | 传入 `symbol` + `file` + `source_code` → AST 切分 → LLM 调用 → 输出 `CodeOutline` | 全链路成功产出 JSON | `symbol` / `file` / `cn_summary` / `external_calls` / `failure_paths` 全部非空；JSON Schema 合规；`degraded=false` |
+| 2 | `e2e_rest_api_endpoint` | FastAPI app 启动、`testcontainers` Redis 缓存 | `POST /api/v1/code2cn/generate`：①正常请求 ②缺 `source_code` ③LLM 返回 429 ④LLM 内部 500 | 分别返回 200 / 400 / 429 / 500 | 鉴权头缺失→401；缺 `source_code`→400；配额受限→429 + `degraded=true`；LLM 异常→500 |
+| 3 | `e2e_mcp_tool_integration` | MCP server 注册 `code2cn_outline`、A2 Agent mock | A2 Agent 经 MCP 调用 `code2cn_outline("OrderService.create")` 并消费返回大纲 | Agent 成功获取并解析大纲用于下游推理 | 返回含 `cn_summary` 的完整 `CodeOutline`；Agent 消费后下游上下文非空 |
+| 4 | `e2e_degraded_mode` | opencode LLM 全部 mock 为 429、本地兜底模型可用 | 触发生成 → 3 次重试失败 → 降级兜底 | 返回降级大纲且不阻断 | `degraded=true`；`cn_summary` 仅基础描述非空；`external_calls` / `failure_paths` 为空数组；HTTP 200 |
+| 5 | `e2e_incremental_update` | 已中文化仓库（100 函数）、`testcontainers` git 仓库 | 模拟 `git commit` 改动 3 函数 → 触发增量重建 | 仅重建受影响子树 | 仅 3 函数 `cn_summary` 变更、其余节点不变；增量 token ≤ 全仓 30% |
+
+> 场景 2、4 的 LLM 用 `respx` / `httpx_mock` 拦截 opencode 端点返回 429 / 500；场景 5 的 git 操作用 `testcontainers` 提供真实 git 环境或 `pygit2` 临时仓库；所有 E2E 场景断言点须可量化（HTTP 状态码、字段非空、Schema 合规、token 比例）。
+
+## 跨模块集成测试方案
+
+本方案验证 code2cn 与上游（CodeGraph / opencode LLM）及下游（LightRAG / 5-Agent A2）的数据契约打通，聚焦模块边界字段映射与集成点行为。测试框架沿用 `pytest` + `pytest-asyncio` + `pytest-mock`，集成测试置于 `tests/integration/`；外部 LLM 一律 mock，CodeGraph 符号提取使用真实输出（或真实 tree-sitter 解析桩），LightRAG `insert_custom_kg` 与 MCP 传输层 mock 验证调用参数不实际落库。
+
+### 上下游依赖关系表
+
+| 上游模块 | 上游输出数据契约 | 下游模块 | 下游消费数据契约 |
+|---|---|---|---|
+| CodeGraph（tree-sitter 符号提取） | `AstFunctionNode`（`symbol`/`file`/`start_line`/`end_line`/`source_code`/`language`/`signature`） | code2cn | REST 入参 `symbol`/`file`/`source_code`；内部消费 `AstFunctionNode` 全字段 |
+| opencode LLM（DeepSeek-V3 / Qwen2.5-Coder） | OpenAI 兼容 `/v1/chat/completions` 响应（`choices[0].message.content` + `usage` token 统计） | code2cn | LLM 文本输出解析为 `CodeOutline` JSON；token 落盘 |
+| code2cn（生成器 + 适配层） | `CodeOutline` JSON（`symbol`/`file`/`cn_summary`/`external_calls`/`failure_paths`/`degraded`） | LightRAG | `insert_custom_kg` 入参：实体 `func:<symbol>` + `description`（中文大纲全文） + `SIMILAR_TO` 边 |
+| code2cn（MCP server） | `CodeOutline` JSON（经 MCP `tools/call` 返回） | 5-Agent A2 代码分析 | MCP `code2cn_outline(symbol)` 响应体，A2 注入推理上下文 |
+
+### 集成测试场景
+
+| # | 场景名 | 涉及模块 | 集成点 | 测试步骤 | 预期结果 | 断言点 |
+|---|--------|----------|--------|----------|----------|--------|
+| 1 | `integ_codegraph_to_code2cn` | CodeGraph → code2cn | `AstFunctionNode` → 生成器入参（`symbol`/`file`/`source_code` 字段映射） | ①从 CodeGraph 真实符号提取获取 `AstFunctionNode` 列表 ②取一节点传入 code2cn 生成器 ③校验字段透传与大纲生成 | code2cn 接收字段与节点一致，产出合法 `CodeOutline` | `outline.symbol == node.symbol`；`outline.file == node.file`；生成器内部 `source_code == node.source_code`；`symbol` 原文未被翻译；Schema 合规 |
+| 2 | `integ_code2cn_to_lightrag` | code2cn → LightRAG | `CodeOutline` → `insert_custom_kg`（实体描述 + `SIMILAR_TO` 边） | ①生成 `CodeOutline` ②适配层封装实体 `func:<symbol>` + `description` ③调用 `insert_custom_kg`（mock） ④校验实体与边参数 | LightRAG 收到实体描述与关系边，embedding 由 bge-m3 生成 | `insert_custom_kg` 被调用一次；实体名 `func:<symbol>`；`description == cn_summary` 全文；embedding `dim == 1024`；`SIMILAR_TO` 边 `source`/`target` 正确 |
+| 3 | `integ_code2cn_to_agent2_mcp` | code2cn（MCP server）→ 5-Agent A2 | MCP `code2cn_outline(symbol)` 调用与响应消费 | ①A2 mock 经 MCP transport 调用 `code2cn_outline("OrderService.create")` ②code2cn 返回 `CodeOutline` ③A2 消费大纲注入推理上下文 | A2 成功获取并解析大纲，推理上下文含 `cn_summary` | tool call 参数 `symbol == "OrderService.create"`；响应六字段齐全；A2 上下文 `cn_summary` 非空；Schema 合规；缓存命中 < 50ms |
+| 4 | `integ_llm_role_integration` | opencode LLM → code2cn（角色级路由） | `EXTRACT_LLM_MODEL` 抽取 → `QUERY_LLM_MODEL` 推理切换 | ①触发中文化调用 `EXTRACT_LLM_MODEL` ②触发 A2 推理调用 `QUERY_LLM_MODEL` ③校验同一 client 切换 `model` 字段 | 抽取走 `qwen2.5-coder`、推理走 `deepseek-v3`，同一 client 仅 `model` 不同 | 抽取请求体 `model == "qwen2.5-coder"`；推理请求体 `model == "deepseek-v3"`；同一 client 实例；token 统计区分 `extract`/`query` 角色 |
+| 5 | `integ_full_pipeline_code2cn` | CodeGraph → code2cn → LightRAG → A2 | 全链路：符号→中文化→注入→检索消费 | ①CodeGraph 输出符号 ②code2cn 中文化生成 `CodeOutline` ③LightRAG `insert_custom_kg` 注入 ④A2 中文 query 检索命中并消费 | 全链路贯通，A2 召回对应函数实体并获取中文大纲 | `CodeOutline` Schema 合规；LightRAG 实体存在；A2 中文 query 召回 `func:<symbol>`；端到端 `symbol` 一致；token 累计统计正确 |
+
+> 场景 1 使用真实 CodeGraph 输出（或真实 tree-sitter 解析小型源码片段）；场景 4、5 的 LLM 调用全部 mock；场景 2、5 的 `insert_custom_kg` 用 mock 验证入参不实际写入；所有断言点须可量化（字段相等、Schema 合规、dim=1024、时延阈值、token 角色区分）。
+
+## 测试数据与 Mock 规范
+
+### 测试数据构造策略
+
+- **Fixture 工厂模式**：为 `AstFunctionNode` / `CodeOutline` / LLM 响应 / MCP 报文提供工厂函数（如 `make_ast_node(language="java")`、`make_code_outline()`、`make_llm_response()`），支持参数化覆盖缺字段、超长 `cn_summary`、空数组等边界。
+- **conftest.py 共享 fixture**：在 `tests/conftest.py` 与 `tests/integration/conftest.py` 注册跨用例共享 fixture（LLM mock client、CodeGraph 符号桩、LightRAG ainsert mock、MCP transport mock、tmp 数据库），避免重复构造，目标被测组件 fixture 覆盖率 ≥ 90%。
+- **数据生成器**：批量生成多语言样例函数（Java/Go/Python/TypeScript 各 ≥ 5 个），供检出率与全链路场景使用；超长函数生成器产出 > 200 行源码供拆分测试。
+
+### Mock 数据样本
+
+**CodeOutline 样本 JSON**（完整字段，含 `external_calls` 与 `failure_paths`）：
+
+```json
+{
+  "symbol": "OrderService.create",
+  "file": "OrderService.java:42",
+  "cn_summary": "创建订单：1.校验参数 2.查库存 3.写入订单表 4.发MQ 5.返回订单号",
+  "external_calls": ["库存RPC", "订单表DB", "MQ发送"],
+  "failure_paths": ["库存不足抛InsufficientException"],
+  "degraded": false
+}
+```
+
+**AstFunctionNode 样本 JSON**（Java / Go / Python 各一）：
+
+```json
+{
+  "symbol": "OrderService.create",
+  "file": "OrderService.java:42",
+  "start_line": 42,
+  "end_line": 68,
+  "source_code": "public Long create(OrderDTO dto) { validate(dto); stock.check(dto.getSku()); orderRepo.insert(dto); mq.send(\"order-created\", dto); return dto.getId(); }",
+  "language": "java",
+  "signature": "public Long create(OrderDTO dto)"
+}
+```
+
+```json
+{
+  "symbol": "order.Create",
+  "file": "order/service.go:18",
+  "start_line": 18,
+  "end_line": 40,
+  "source_code": "func (s *Service) Create(ctx context.Context, dto OrderDTO) (int64, error) { if err := s.validate(dto); err != nil { return 0, err }; s.stock.Check(ctx, dto.SKU); return s.repo.Insert(ctx, dto) }",
+  "language": "go",
+  "signature": "func (s *Service) Create(ctx context.Context, dto OrderDTO) (int64, error)"
+}
+```
+
+```json
+{
+  "symbol": "payment.settle",
+  "file": "payment/service.py:25",
+  "start_line": 25,
+  "end_line": 50,
+  "source_code": "def settle(order_id: str) -> str:\n    order = repo.get(order_id)\n    if order.balance < order.amount:\n        raise BalanceException('余额不足')\n    rpc.call('pay-gateway', order)\n    cache.set(order_id, 'settled')\n    return order_id",
+  "language": "python",
+  "signature": "def settle(order_id: str) -> str"
+}
+```
+
+**LLM 响应 Mock**（正常响应 / 429 配额耗尽 / 超时）：
+
+正常响应（OpenAI 兼容 `/v1/chat/completions`）：
+
+```json
+{
+  "id": "chatcmpl-mock-001",
+  "object": "chat.completion",
+  "model": "qwen2.5-coder",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"symbol\":\"OrderService.create\",\"file\":\"OrderService.java:42\",\"cn_summary\":\"创建订单：1.校验参数 2.查库存 3.写入订单表 4.发MQ 5.返回订单号\",\"external_calls\":[\"库存RPC\",\"订单表DB\",\"MQ发送\"],\"failure_paths\":[\"库存不足抛InsufficientException\"],\"degraded\":false}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": { "prompt_tokens": 320, "completion_tokens": 96, "total_tokens": 416 }
+}
+```
+
+429 配额耗尽：
+
+```json
+{
+  "error": {
+    "message": "quota exhausted",
+    "type": "rate_limit_exceeded",
+    "code": "429"
+  }
+}
+```
+
+超时（无响应体，mock 注册为异常）：
+
+```json
+{
+  "scenario": "llm_timeout",
+  "mock_type": "asyncio.TimeoutError",
+  "delay_ms": 35000,
+  "response": null,
+  "note": "mock 使请求超过 LLM_TIMEOUT_MS=30000 后抛 asyncio.TimeoutError，触发连续 3 次超时降级路径"
+}
+```
+
+**MCP `code2cn_outline` 请求 / 响应 Mock**：
+
+请求：
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "code2cn_outline",
+    "arguments": { "symbol": "OrderService.create" }
+  }
+}
+```
+
+响应：
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"symbol\":\"OrderService.create\",\"file\":\"OrderService.java:42\",\"cn_summary\":\"创建订单：1.校验参数 2.查库存 3.写入订单表 4.发MQ 5.返回订单号\",\"external_calls\":[\"库存RPC\",\"订单表DB\",\"MQ发送\"],\"failure_paths\":[\"库存不足抛InsufficientException\"],\"degraded\":false}"
+      }
+    ]
+  }
+}
+```
+
+### Mock 规范
+
+| 外部依赖 | Mock 策略 | 断言要点 |
+|---|---|---|
+| opencode LLM（OpenAI 兼容端点） | 用 `respx` / `httpx_mock` 拦截 `/v1/chat/completions`，按角色返回预设 `CodeOutline` JSON；429 / 超时按场景注入 | 请求体 `model` 字段符合角色；不产生真实网络调用；`mock.assert_called_once` |
+| CodeGraph symbol（tree-sitter） | 预设 `symbol`/`file`/`source_code` 桩（或真实 tree-sitter 解析小型源码片段） | 输出 `AstFunctionNode` 字段完整；函数边界行号正确 |
+| LightRAG `insert_custom_kg` | mock 适配层 `ainsert_custom_kg`，验证入参不实际写入图谱 | 实体名 / `description` / `SIMILAR_TO` 边参数正确；未触发真实 embedding 计算（或 mock embedding dim=1024） |
+| MCP 传输层 | mock MCP transport，捕获 `tools/call` 请求与响应序列化 | tool name == `code2cn_outline`；`arguments.symbol` 正确；响应 `content[0].text` 可解析为 `CodeOutline` |
+
+### 测试数据库初始化
+
+- **CodeGraph 节点持久化**：使用 SQLite `:memory:`（`sqlite3.connect(":memory:")`）初始化函数节点表，隔离且无残留；schema 含 `cn_summary`/`external_calls`/`failure_paths` 字段。
+- **LightRAG 存储与缓存**：使用 pytest `tmp_path` 临时目录承载 LightRAG storage 与缓存后端，用例结束自动清理；避免污染真实图谱与 Redis。
+- **Embedding 向量库**：mock bge-m3 嵌入返回固定 `dim=1024` 向量，不加载真实模型权重。
+
+### Fixture 文件组织
+
+样本 JSON 文件统一置于 `tests/fixtures/code2cn/`，路径约定如下：
+
+```
+tests/fixtures/code2cn/
+├── code_outline/
+│   ├── order_service_create.json        # CodeOutline 样本
+│   └── payment_settle_degraded.json     # 降级大纲样本
+├── ast_node/
+│   ├── java_order_service.json          # Java AstFunctionNode
+│   ├── go_order_create.json             # Go AstFunctionNode
+│   └── python_payment_settle.json       # Python AstFunctionNode
+├── llm_response/
+│   ├── normal_qwen_extract.json         # 正常 LLM 响应
+│   ├── 429_quota_exhausted.json         # 429 配额耗尽
+│   └── timeout_scenario.json            # 超时 mock 配置
+└── mcp/
+    ├── code2cn_outline_request.json     # MCP 请求报文
+    └── code2cn_outline_response.json     # MCP 响应报文
+```
+
+> 约定：`tests/fixtures/<module>/*.json` 按子目录分类；fixture 工厂函数从对应路径加载并支持参数覆盖；所有样本 JSON 须通过对应 Schema 校验（`CodeOutline` / `AstFunctionNode`）后方可入库。

@@ -41,3 +41,26 @@
 - [ ] 大仓库 CodeGraph 构建超时（中概率）：触发增量构建 + 缓存预热，返回部分图谱并标记 incomplete，不阻断部署
 - [ ] LLM 调用配额受限（中概率）：自动切换本地小模型兜底 + 合并多请求批量推理，记录降级
 - [ ] 跨语言调用链断裂（高概率）：插入桥接节点 + 触发人工标注回流任务，不中断根因定位流水线
+
+## 测试（UT + E2E）
+- [ ] UT 覆盖率 ≥80%（line + branch，`pytest-cov` 报告量化）
+- [ ] 14 个 UT 用例全部通过（`test_env_validation`/`test_requirements_install`/`test_start_ps1_script`/`test_start_sh_script`/3 级降级矩阵/`test_mode_switch`/`test_frontend_page_load`/`test_api_health_check`/`test_sse_endpoint`/`test_port_conflict`/`test_log_rotation`/`test_config_override`）
+- [ ] 8 个 E2E 场景全部通过（`e2e_full_local_startup`/`e2e_rca_analyze_request`/`e2e_online_mode_full`/`e2e_offline_mode_degraded`/`e2e_mock_mode_smoke`/`e2e_milestone_kpi`/`e2e_restart_recovery`/`e2e_frontend_backend_integration`）
+- [ ] 3 级降级矩阵 UT 全覆盖（online/offline/mock，经 `RCA_RUNTIME_MODE` 切换）
+- [ ] `start.ps1` + `start.sh` 脚本语法校验通过（`PSScriptAnalyzer` 无 error + `shellcheck` 无 error + `bash -n` 通过）
+- [ ] M1 启动 <30s E2E 验证通过（启动到 `GET /api/v1/health` 全 `up` 的耗时 <30s）
+- [ ] M4 P95 <12s + 可用性 99.5% E2E 验证通过（压测窗口失败请求占比 ≤0.5%）
+- [ ] 前端 `rca-command.html` 自包含无外部依赖 UT 通过（无 `<script src="http*">`/`<link href="http*">` 外链）
+- [ ] 端口冲突检测 UT 通过（8000/6379/5432 占用时抛 `PortConflictError` + `--port` 建议）
+- [ ] CI 流水线集成 `pytest` 执行（UT stage + E2E stage 独立，报告归档）
+
+## 跨模块集成测试
+- [ ] 8 个跨模块集成测试场景全部通过（`integ_full_stack_startup`/`integ_frontend_to_backend_api`/`integ_online_full_mode`/`integ_offline_light_mode`/`integ_mock_demo_mode`/`integ_restart_recovery`/`integ_milestone_kpi_verification`/`integ_ci_pipeline`）
+- [ ] 环境矩阵/降级矩阵/Bug单/健康检查/SSE/requirements/start脚本/.env/docker-compose 9 类测试样本就绪（组织于 `tests/fixtures/deploy/`）
+- [ ] 3 级降级模式集成测试全部通过（`online_full` 真实全栈 / `offline_light` LightRAG 禁用→ripgrep 兜底 / `mock_demo` 全 Mock 冒烟）
+- [ ] M1 启动 <30s / M4 P95 <12s + 99.5% KPI 集成验证通过
+- [ ] docker-compose Postgres + Redis 服务编排启动/销毁通过（含 healthcheck 与可重复拉起）
+- [ ] 断点续跑集成测试验证 Redis RCAState 恢复（task 状态 `interrupted`→`running`→`done`，`last-event-id` 续传不丢产物）
+- [ ] 前端 rca-command.html → `POST /api/v1/rca/analyze` → SSE 集成测试通过（Playwright 驱动，4 Tab 渲染）
+- [ ] CI 流水线 pytest 全量执行 + 覆盖率门禁通过（line + branch ≥80%，报告归档）
+- [ ] Fixture 文件组织符合 `tests/fixtures/deploy/` 约定（env_matrix/degradation_matrix/bug_tickets/config/scripts/docker-compose 分目录）

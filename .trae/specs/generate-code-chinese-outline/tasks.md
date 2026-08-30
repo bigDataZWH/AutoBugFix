@@ -56,6 +56,52 @@
   - [ ] SubTask 8.4: 兜底成功率验证（配额受限场景降级成功率 ≥ 99%）
   - **验证步骤**：运行 `scripts/eval_code2cn.py` 输出质量报告（准确率/符号保留率/检出率/成本比/兜底成功率全量指标）；指标全部达标后归档报告
 
+- [ ] Task 9: 编写 UT 测试套件（覆盖上述 10 个用例，目标覆盖率 ≥ 80%）
+  - [ ] SubTask 9.1: 搭建 `tests/code2cn/` 测试目录，配置 `pytest` + `pytest-asyncio` + `pytest-mock` + `pytest-cov`
+  - [ ] SubTask 9.2: 编写 `test_codeoutline_schema_validation`（缺字段 / 类型错误 / 超 512 字符 cn_summary 拒绝，合法 JSON 通过）
+  - [ ] SubTask 9.3: 编写 `test_ast_function_splitter`（Java / Go / Python / TypeScript 四语言函数边界提取）
+  - [ ] SubTask 9.4: 编写 `test_prompt_construction`（符号保留指令 + 外部调用标注指令占位填充）
+  - [ ] SubTask 9.5: 编写 `test_llm_role_switch`（`EXTRACT_LLM_MODEL` vs `QUERY_LLM_MODEL` client 切换，断言请求体 `model` 字段）
+  - [ ] SubTask 9.6: 编写 `test_llm_quota_fallback`（mock 429 / 超时 3 次 → `degraded=true`，无异常抛出）
+  - [ ] SubTask 9.7: 编写 `test_external_call_detection`（DB / RPC / 缓存检出率 ≥ 85%）
+  - [ ] SubTask 9.8: 编写 `test_failure_path_extraction`（try/catch / 自定义异常 / 提前 return）
+  - [ ] SubTask 9.9: 编写 `test_large_function_chunking`（> 200 行拆分，聚合 `cn_summary` ≤ 512 字符）
+  - [ ] SubTask 9.10: 编写 `test_cache_hit_miss`（命中 / 未命中，P95 < 50ms，采样 ≥ 100 次）
+  - [ ] SubTask 9.11: 编写 `test_mcp_tool_response`（`code2cn_outline(symbol)` 响应六字段齐全 + Schema 合规）
+  - [ ] SubTask 9.12: 跑 `pytest --cov=code2cn --cov-branch`，补足用例使 line + branch 覆盖率 ≥ 80%
+  - **验证步骤**：`pytest tests/code2cn/ -q --cov=code2cn --cov-branch --cov-fail-under=80` 全绿；10 个 UT 用例全部通过
+
+- [ ] Task 10: 编写 E2E 测试套件（覆盖上述 5 个场景，使用 httpx AsyncClient + testcontainers）
+  - [ ] SubTask 10.1: 搭建 `tests/e2e/` 目录，配置 `httpx.AsyncClient`（`ASGITransport` 直连 FastAPI app）+ `testcontainers`（Redis 缓存 / git 仓库）
+  - [ ] SubTask 10.2: 编写 `e2e_full_generate_flow`（AST → LLM → `CodeOutline` 全链路，断言全字段非空 + Schema 合规）
+  - [ ] SubTask 10.3: 编写 `e2e_rest_api_endpoint`（鉴权 / 参数校验 / 400 / 429 / 500 错误码全链路）
+  - [ ] SubTask 10.4: 编写 `e2e_mcp_tool_integration`（A2 Agent 经 MCP 调用 `code2cn_outline` 并消费大纲）
+  - [ ] SubTask 10.5: 编写 `e2e_degraded_mode`（LLM 不可用降级，`degraded=true` + `cn_summary` 仅基础描述）
+  - [ ] SubTask 10.6: 编写 `e2e_incremental_update`（`git commit` 增量重建，仅受影响子树，token ≤ 全仓 30%）
+  - [ ] SubTask 10.7: 用 `respx` / `httpx_mock` 拦截 opencode 端点模拟 429 / 500；`testcontainers` 提供真实 Redis / git 环境
+  - **验证步骤**：`pytest tests/e2e/ -q` 全绿；5 个 E2E 场景全部通过；CI 流水线集成 E2E 阶段
+
+- [ ] Task 11: 编写跨模块集成测试套件（覆盖上述 5 个集成场景，使用真实 CodeGraph 输出 + mock LLM）
+  - [ ] SubTask 11.1: 搭建 `tests/integration/` 目录与 `conftest.py`（CodeGraph 真实输出桩、LLM mock、LightRAG ainsert mock、MCP transport mock、tmp 数据库）
+  - [ ] SubTask 11.2: 编写 `integ_codegraph_to_code2cn`（`AstFunctionNode` → 生成器入参字段映射，断言 `symbol`/`file`/`source_code` 透传 + 符号原文未翻译 + Schema 合规）
+  - [ ] SubTask 11.3: 编写 `integ_code2cn_to_lightrag`（`CodeOutline` → `insert_custom_kg`，断言实体名 `func:<symbol>` + `description == cn_summary` + embedding `dim=1024` + `SIMILAR_TO` 边）
+  - [ ] SubTask 11.4: 编写 `integ_code2cn_to_agent2_mcp`（A2 mock 经 MCP 调用 `code2cn_outline` 并消费大纲，断言 tool call 参数 + 响应六字段 + A2 上下文 `cn_summary` 非空 + 缓存命中 < 50ms）
+  - [ ] SubTask 11.5: 编写 `integ_llm_role_integration`（`EXTRACT_LLM_MODEL` 抽取 → `QUERY_LLM_MODEL` 推理切换，断言请求体 `model` 字段 + 同一 client + token 角色区分）
+  - [ ] SubTask 11.6: 编写 `integ_full_pipeline_code2cn`（CodeGraph → 中文化 → LightRAG 注入 → A2 检索消费全链路，断言端到端 `symbol` 一致 + Schema 合规 + token 累计统计正确）
+  - [ ] SubTask 11.7: LLM 用 `respx` / `httpx_mock` 拦截不产生真实调用；`insert_custom_kg` mock 验证入参不实际写入图谱
+  - **验证步骤**：`pytest tests/integration/ -q` 全绿；5 个集成场景全部通过；`mock.assert_called_once` 断言 LLM 未真实调用
+
+- [ ] Task 12: 搭建测试数据与 Mock 基础设施（Fixture 工厂 + conftest.py + 样本 JSON 文件 + Mock 注册）
+  - [ ] SubTask 12.1: 实现 Fixture 工厂函数（`make_ast_node` / `make_code_outline` / `make_llm_response` / `make_mcp_message`），支持参数化边界覆盖（缺字段、超长 `cn_summary`、空数组）
+  - [ ] SubTask 12.2: 注册 `tests/conftest.py` 与 `tests/integration/conftest.py` 共享 fixture（LLM mock client、CodeGraph 符号桩、LightRAG ainsert mock、MCP transport mock、tmp 数据库），目标被测组件 fixture 覆盖率 ≥ 90%
+  - [ ] SubTask 12.3: 生成样本 JSON 文件置于 `tests/fixtures/code2cn/`（`code_outline` / `ast_node` / `llm_response` / `mcp` 四类，含 Java/Go/Python 多语言节点）
+  - [ ] SubTask 12.4: 实现 opencode LLM mock（OpenAI 兼容端点拦截，按角色返回预设 `CodeOutline` JSON，含 429 / 超时场景）
+  - [ ] SubTask 12.5: 实现 CodeGraph symbol mock（预设 `symbol`/`file`/`source_code`）与 LightRAG `insert_custom_kg` mock（验证调用参数不实际写入）
+  - [ ] SubTask 12.6: 实现 MCP 传输层 mock（验证 `tools/call` 参数与响应序列化）
+  - [ ] SubTask 12.7: 测试数据库初始化（SQLite `:memory:` + `tmp_path` 临时目录，mock embedding `dim=1024`）
+  - [ ] SubTask 12.8: 样本 JSON 经 Schema 校验入库（`CodeOutline` / `AstFunctionNode` 各自 schema 通过）
+  - **验证步骤**：共享 fixture 覆盖率 ≥ 90%（被测组件均有对应 fixture）；CodeOutline/AstFunctionNode/LLM 响应/MCP 四类 Mock 样本就绪；`tests/fixtures/code2cn/*.json` 路径约定通过校验
+
 # Task Dependencies
 - Task 2 depends on Task 1
 - Task 3 depends on Task 2
@@ -64,3 +110,7 @@
 - Task 6 depends on Task 2、Task 3、Task 4
 - Task 7 depends on Task 2
 - Task 8 depends on Task 2、Task 3、Task 4、Task 5、Task 6
+- Task 9 depends on Task 1、Task 2、Task 3
+- Task 10 depends on Task 9、Task 1、Task 2、Task 3、Task 4、Task 6
+- Task 11 depends on Task 9、Task 2、Task 3、Task 4、Task 5
+- Task 12 depends on Task 9

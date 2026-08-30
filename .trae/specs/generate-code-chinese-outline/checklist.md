@@ -50,3 +50,19 @@
 ## 质量与成本验收（Task 8）
 - [ ] `scripts/eval_code2cn.py` 质量报告产出全量指标（准确率/符号保留率/检出率/成本比/兜底成功率）
 - [ ] 全量指标达标并归档：符号保留率 100%、语义准确率 ≥ 90%、外部调用检出率 ≥ 85%、异常路径检出率 ≥ 80%、增量成本 ≤ 全仓 30%、兜底成功率 ≥ 99%
+
+## 测试验收（Task 9 / Task 10）
+- [ ] UT 覆盖率 ≥ 80%（line + branch，`--cov-fail-under=80` 门禁通过）
+- [ ] 10 个 UT 用例全部通过（`pytest tests/code2cn/ -q` 全绿）
+- [ ] 5 个 E2E 场景全部通过（`pytest tests/e2e/ -q` 全绿）
+- [ ] 配额降级 UT 验证 `degraded=true` 标记正确（mock 429 / 超时 3 次后断言标记为 true 且无异常抛出）
+- [ ] 多语言 AST 切分 UT 覆盖 Java / Go / Python / TS 四语言（函数边界提取正确）
+- [ ] CI 流水线集成 pytest 执行（UT + E2E 阶段，覆盖率门禁 80%）
+
+## 跨模块集成测试与 Mock 基础设施（Task 11 / Task 12）
+- [ ] 5 个跨模块集成测试场景全部通过（`pytest tests/integration/ -q` 全绿）
+- [ ] CodeOutline / AstFunctionNode / LLM 响应 / MCP 4 类 Mock 样本 JSON 就绪（含 Java/Go/Python 多语言节点）
+- [ ] conftest.py 共享 fixture 覆盖率 ≥ 90%（被测组件均有对应 fixture）
+- [ ] 上下游数据契约字段映射集成测试通过（`symbol`/`file`/`source_code` 透传 + `func:<symbol>` 实体 + `description == cn_summary` + embedding `dim=1024`）
+- [ ] Mock 不产生真实 LLM 调用（断言 `mock.assert_called_once`，LLM 端点拦截生效）
+- [ ] Fixture 文件组织符合 `tests/fixtures/<module>/*.json` 约定（`code2cn/` 下 `code_outline`/`ast_node`/`llm_response`/`mcp` 四子目录）

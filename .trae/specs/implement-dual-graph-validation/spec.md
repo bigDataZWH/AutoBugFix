@@ -241,3 +241,131 @@ dual_graph_validation:
 - 交叉验证产出 Top-3，每条含 function_id/score/evidence 四维证据
 - 交集命中为高置信候选，单路命中降级不进入高置信候选
 - V2.0 → V3.0 跃迁四维均优于 V2.0：检索范式（单路→双路交叉）、定位深度（文件/函数→函数+调用路径+数据流）、幻觉控制（提示词→双闸门强制收敛）、可解释性（单证据链→结构+语义双证据链）
+
+## UT 测试方案
+
+测试框架：Python pytest + pytest-asyncio。图谱数据用 mock 工厂构造，CMDB / Trace 经 mock Adapter 注入，CodeGraph 加载器 mock，权重 YAML 用 `tmp_path` 写入隔离。目标覆盖率 ≥85%（line + branch）。
+
+### 1. test_s_static_schema
+- **被测组件**：S_static 数据结构 / Schema 校验器
+- **输入**：构造 S_static mock 项，含 func_id（复合键 `service::function`）、func_name、call_path、static_depth 四字段
+- **预期输出**：Schema 校验通过；缺失必填字段或类型错误（如 static_depth 非 int）时抛 ValidationError
+- **mock 策略**：直接构造 dict / Pydantic 模型，无外部依赖
+
+### 2. test_p_runtime_schema
+- **被测组件**：P_runtime 数据结构 / Schema 校验器
+- **输入**：构造 P_runtime mock，含 span_tree、propagation_path、functions、runtime_anomaly 四字段
+- **预期输出**：Schema 校验通过；span_tree 为树结构、functions 为 List[str]、runtime_anomaly 为 float
+- **mock 策略**：构造 Trace span 树 mock + functions 列表
+
+### 3. test_candidate_schema
+- **被测组件**：Candidate 数据结构 / Schema 校验器
+- **输入**：构造 Candidate mock，含 root_cause、confidence、evidence_chain、located_function、score 五字段
+- **预期输出**：Schema 校验通过；confidence ∈ [0,1]、score 为 float、evidence_chain 非空
+- **mock 策略**：直接构造模型，无外部依赖
+
+### 4. test_cross_validate_intersection
+- **被测组件**：`cross_validate()` / `functions_of()`
+- **输入**：S_static={f1,f2,f3}，P_runtime.functions={f2,f3,f4}
+- **预期输出**：交集={f2,f3}，仅 f2/f3 进入高置信候选；f1 不进入高置信候选
+- **mock 策略**：mock `functions_of(P_runtime)` 返回 {f2,f3,f4}，mock metric/change 维度返回固定标量
+
+### 5. test_score_formula
+- **被测组件**：score 计算器
+- **输入**：static_depth=2、runtime_anomaly=0.8、metric_corr=0.6、change_recency=0.5，权重 (0.3,0.3,0.2,0.2)
+- **预期输出**：score = 0.3×2 + 0.3×0.8 + 0.2×0.6 + 0.2×0.5 = 1.06
+- **mock 策略**：mock 四维取值函数返回固定标量，权重用配置注入
+
+### 6. test_weight_config_load
+- **被测组件**：权重配置加载器
+- **输入**：YAML 配置（w1=0.3/w2=0.3/w3=0.2/w4=0.2，top_k=3，degradation 开关）
+- **预期输出**：加载后 weights=(0.3,0.3,0.2,0.2)，top_k=3，开关位正确
+- **mock 策略**：`tmp_path` 写入 YAML 文件，不依赖真实配置路径
+
+### 7. test_single_dimension_degrade
+- **被测组件**：降权逻辑
+- **输入**：函数仅命中静态（runtime_anomaly=0）或仅命中运行时（static_depth=0）
+- **预期输出**：score 低于双维命中，evidence 标注单路来源，不进入高置信候选
+- **mock 策略**：分别构造 static_only / runtime_only 场景，对比双维基线
+
+### 8. test_both_dimensions_boost
+- **被测组件**：交叉加权
+- **输入**：函数双维命中（交集命中）
+- **预期输出**：score 高于任一单维场景，进入高置信候选
+- **mock 策略**：构造交集命中场景，与用例 7 单维结果对比
+
+### 9. test_contains_relationship
+- **被测组件**：CONTAINS 关系映射层
+- **输入**：服务节点 `service::svc_A`，CONTAINS 函数 [f1,f2,f3]
+- **预期输出**：下钻返回 [f1,f2,f3]，复合键 `service::function` 命名一致
+- **mock 策略**：mock 服务级拓扑 + 函数级调用图，构造 CONTAINS 边
+
+### 10. test_topk_ranking
+- **被测组件**：Top-K 排序器
+- **输入**：5 个候选 score=[0.9,0.4,0.7,0.1,0.6]，top_k=3
+- **预期输出**：Top-3=[0.9,0.7,0.6] 降序，第 4/5 名被剪枝
+- **mock 策略**：直接构造 Candidate 列表，验证排序与剪枝
+
+### 11. test_empty_intersection
+- **被测组件**：交集为空降级
+- **输入**：S_static={f1,f2}，P_runtime.functions={f3,f4}（交集为空）
+- **预期输出**：候选集为空，触发降级提示"双路未收敛"，可上浮 HIL
+- **mock 策略**：mock 不相交函数集，验证降级提示与 HIL 上浮标志
+
+### 12. test_degradation_switch
+- **被测组件**：降级开关（权重重分配）
+- **输入**：metric_anomalies 缺失（w3 维不可用）
+- **预期输出**：w3=0，w1/w2/w4 按比例重分配为 (0.375,0.375,0.25)，score 不含 metric_corr 项，evidence 标注"Metric 维度缺失"
+- **mock 策略**：传入 None / 空 metric_anomalies，验证权重重分配函数
+
+### 13. test_evidence_chain_construction
+- **被测组件**：证据链构造器
+- **输入**：静态路径 call_path + 运行时 propagation_path + metric 关联片段
+- **预期输出**：evidence_chain 按序拼接三段（静态路径→运行时路径→metric 关联），内容完整可追溯
+- **mock 策略**：mock 三段数据源，验证拼接顺序与字段
+
+### 14. test_metric_correlation
+- **被测组件**：metric_corr 计算函数
+- **输入**：异常时间窗 [t1,t2] + metric 异常序列
+- **预期输出**：metric_corr ∈ [0,1]，时间窗重叠越大值越高，无重叠时为 0
+- **mock 策略**：mock metric Adapter 返回固定异常序列
+
+## E2E 测试方案
+
+端到端验证"双图谱构建 → 交叉验证 → Top-3"全链路。图谱用 mock 数据集构造，CMDB / Trace 经 mock Adapter，CodeGraph 用 mock 加载器；评估样本集对照 V2.0 跑批。
+
+### 1. e2e_dual_graph_build_validate
+- **前置条件**：CodeGraph 可构建、Trace 可拉取、CMDB 可用
+- **测试步骤**：A2 触发 CodeGraph 构建 S_static → A3 拉取 Trace+CMDB 构建 P_runtime → 调用 `cross_validate` → 取 Top-3
+- **预期结果**：全链路产出 Top-3，每条含四维 evidence
+- **断言点**：S_static 非空、P_runtime.functions 非空、Top-3 长度 ∈ (0,3]、Candidate 含 evidence 四维且非零
+
+### 2. e2e_static_only_degraded
+- **前置条件**：Trace 缺失（P_runtime 不可用）、CodeGraph 可用
+- **测试步骤**：仅构建 S_static → 触发降权 → `cross_validate` 降级 → 取 Top-3
+- **预期结果**：runtime_anomaly=0，仍产出 Top-3，evidence 标注"运行时缺失"
+- **断言点**：候选 runtime_anomaly 维度=0、Top-3 非空、降级标记存在
+
+### 3. e2e_runtime_only_degraded
+- **前置条件**：CodeGraph 缺失、Trace 可用
+- **测试步骤**：仅构建 P_runtime → 触发降权 → `cross_validate` 降级 → 取 Top-3
+- **预期结果**：static_depth=0，仍产出 Top-3，evidence 标注"静态缺失"
+- **断言点**：候选 static_depth=0、Top-3 非空、降级标记存在
+
+### 4. e2e_full_intersection
+- **前置条件**：双维数据完整且 S_static ∩ P_runtime.functions 非空
+- **测试步骤**：双图谱构建 → `cross_validate` 交集非空 → 取 Top-1
+- **预期结果**：Top-1 置信度高（双维命中 score 提升）
+- **断言点**：交集非空、Top-1 score 高于单维基线阈值、双维 evidence 均非零
+
+### 5. e2e_empty_intersection_fallback
+- **前置条件**：双维数据完整但函数集不相交（交集为空）
+- **测试步骤**：交集为空 → 并集兜底 + 降权标注 → 强制上浮 HIL 闸门
+- **预期结果**：触发 HIL 上浮，候选置信度降级
+- **断言点**：交集为空、降级标注"双路未收敛"存在、HIL 闸门触发标志为真
+
+### 6. e2e_weight_tuning
+- **前置条件**：可修改权重 YAML
+- **测试步骤**：默认权重 (0.3/0.3/0.2/0.2) 跑批 → 修改 w1↑/w3↑ → 重跑 `cross_validate` → 对比 Top-3 排序
+- **预期结果**：权重变化后 Top-3 排序与 score 数值随之改变
+- **断言点**：两次跑批排序结果不同、score 数值随权重变化、配置热加载生效

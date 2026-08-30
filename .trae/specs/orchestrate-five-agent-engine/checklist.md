@@ -73,3 +73,26 @@
 - [ ] M1：端到端 < 30s
 - [ ] M2：Top-3 命中率 ≥ 75%
 - [ ] 误报率（双闸门后）≤ 5%
+
+## 测试质量保障
+- [ ] UT 覆盖率 ≥85%（line + branch）
+- [ ] 20 个 UT 用例全部通过
+- [ ] 8 个 E2E 场景全部通过
+- [ ] LangGraph 拓扑断言 UT 通过（含 fan-out/fan-in 时序）
+- [ ] score 四维权重计算 UT 通过（0.35/0.30/0.20/0.15）
+- [ ] HIL 阈值 τ=0.6 触发逻辑 UT 通过
+- [ ] 断点续跑 E2E 验证恢复正确
+- [ ] SSE 流式推送 E2E 验证事件序列完整
+- [ ] 降级模式 E2E 验证兜底产出 Top-3
+- [ ] 并发分析 E2E 验证 state_key 隔离
+- [ ] CI 流水线集成 pytest 执行
+
+## 跨模块集成测试与测试数据 Mock
+- [ ] 7 个跨模块集成测试场景全部通过
+- [ ] RCAState/Bug单/A1-A5Output/SSE/LLM 9 类 Mock 样本 JSON 就绪
+- [ ] fakeredis + Celery eager 配置正确（不依赖真实 Redis/RabbitMQ）
+- [ ] 全链路集成测试验证 RCAState 11 字段流转正确
+- [ ] LLM mock 按 Agent 角色返回正确预设响应
+- [ ] SSE 事件流序列集成测试通过
+- [ ] Fixture 文件组织符合 tests/fixtures/engine/ 约定
+- [ ] mock 全部上游依赖（Bug单/CodeGraph/Trace/LightRAG/双图谱/LLM）不产生真实外部调用

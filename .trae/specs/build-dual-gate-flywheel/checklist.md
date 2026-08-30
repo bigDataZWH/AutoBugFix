@@ -50,3 +50,24 @@
 - [ ] 双闸门后误报率 ≤ 5%
 - [ ] 误报率较无双闸门基线下降 ≥ 40%
 - [ ] 知识飞轮使准确率随案例积累单调提升（输出自学习曲线验证）
+
+## 测试与质量保障
+- [ ] UT 覆盖率 ≥85%（line + branch）
+- [ ] 17 个 UT 用例全部通过
+- [ ] 6 个 E2E 场景全部通过
+- [ ] CRAG 三分类 UT 通过（relevant/ambiguous/irrelevant）
+- [ ] HIL 阈值 τ=0.6 触发/通过 UT 通过
+- [ ] 飞轮回写 E2E 验证 SIMILAR_TO 边创建
+- [ ] 飞轮复用 E2E 验证历史根因命中
+- [ ] CRAG→HIL 闸门顺序 UT 通过
+- [ ] CI 流水线集成 pytest 执行
+
+## 跨模块集成测试与 Mock 规范
+- [ ] 6 个跨模块集成测试场景全部通过
+- [ ] CragTriage/HilDecision/FlywheelPayload/SimilarToEdge/Solution/embedding/τ配置 7 类 Mock 样本就绪
+- [ ] CRAG→HIL 闸门顺序集成测试通过
+- [ ] HIL accept/reject/timeout 三路径集成测试通过
+- [ ] 飞轮回写 SIMILAR_TO 边创建集成测试通过
+- [ ] τ=0.6 阈值触发逻辑集成测试通过
+- [ ] Fixture 文件组织符合 tests/fixtures/gate/ 约定
+- [ ] mock LightRAG/BGE-M3/HIL面板 不产生真实外部调用

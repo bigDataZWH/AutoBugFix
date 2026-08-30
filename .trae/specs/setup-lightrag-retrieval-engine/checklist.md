@@ -21,3 +21,22 @@
 - [ ] 增量更新生效：飞轮回写后仅受影响社区摘要重算，全量重建触发率为 0
 - [ ] 索引成本 ≤ 1/30 GraphRAG（同语料 GraphRAG 全量索引 LLM token 消耗为基准对比）
 - [ ] Win 原生部署零 Docker 依赖，单进程内存/连接可控
+
+## 测试（UT + E2E）
+- [ ] UT 覆盖率 ≥85%（line + branch，`pytest --cov` 报告达标）
+- [ ] 12 个 UT 用例全部通过（test_ast_kg_schema_validation / test_lightrag_init / test_ainsert_async / test_ainsert_custom_kg / test_aquery_naive / test_aquery_local / test_aquery_hybrid / test_query_param_config / test_embedding_dim / test_postgres_storage / test_retrieval_routing / test_reranker_triage）
+- [ ] 6 个 E2E 场景全部通过（e2e_full_retrieval_flow / e2e_hybrid_query / e2e_custom_kg_inject / e2e_chinese_query_retrieval / e2e_incremental_insert / e2e_reranker_gate）
+- [ ] embedding 维度 dim=1024 校验通过（`len(vec)==1024` 断言，与 pgvector schema 维度一致）
+- [ ] 3 路检索路由 UT 全覆盖（naive/local/hybrid 按 QueryParam.mode 分流断言）
+- [ ] ast_kg JSON schema 校验 UT 通过（entities/edges 必填、实体类型枚举、边方向校验、weight 正浮点，非法样例抛错且不写入）
+- [ ] 重排序三分类 UT 通过（relevant/ambiguous/irrelevant 归档正确率 100%，边界值≥阈值=相关，超时降级返回未重排排序+标注）
+- [ ] CI 流水线集成 pytest 执行（UT + E2E 在 CI 自动运行，testcontainers Postgres 自动起停）
+
+## 跨模块集成测试与 Mock 基础设施
+- [ ] 6 个跨模块集成测试场景全部通过（integ_code2cn_to_lightrag_ainsert / integ_codegraph_astkg_to_lightrag / integ_flywheel_to_lightrag_ainsert / integ_lightrag_to_agent4_aquery / integ_lightrag_to_crag_reranker / integ_full_pipeline_lightrag）
+- [ ] ast_kg/aquery响应/QueryParam/embedding/CRAG/飞轮 6 类 Mock 样本 JSON 就绪
+- [ ] Postgres testcontainers 初始化 + schema DDL 通过（实体/边/社区表 + `vector(1024)` + 向量索引）
+- [ ] BGE-M3 embedding mock 维度 dim=1024 校验通过（`len(vec)==1024`，与 pgvector schema 维度一致）
+- [ ] 上下游数据契约字段映射集成测试通过（CodeOutline→description、ast_kg→实体/边、飞轮→SIMILAR_TO 边、aquery/CRAG 衔接）
+- [ ] Fixture 文件组织符合 tests/fixtures/lightrag/ 约定（含 ast_kg/ 子目录与 *.json 静态样本）
+- [ ] testcontainers 启动/销毁不残留（teardown 验证 `docker rm -f` 无遗留容器）

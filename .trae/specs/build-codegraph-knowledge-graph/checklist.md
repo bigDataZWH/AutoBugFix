@@ -57,3 +57,22 @@
 - [ ] 相比 V2.0，耗时节省 ≥49%
 - [ ] 相比 V2.0，工具调用减少 ≥70%
 - [ ] ~10k 文件图谱单次多跳查询秒级响应（无需读取原始源文件）
+
+## 测试方案验收
+- [ ] UT 覆盖率 ≥85%（line + branch，coverage 报告可查）
+- [ ] 12 个 UT 用例全部通过（pytest 执行退出码 0）
+- [ ] 6 个 E2E 场景全部通过
+- [ ] 多语言解析 UT 覆盖 Java/Go/Python/TS/JS/C++ 六语言（各产出符号断言）
+- [ ] MCP 4 工具 callers/callees/explore/taint UT 全覆盖（4/4）
+- [ ] 内存峰值 ≤3.2GB 验证通过（tracemalloc/resource 采样峰值断言）
+- [ ] 增量构建 E2E 验证仅重建变更子树（未变更节点哈希前后一致）
+- [ ] CI 流水线集成 pytest 执行（CI job 跑 UT+E2E 并上报覆盖率）
+
+## 跨模块集成测试与 Mock 验收
+- [ ] 6 个跨模块集成测试场景全部通过（integ_git_to_codegraph / integ_codegraph_to_code2cn / integ_codegraph_to_lightrag_astkg / integ_codegraph_to_agent2_mcp / integ_codegraph_to_dualgraph_static / integ_full_pipeline_codegraph）
+- [ ] CPG节点/边/ast_kg/MCP响应 4 类 Mock 样本 JSON 就绪（cpg_nodes.json / cpg_edges.json / ast_kg.json / mcp_responses.json）
+- [ ] 6 语言代码样本就绪（Java/Go/Python/TS/JS/C++，tests/fixtures/codegraph/samples/<lang>/ 各含一份）
+- [ ] SQLite :memory: + FTS5 测试库初始化通过（nodes/edges/nodes_fts 三表 DDL 可建可查）
+- [ ] 上下游数据契约字段映射集成测试通过（symbol/file/source_code 传入 code2cn；ast_kg 注入 LightRAG；S_static func_id/func_name/call_path/static_depth 字段齐全）
+- [ ] Fixture 文件组织符合 tests/fixtures/codegraph/ 约定（samples/ 多语言样本 + 4 类 JSON 数据样本 + opencode.json）
+- [ ] MCP mock 不产生真实进程间通信（传输层 mock 验证 tool call 参数与响应格式，无真实 IPC 调用）

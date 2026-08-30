@@ -42,8 +42,30 @@
 - [ ] SubTask 5.5: 统计并验证误报率下降 ≥ 40%、双闸门后误报率 ≤ 5%、Top-3 覆盖率 ≥ 95%、Top-1 命中率 ≥ 80%
 - **验证步骤**: 评估集跑批输出四项 KPI 达标报告；双闸门放行后误报率复测；权重可配置性验证
 
+## Task 6: 编写 UT 测试套件（覆盖 14 个用例，目标覆盖率 ≥85%）
+- [ ] SubTask 6.1: 搭建 pytest + pytest-asyncio 骨架与 fixtures（mock 数据工厂、YAML 配置工厂、tmp_path 隔离）
+- [ ] SubTask 6.2: 编写数据结构 Schema 用例（test_s_static_schema / test_p_runtime_schema / test_candidate_schema）
+- [ ] SubTask 6.3: 编写交叉验证核心用例（test_cross_validate_intersection / test_contains_relationship / test_topk_ranking / test_empty_intersection）
+- [ ] SubTask 6.4: 编写 score 公式与权重用例（test_score_formula / test_weight_config_load / test_degradation_switch）
+- [ ] SubTask 6.5: 编写降级与证据链用例（test_single_dimension_degrade / test_both_dimensions_boost / test_evidence_chain_construction / test_metric_correlation）
+- [ ] SubTask 6.6: mock Adapter 封装（CMDB Adapter mock / Trace Adapter mock / CodeGraph 加载器 mock）
+- [ ] SubTask 6.7: 接入 pytest-cov 覆盖率统计，目标 line + branch ≥85%，产出覆盖率报告
+- **验证步骤**: 14 个 UT 用例全部通过；覆盖率报告 line+branch ≥85%；CI 集成 pytest 执行
+
+## Task 7: 编写 E2E 测试套件（覆盖 6 个场景）
+- [ ] SubTask 7.1: 搭建 E2E 骨架与端到端 fixtures（双图谱 mock 数据集、评估样本集、断言工具）
+- [ ] SubTask 7.2: 编写全链路场景 e2e_dual_graph_build_validate
+- [ ] SubTask 7.3: 编写降级场景 e2e_static_only_degraded / e2e_runtime_only_degraded
+- [ ] SubTask 7.4: 编写交集场景 e2e_full_intersection / e2e_empty_intersection_fallback
+- [ ] SubTask 7.5: 编写权重调优场景 e2e_weight_tuning（YAML 热加载对比）
+- [ ] SubTask 7.6: 构造 V2.0 vs V3.0 评估集，验证假阳性降低 ≥40%
+- [ ] SubTask 7.7: E2E 断言工具封装（Top-3 结构断言、evidence 四维断言、降级标记断言）
+- **验证步骤**: 6 个 E2E 场景全部通过；假阳性降低 ≥40% 复测通过；E2E 报告产出
+
 # Task Dependencies
 - Task 2 depends on build-codegraph-knowledge-graph（函数级调用图数据源）
 - Task 3 depends on Task 1、Task 2
 - Task 4 depends on Task 3（以及 orchestrate-five-agent-engine 的 A2/A3 输出）
 - Task 5 depends on Task 4（以及 orchestrate-five-agent-engine、build-dual-gate-flywheel）
+- Task 6 depends on Task 4（交叉验证算法实现完成）
+- Task 7 depends on Task 6（UT 套件就绪）+ Task 5（A4 集成完成）

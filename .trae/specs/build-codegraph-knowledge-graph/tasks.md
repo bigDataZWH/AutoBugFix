@@ -55,6 +55,53 @@
   - [ ] SubTask 6.5: 验证基准达标（平均省 35% 成本 / 59% token / 49% 耗时 / 70% 工具调用）
   - **验证**: ~10k 文件仓库零文件读取回答架构问题；峰值内存 ≤3.5GB；语言覆盖 ≥20；四项基准中位数达目标值
 
+- [ ] Task 7: 编写 UT 测试套件（覆盖 12 个用例，目标覆盖率 ≥85%）
+  - [ ] SubTask 7.1: 搭建 pytest + pytest-asyncio 测试骨架，约定 SQLite 统一用 `:memory:` 临时库，MCP 传输层用 mock，多语言解析用真实样本
+  - [ ] SubTask 7.2: 编写 `test_tree_sitter_multi_lang`（Java/Go/Python/TS/JS/C++ 真实样本，验证函数/类/方法节点提取）
+  - [ ] SubTask 7.3: 编写 `test_symbol_extraction`（函数名、类名、参数列表、返回类型正确性）
+  - [ ] SubTask 7.4: 编写 `test_edge_extraction`（call/dataflow/control/inheritance 四类边）
+  - [ ] SubTask 7.5: 编写 `test_sqlite_crud`（节点/边 增删改查 + 事务回滚 + 唯一约束冲突）
+  - [ ] SubTask 7.6: 编写 `test_fts5_fulltext_search`（符号名模糊匹配、中文摘要检索、BM25 排序）
+  - [ ] SubTask 7.7: 编写 `test_mcp_callers_tool`（反向 BFS 多层调用者，mock MCP 传输）
+  - [ ] SubTask 7.8: 编写 `test_mcp_callees_tool`（正向调用链与 call 边）
+  - [ ] SubTask 7.9: 编写 `test_mcp_explore_tool`（N 跳邻居子图，含 call/inherit/ref 边）
+  - [ ] SubTask 7.10: 编写 `test_mcp_taint_tool`（source→sink 污点传播路径与 reachable 标记）
+  - [ ] SubTask 7.11: 编写 `test_large_repo_incremental`（~10k 文件 git diff 后仅重建变更子树）
+  - [ ] SubTask 7.12: 编写 `test_memory_peak`（tracemalloc/resource 采样，峰值 ≤3.2GB 断言）
+  - [ ] SubTask 7.13: 编写 `test_opencode_json_config`（合法/非法 opencode.json 加载与校验）
+  - [ ] SubTask 7.14: 接入 coverage 工具，line + branch 覆盖率 ≥85% 并生成报告
+  - **验证**: 12 个 UT 用例全部通过（pytest 退出码 0）；coverage 报告 line+branch ≥85%；MCP 4 工具（callers/callees/explore/taint）与 Java/Go/Python/TS/JS/C++ 六语言解析全覆盖
+
+- [ ] Task 8: 编写 E2E 测试套件（覆盖 6 个场景）
+  - [ ] SubTask 8.1: 准备真实 git 测试仓（Java/Go/Python 混合）与 MCP 端到端测试夹具
+  - [ ] SubTask 8.2: 编写 `e2e_full_build_pipeline`（clone → init → index → MCP Server → callers/callees）
+  - [ ] SubTask 8.3: 编写 `e2e_mcp_query_callers`（反向调用链完整性，depth=3）
+  - [ ] SubTask 8.4: 编写 `e2e_mcp_query_callees`（正向调用链完整性）
+  - [ ] SubTask 8.5: 编写 `e2e_taint_analysis`（source→sink 全链路可达性）
+  - [ ] SubTask 8.6: 编写 `e2e_incremental_rebuild`（git commit 后仅重建变更子树，未变更节点哈希一致）
+  - [ ] SubTask 8.7: 编写 `e2e_multi_language_repo`（Java+Go+Python 三语言共存同一图谱）
+  - **验证**: 6 个 E2E 场景全部通过；端到端「构建-持久化-查询-增量」链路闭合；CI 流水线集成 pytest 执行并上报覆盖率
+
+- [ ] Task 9: 编写跨模块集成测试套件（覆盖 6 个集成场景）
+  - [ ] SubTask 9.1: 编写 `integ_git_to_codegraph`（mock git clone → tree-sitter 解析 → CPG 节点/边构建，断言节点数与边类型 ∈ {call,dataflow,control,inheritance}）
+  - [ ] SubTask 9.2: 编写 `integ_codegraph_to_code2cn`（CPG 函数节点 → `{symbol,file,source_code}` 三字段传递 + `cn_summary` 回写 nodes）
+  - [ ] SubTask 9.3: 编写 `integ_codegraph_to_lightrag_astkg`（CPG → ast_kg JSON 转换 → `ainsert_custom_kg` 注入，mock LightRAG 下游）
+  - [ ] SubTask 9.4: 编写 `integ_codegraph_to_agent2_mcp`（A2 经 MCP 调 callers/callees/taint，反向 BFS 构建 S_static）
+  - [ ] SubTask 9.5: 编写 `integ_codegraph_to_dualgraph_static`（CPG call 边 → S_static 投影：`func_id`/`func_name`/`call_path`/`static_depth`）
+  - [ ] SubTask 9.6: 编写 `integ_full_pipeline_codegraph`（clone → CPG → SQLite → MCP → 下游 code2cn/LightRAG/双图谱消费全链路闭合）
+  - [ ] SubTask 9.7: 编写上下游数据契约字段映射断言（`symbol/file/source_code` 传入 code2cn；ast_kg entities/edges 注入 LightRAG；S_static 字段一一对应）
+  - **验证**: 6 个集成场景全部通过（pytest 退出码 0）；上下游数据契约字段映射断言通过；跨模块边界用 mock 隔离真实下游进程
+
+- [ ] Task 10: 搭建测试数据与 Mock 基础设施（多语言样本仓库 + Fixture 工厂 + Mock 注册）
+  - [ ] SubTask 10.1: 创建多语言样本仓库 `tests/fixtures/codegraph/samples/<lang>/*.ext`（Java/Go/Python/TS/JS/C++ 六语言各一份，含函数/类/方法/调用/继承/数据流）
+  - [ ] SubTask 10.2: 编写 `conftest.py` Fixture 工厂（`build_cpg_nodes`/`build_cpg_edges`/`build_ast_kg`/`build_mcp_response` 参数化工厂函数 + SQLite `:memory:` 初始化 fixture）
+  - [ ] SubTask 10.3: 编写 CPG 节点/边/ast_kg/MCP 响应 4 类 Mock 样本 JSON（`cpg_nodes.json`/`cpg_edges.json`/`ast_kg.json`/`mcp_responses.json`）
+  - [ ] SubTask 10.4: 实现 git repo mock（预设仓库路径 + mock clone，跳过真实网络）与 opencode-codegraph 插件 mock（mock tree-sitter 解析输出）
+  - [ ] SubTask 10.5: 实现 SQLite `:memory:` + FTS5 测试库初始化 DDL（nodes/edges/nodes_fts 三表，edges 含 dataflow/control 边类型）
+  - [ ] SubTask 10.6: 实现 MCP 传输层 mock（验证 tool call 参数与响应格式序列化，不产生真实进程间通信）
+  - [ ] SubTask 10.7: 编写 opencode.json 插件配置 Mock 样本
+  - **验证**: 6 语言样本就绪；4 类 Mock JSON 就绪；`:memory:` + FTS5 初始化通过；MCP mock 无真实 IPC 调用
+
 # Task Dependencies
 - Task 2 depends on Task 1
 - Task 3 depends on Task 2
@@ -63,3 +110,8 @@
 - Task 6 depends on Task 4、Task 5
 - Task 3.4 依赖 generate-code-chinese-outline
 - Task 3.5 依赖 setup-lightrag-retrieval-engine
+- Task 7 depends on Task 4、Task 5
+- Task 8 depends on Task 7、Task 3
+- Task 9 depends on Task 7、Task 8、Task 3
+- Task 10 depends on Task 7
+- Task 9 depends on Task 10（集成测试套件依赖 Mock 与 Fixture 基础设施）
