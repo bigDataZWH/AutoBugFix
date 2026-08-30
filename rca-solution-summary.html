@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>问题单智能根因分析平台 · V3.0 方案总结</title>
+<style>
+  :root{
+    --bg:#0a0e17; --bg2:#0f1521; --panel:#141b2b; --panel2:#1a2336;
+    --line:#243049; --txt:#e6edf7; --txt2:#9aa7bd; --txt3:#6b7689;
+    --brand:#5b8cff; --brand2:#22d3ee; --acc:#a78bfa; --warn:#fbbf24;
+    --ok:#34d399; --bad:#fb7185;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:"PingFang SC","Microsoft YaHei",-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg);color:var(--txt);line-height:1.75;font-size:15px;
+    background-image:radial-gradient(circle at 20% 0%,rgba(91,140,255,.08),transparent 40%),
+                     radial-gradient(circle at 80% 100%,rgba(34,211,238,.06),transparent 40%);
+  }
+  .wrap{display:flex;min-height:100vh}
+  /* 侧边目录 */
+  .nav{
+    width:280px;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;
+    background:var(--bg2);border-right:1px solid var(--line);overflow-y:auto;padding:24px 0;
+  }
+  .nav .brand{padding:0 24px 20px;border-bottom:1px solid var(--line);margin-bottom:16px}
+  .nav .brand .logo{font-size:13px;color:var(--brand2);letter-spacing:2px;font-weight:600}
+  .nav .brand .title{font-size:16px;font-weight:700;margin-top:6px;line-height:1.4}
+  .nav .brand .ver{font-size:11px;color:var(--txt3);margin-top:6px}
+  .nav a{
+    display:block;padding:9px 24px;color:var(--txt2);text-decoration:none;font-size:13.5px;
+    border-left:3px solid transparent;transition:.2s;
+  }
+  .nav a:hover{color:var(--txt);background:var(--panel);border-left-color:var(--brand)}
+  .nav a.sub{padding-left:44px;font-size:12.5px;color:var(--txt3)}
+  .nav a.sub:hover{border-left-color:var(--brand2)}
+  /* 主内容 */
+  .main{margin-left:280px;flex:1;padding:48px 64px 80px;max-width:1080px}
+  .sec{margin-bottom:56px;scroll-margin-top:24px}
+  .sec h2{font-size:26px;font-weight:700;margin-bottom:8px;border-bottom:1px solid var(--line);padding-bottom:14px}
+  .sec h2 .n{color:var(--brand);font-family:"JetBrains Mono",monospace;margin-right:10px}
+  .sec h3{font-size:18px;font-weight:600;margin:28px 0 12px;color:var(--brand2)}
+  .sec h4{font-size:15px;font-weight:600;margin:20px 0 10px;color:var(--acc)}
+  .sec p{color:var(--txt2);margin-bottom:12px}
+  .sec ul,.sec ol{color:var(--txt2);margin:0 0 16px 22px}
+  .sec li{margin-bottom:6px}
+  .sec strong{color:var(--txt)}
+  .sec code{font-family:"JetBrains Mono","Consolas",monospace;background:var(--panel2);
+    padding:2px 7px;border-radius:4px;font-size:13px;color:var(--brand2)}
+  .lead{font-size:15.5px;color:var(--txt2);margin-bottom:20px;padding:16px 20px;
+    background:linear-gradient(90deg,rgba(91,140,255,.1),transparent);border-left:3px solid var(--brand);border-radius:0 8px 8px 0}
+  /* hero */
+  .hero{background:linear-gradient(135deg,var(--panel) 0%,var(--bg2) 100%);
+    border:1px solid var(--line);border-radius:16px;padding:40px 44px;margin-bottom:48px;position:relative;overflow:hidden}
+  .hero::before{content:"";position:absolute;top:-40%;right:-10%;width:50%;height:180%;
+    background:radial-gradient(circle,rgba(91,140,255,.15),transparent 60%)}
+  .hero .tag{display:inline-block;font-size:11px;letter-spacing:2px;color:var(--brand2);
+    border:1px solid var(--brand2);border-radius:20px;padding:4px 14px;margin-bottom:16px}
+  .hero h1{font-size:30px;font-weight:800;line-height:1.3;margin-bottom:14px;position:relative}
+  .hero .sub{color:var(--txt2);font-size:15px;max-width:780px;position:relative}
+  .hero .meta{display:flex;gap:32px;margin-top:24px;position:relative;flex-wrap:wrap}
+  .hero .meta .it{font-size:12px}
+  .hero .meta .it .k{color:var(--txt3);display:block;margin-bottom:2px}
+  .hero .meta .it .v{color:var(--txt);font-weight:600}
+  /* 更新卡片 */
+  .updates{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:48px}
+  .upd{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;position:relative;overflow:hidden}
+  .upd .badge{position:absolute;top:0;right:0;background:var(--brand);color:#fff;font-size:10px;padding:3px 10px;border-radius:0 0 0 8px}
+  .upd h4{color:var(--brand2);margin:0 0 10px;font-size:14px}
+  .upd .tool{font-size:12px;color:var(--txt3);margin-bottom:8px;font-family:monospace}
+  .upd p{font-size:13px;color:var(--txt2);margin:0}
+  /* 表格 */
+  .tbl{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px;background:var(--panel);border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+  .tbl th{background:var(--panel2);color:var(--brand2);text-align:left;padding:11px 14px;font-weight:600;border-bottom:1px solid var(--line);font-size:12.5px;white-space:nowrap}
+  .tbl td{padding:10px 14px;border-bottom:1px solid var(--line);color:var(--txt2);vertical-align:top}
+  .tbl tr:last-child td{border-bottom:none}
+  .tbl tr:hover td{background:rgba(91,140,255,.04)}
+  .tbl .yes{color:var(--ok);font-weight:600}
+  .tbl .no{color:var(--bad)}
+  .tbl .mid{color:var(--warn)}
+  .tbl .hl{color:var(--txt);font-weight:600}
+  /* 代码块 */
+  .code{background:#0b0f1a;border:1px solid var(--line);border-radius:10px;margin:16px 0;overflow:hidden}
+  .code .bar{background:var(--panel2);padding:8px 14px;font-size:11px;color:var(--txt3);font-family:monospace;border-bottom:1px solid var(--line);display:flex;justify-content:space-between}
+  .code .bar .lang{color:var(--brand2)}
+  .code pre{padding:16px 20px;overflow-x:auto;font-family:"JetBrains Mono","Consolas",monospace;font-size:12.8px;line-height:1.7;color:#c9d4e5}
+  .code .c{color:#5b6e8f}
+  .code .k{color:#c792ea}
+  .code .s{color:#c3e88d}
+  .code .f{color:#82aaff}
+  /* 架构图 */
+  .arch{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:24px;margin:16px 0;overflow-x:auto}
+  .arch .ascii{font-family:"JetBrains Mono",monospace;font-size:12px;line-height:1.55;color:var(--txt2);white-space:pre}
+  .arch .ascii .b{color:var(--brand2)} .arch .ascii .g{color:var(--ok)} .arch .ascii .p{color:var(--acc)}
+  /* 流程步骤 */
+  .steps{display:flex;gap:0;margin:20px 0;flex-wrap:wrap}
+  .step{flex:1;min-width:130px;background:var(--panel);border:1px solid var(--line);padding:14px;position:relative;border-radius:8px 0 0 8px}
+  .step:first-child{border-radius:8px}
+  .step:last-child{border-radius:0 8px 8px 0}
+  .step:not(:last-child){border-right:none}
+  .step .num{font-size:11px;color:var(--brand);font-family:monospace;font-weight:700}
+  .step .nm{font-size:13px;font-weight:600;margin:4px 0;color:var(--txt)}
+  .step .ds{font-size:11.5px;color:var(--txt3)}
+  /* 高亮框 */
+  .note{background:linear-gradient(90deg,rgba(167,139,250,.12),transparent);border-left:3px solid var(--acc);padding:14px 18px;border-radius:0 8px 8px 0;margin:16px 0;font-size:13.5px;color:var(--txt2)}
+  .note.warn{background:linear-gradient(90deg,rgba(251,191,36,.12),transparent);border-left-color:var(--warn)}
+  .note.ok{background:linear-gradient(90deg,rgba(52,211,153,.12),transparent);border-left-color:var(--ok)}
+  .note .t{color:var(--txt);font-weight:600;display:block;margin-bottom:4px}
+  /* 关键值 */
+  .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:20px 0}
+  .kpi .k{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;text-align:center}
+  .kpi .k .v{font-size:24px;font-weight:800;color:var(--brand2);font-family:monospace}
+  .kpi .k .l{font-size:11px;color:var(--txt3);margin-top:4px}
+  /* 创新卡 */
+  .innov{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}
+  .innov .it{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+  .innov .it .ic{font-size:18px;margin-bottom:6px}
+  .innov .it h4{color:var(--brand2);margin:0 0 8px;font-size:14px}
+  .innov .it p{font-size:12.5px;color:var(--txt2);margin:0}
+  /* 引用 */
+  .refs{font-size:12px;color:var(--txt3);border-top:1px solid var(--line);padding-top:16px;margin-top:32px}
+  .refs a{color:var(--brand);text-decoration:none}
+  .refs a:hover{text-decoration:underline}
+  .foot{text-align:center;color:var(--txt3);font-size:12px;margin-top:40px;padding-top:24px;border-top:1px solid var(--line)}
+  /* 响应式 */
+  @media(max-width:1024px){
+    .nav{position:relative;width:100%;height:auto;border-right:none;border-bottom:1px solid var(--line)}
+    .main{margin-left:0;padding:32px 24px 60px}
+    .updates,.innov,.kpi{grid-template-columns:1fr}
+    .step{border-radius:8px!important;border:1px solid var(--line)!important;margin-bottom:8px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="nav">
+    <div class="brand">
+      <div class="logo">HUAWEI · RCA PLATFORM</div>
+      <div class="title">问题单智能根因分析平台</div>
+      <div class="ver">方案总结 · V3.0 · 2026.08</div>
+    </div>
+    <a href="#overview">总览与更新要点</a>
+    <a href="#req">需求与约束</a>
+    <a href="#arch">整体架构</a>
+    <a href="#code2cn" class="sub">模块A · 代码中文描述</a>
+    <a href="#codegraph" class="sub">模块B · CodeGraph 代码图谱</a>
+    <a href="#lightrag" class="sub">模块C · LightRAG 检索</a>
+    <a href="#engine">5-Agent 智能引擎</a>
+    <a href="#dualgraph">双图谱与交叉验证</a>
+    <a href="#gate">双闸门与知识飞轮</a>
+    <a href="#dataflow">数据流时序</a>
+    <a href="#deploy">Win 本地部署</a>
+    <a href="#roadmap">路线图与验证</a>
+    <a href="#innov">关键创新与方案对比</a>
+  </nav>
+
+  <main class="main">
+
+    <!-- HERO -->
+    <div class="hero" id="overview">
+      <span class="tag">DESIGN SUMMARY · NO CODE</span>
+      <h1>问题单智能根因分析平台 · V3.0<br>方案总结（opencode + CodeGraph + LightRAG 融合）</h1>
+      <p class="sub">面向华为团队的问题单自动根因分析平台。输入微服务代码仓（含分支）+ 云捷 Bug 单链接/描述，自动分析根因、匹配历史经验、探索业界最佳实践并给出修复方案。本版本引入 opencode-codegraph 插件构建代码图谱、opencode 订阅大模型做代码中文语义化、LightRAG 做分层检索。</p>
+      <div class="meta">
+        <div class="it"><span class="k">代码图谱</span><span class="v">CodeGraph (42.8k★)</span></div>
+        <div class="it"><span class="k">检索引擎</span><span class="v">LightRAG (双层级)</span></div>
+        <div class="it"><span class="k">大模型</span><span class="v">opencode 订阅</span></div>
+        <div class="it"><span class="k">部署</span><span class="v">Win11 本地可跑</span></div>
+        <div class="it"><span class="k">原则</span><span class="v">不重复造轮子</span></div>
+      </div>
+    </div>
+
+    <!-- 更新要点 -->
+    <div class="updates">
+      <div class="upd"><span class="badge">新增</span>
+        <h4>① 代码中文描述</h4>
+        <div class="tool">opencode订阅LLM · NL Outline范式</div>
+        <p>将类名/函数名保留，具体实现转为中文语义描述，作为图谱节点的语义摘要，提升检索可读性与命中率。</p>
+      </div>
+      <div class="upd"><span class="badge">替换</span>
+        <h4>② CodeGraph 代码图谱</h4>
+        <div class="tool">opencode-codegraph插件 · tree-sitter</div>
+        <p>用 opencode 官方插件替代手写 tree-sitter 调用图构建，克隆代码仓后自动构建 MCP 代码知识图谱。</p>
+      </div>
+      <div class="upd"><span class="badge">定案</span>
+        <h4>③ LightRAG 检索</h4>
+        <div class="tool">lightrag-hku · Postgres一体</div>
+        <p>采用 LightRAG 双层级检索，弃用 RAGFlow，Win 原生 pip 部署，复用 opencode 订阅 LLM。</p>
+      </div>
+    </div>
+
+    <!-- 1 需求与约束 -->
+    <div class="sec" id="req">
+      <h2><span class="n">01</span>需求与约束</h2>
+      <p class="lead">在"不重复造轮子、用业界已有项目、Win 可部署、复用 opencode 订阅大模型"的硬约束下，确定技术选型。</p>
+      <table class="tbl">
+        <tr><th>维度</th><th>要求</th></tr>
+        <tr><td>输入</td><td>微服务代码仓地址（含分支）+ 云捷 Bug 单链接/描述</td></tr>
+        <tr><td>输出</td><td>根因定位 5 步标准化流程 + 知识库匹配 + 最佳实践 + 修复方案</td></tr>
+        <tr><td>知识库</td><td>已有大量问题单（根因、验证、代码）作为输入</td></tr>
+        <tr><td>大模型</td><td>复用 opencode 已有订阅大模型，不重复部署 LLM</td></tr>
+        <tr><td>部署</td><td>Win11 本地可部署、可调试</td></tr>
+        <tr><td>原则</td><td>不重复造轮子，采用业界已有开源项目</td></tr>
+        <tr><td>阶段</td><td>先完成方案设计，不执行开发</td></tr>
+      </table>
+    </div>
+
+    <!-- 2 整体架构 -->
+    <div class="sec" id="arch">
+      <h2><span class="n">02</span>整体架构</h2>
+      <p>六层架构 + 两基座。V3.0 相比 V2.0 的核心变化：<strong>函数级调用图由 opencode-codegraph 插件自动构建（不再手写 tree-sitter）</strong>，函数节点语义由 opencode 大模型生成中文描述，检索层统一收敛到 LightRAG。</p>
+      <div class="arch">
+<div class="ascii"><span class="b">┌──────────────────────────────────────────────────────────────────────┐</span>
+<span class="b">│ L6 交互层</span>   Vue3+Ant-Vue · SSE流式 · HIL人工确认面板                <span class="b">│</span>
+<span class="b">├──────────────────────────────────────────────────────────────────────┤</span>
+<span class="b">│ L5 编排层</span>   FastAPI · LangGraph状态机 · Celery异步 · Redis           <span class="b">│</span>
+<span class="b">├──────────────────────────────────────────────────────────────────────┤</span>
+<span class="b">│ L4 智能引擎</span> 5-Agent(A1理解→A2代码∥A3链路→A4根因→A5方案)             <span class="b">│</span>
+<span class="g">│              四维关联 · 双闸门(CRAG+HIL) · 飞轮回写                    │</span>
+<span class="b">├──────────────────────────────────────────────────────────────────────┤</span>
+<span class="p">│ L3 检索层</span>   <span class="p">LightRAG 双层级</span>(low-level实体 + high-level主题)     <span class="b">│</span>
+<span class="b">├──────────────────────────────────────────────────────────────────────┤</span>
+<span class="p">│ L2 图谱层</span>   <span class="p">CodeGraph代码知识图谱</span>(opencode插件,MCP) + 语义中文化  <span class="b">│</span>
+<span class="b">├──────────────────────────────────────────────────────────────────────┤</span>
+<span class="b">│ L1 数据层</span>   Postgres(LightRAG一体:KV+向量+图状态) · 可选Neo4j       <span class="b">│</span>
+<span class="b">└──────────────────────────────────────────────────────────────────────┘</span>
+  <span class="g">▲基座A</span>: opencode平台(订阅LLM + AK/SK代码接口)
+  <span class="g">▲基座B</span>: 云捷Bug单  <span class="g">▲基座C</span>: Trace(Jaeger/SkyWalking)  <span class="g">▲基座D</span>: Metric(AOM)</div>
+      </div>
+      <h3>技术选型表</h3>
+      <table class="tbl">
+        <tr><th>层</th><th>组件</th><th>选型</th><th>选型理由</th></tr>
+        <tr><td>L6</td><td>前端</td><td>Vue3 + Ant Design Vue</td><td>生态成熟，已有原型</td></tr>
+        <tr><td>L5</td><td>API/编排</td><td>FastAPI + LangGraph + Celery</td><td>async/状态机/断点续跑</td></tr>
+        <tr><td>L4</td><td>大模型</td><td>opencode 订阅(DeepSeek-V3/Qwen2.5-Coder)</td><td>复用订阅，不重部</td></tr>
+        <tr><td>L3</td><td>检索</td><td class="hl">LightRAG(lightrag-hku)</td><td>双层级+图谱+重排，Win原生pip</td></tr>
+        <tr><td>L2</td><td>代码图谱</td><td class="hl">opencode-codegraph插件</td><td>opencode官方插件，CPG调用图，自动构建</td></tr>
+        <tr><td>L2</td><td>语义中文化</td><td>opencode LLM + NL Outline范式</td><td>函数级中文摘要，节点语义增强</td></tr>
+        <tr><td>L1</td><td>存储</td><td>Postgres(LightRAG一体)</td><td>KV+向量+图状态单库</td></tr>
+        <tr><td>基座</td><td>代码</td><td>opencode 平台 API(MCP)</td><td>已有AK/SK鉴权</td></tr>
+        <tr><td>基座</td><td>工单</td><td>云捷 Bug 单 API</td><td>数据源唯一</td></tr>
+      </table>
+    </div>
+
+    <!-- 模块A 代码中文描述 -->
+    <div class="sec" id="code2cn">
+      <h2><span class="n">03</span>模块A · 代码中文描述（对比方案）</h2>
+      <p class="lead">目标：将代码转为中文功能描述（保留类名、函数名，具体实现用中文描述），作为 CodeGraph 节点的语义摘要，喂给 LightRAG 做语义检索与根因推理。</p>
+      <p>业界范式参考：Google 的 Natural Language Outlines（FSE'25 会议论文）——用简洁散文分步概括函数主逻辑，LLM 可高质量生成；IBM Granite 的 code summarization 实践；以及 Agent4cs 多智能体分层摘要。本项目不造轮子，复用 opencode 订阅大模型实现。</p>
+
+      <h3>四种实现方案对比</h3>
+      <table class="tbl">
+        <tr><th>方案</th><th>做法</th><th>粒度</th><th>token成本</th><th>语义质量</th><th>Win可用</th><th>复用订阅LLM</th><th>推荐</th></tr>
+        <tr><td class="hl">甲·函数级NL大纲</td><td>AST切分到函数→逐函数LLM生成中文大纲(保留函数名,实现用中文分步描述)</td><td>函数</td><td class="mid">中</td><td class="yes">高</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">推荐</td></tr>
+        <tr><td>乙·文件级摘要</td><td>整文件喂LLM→生成中文功能概述</td><td>文件</td><td class="yes">低</td><td class="mid">中</td><td class="yes">✓</td><td class="yes">✓</td><td>—</td></tr>
+        <tr><td>丙·分层摘要(类→方法)</td><td>多Agent自底向上:方法摘要→类摘要→模块摘要(Agent4cs范式)</td><td>分层</td><td class="no">高</td><td class="yes">高</td><td class="yes">✓</td><td class="yes">✓</td><td>大规模时</td></tr>
+        <tr><td>丁·现成代码注释工具</td><td>基于AST的自动docstring生成(非LLM)</td><td>函数</td><td class="yes">极低</td><td class="no">低</td><td class="yes">✓</td><td>—</td><td class="no">不推荐</td></tr>
+      </table>
+
+      <div class="note ok"><span class="t">决策：方案甲（函数级 NL 大纲）为主，丙（分层）为大规模仓库的升级</span>
+        函数级中文大纲与 CodeGraph 的函数节点天然对齐：每个函数节点附带一段"函数名 + 中文实现描述"，既保留可追溯的符号名，又有可检索的中文语义，直接作为 LightRAG 实体描述注入。</div>
+
+      <h3>函数级中文大纲 Prompt 要点</h3>
+      <div class="code">
+        <div class="bar"><span>函数级中文大纲 · 生成Prompt</span><span class="lang">PROMPT</span></div>
+<pre><span class="c"># 角色：代码语义化专家。复用 opencode 订阅大模型。</span>
+<span class="c"># 输入：函数签名 + 函数源码（由 CodeGraph/codegraph 符号提取获得）</span>
+你是代码语义化专家。给定函数，输出中文功能大纲。
+要求：
+1. <span class="k">保留</span>类名与函数名（原文符号，便于回溯定位）
+2. 实现逻辑用<span class="k">中文</span>分步描述（每步一句，简洁）
+3. 标注输入参数、返回值、副作用、异常路径
+4. 若涉及外部调用（DB/RPC/缓存），显式标出
+输出JSON：
+{
+  <span class="s">"symbol"</span>: <span class="s">"OrderService.create"</span>,
+  <span class="s">"file"</span>: <span class="s">"OrderService.java:42"</span>,
+  <span class="s">"cn_summary"</span>: <span class="s">"创建订单：1.校验参数 2.查库存 3.写入订单表 4.发MQ 5.返回订单号"</span>,
+  <span class="s">"external_calls"</span>: [<span class="s">"库存RPC"</span>, <span class="s">"订单表DB"</span>, <span class="s">"MQ发送"</span>],
+  <span class="s">"failure_paths"</span>: [<span class="s">"库存不足抛InsufficientException"</span>]
+}</pre>
+      </div>
+
+      <h3>中文化与 CodeGraph / LightRAG 的衔接</h3>
+      <ul>
+        <li><strong>CodeGraph 节点增强</strong>：CodeGraph 提取的每个函数符号节点，附加 <code>cn_summary</code> 字段，作为节点描述属性。</li>
+        <li><strong>注入 LightRAG</strong>：把"函数符号 + 中文描述"作为实体描述，经 <code>insert_custom_kg</code> 注入 LightRAG 图谱，使其可被中文语义检索命中。</li>
+        <li><strong>增量中文化</strong>：仅对根因分析涉及的嫌疑子图函数做中文化（按需），而非全仓，控制 token 成本。</li>
+      </ul>
+    </div>
+
+    <!-- 模块B CodeGraph -->
+    <div class="sec" id="codegraph">
+      <h2><span class="n">04</span>模块B · CodeGraph 代码图谱（克隆后自动构建）</h2>
+      <p class="lead">用 opencode 官方支持的 opencode-codegraph 插件 + CodeGraph（colbymchenry/codegraph，42.8k★，MIT）替代手写 tree-sitter 调用图构建。CodeGraph 用 tree-sitter 解析 AST→提取符号与调用/继承/引用边→存 SQLite 知识图谱→经 MCP Server 暴露给 AI 工具查询，100% 本地运行，Windows 有 <code>install.ps1</code>。</p>
+
+      <div class="kpi">
+        <div class="k"><div class="v">42.8k★</div><div class="l">GitHub Stars</div></div>
+        <div class="k"><div class="v">20+</div><div class="l">支持语言</div></div>
+        <div class="k"><div class="v">70%</div><div class="l">工具调用减少</div></div>
+        <div class="k"><div class="v">100%</div><div class="l">本地运行</div></div>
+      </div>
+
+      <h3>CodeGraph 四层架构</h3>
+      <div class="arch">
+<div class="ascii">源码文件
+   │ ▼
+<span class="g">┌──────────────────┐</span>
+<span class="g">│ tree-sitter 解析 │</span> ← 生成AST(增量,容错,纯C,快)
+<span class="g">└────────┬─────────┘</span>
+   │ ▼
+<span class="g">┌──────────────────┐</span>
+<span class="g">│ 符号·边提取      │</span> ← 函数/类/方法 + 调用/继承/引用
+<span class="g">└────────┬─────────┘</span>
+   │ ▼
+<span class="g">┌──────────────────┐</span>
+<span class="g">│ SQLite 图谱存储  │</span> ← FTS5全文搜索 + 关系图
+<span class="g">└────────┬─────────┘</span>
+   │ ▼
+<span class="g">┌──────────────────┐</span>
+<span class="g">│ MCP Server       │</span> ← 暴露给opencode/AI工具查询
+<span class="g">└──────────────────┘</span></div>
+      </div>
+      <p>CodeGraph 基准实测（7 个真实开源仓库中位数）：平均省 <strong>35% 成本 / 59% token / 49% 耗时 / 70% 工具调用</strong>。大型仓库（如 VS Code ~10k 文件）收益最大，agent 几乎零文件读取即可回答架构问题。</p>
+
+      <h3>opencode-codegraph 插件能力</h3>
+      <p>npm 包 <code>opencode-codegraph@0.1.38</code> 是 opencode 官方支持的插件，对接 CodeGraph 的 CPG（Code Property Graph）。在 <code>opencode.json</code> 注册后，对话中提及文件即自动注入 CPG 上下文（方法数、圈复杂度、fan_in/fan_out、安全发现、调用关系），并支持污点分析。</p>
+      <div class="code">
+        <div class="bar"><span>opencode.json · 插件注册</span><span class="lang">JSON</span></div>
+<pre>{
+  <span class="s">"plugin"</span>: [<span class="s">"opencode-codegraph"</span>],
+  <span class="s">"mcp"</span>: {
+    <span class="s">"codegraph"</span>: {
+      <span class="s">"command"</span>: <span class="s">"codegraph"</span>,
+      <span class="s">"args"</span>: [<span class="s">"mcp"</span>],
+      <span class="s">"env"</span>: { <span class="s">"CODEGRAPH_DB"</span>: <span class="s">"./.codegraph/graph.db"</span> }
+    }
+  }
+}</pre>
+      </div>
+
+      <h3>克隆代码仓后自动构建流程</h3>
+      <div class="steps">
+        <div class="step"><div class="num">STEP 1</div><div class="nm">克隆代码仓</div><div class="ds">opencode拉取 repo@branch 到工作区</div></div>
+        <div class="step"><div class="num">STEP 2</div><div class="nm">codegraph init</div><div class="ds">在仓库根目录初始化 .codegraph</div></div>
+        <div class="step"><div class="num">STEP 3</div><div class="nm">自动索引</div><div class="ds">tree-sitter解析全仓→符号/边→SQLite</div></div>
+        <div class="step"><div class="num">STEP 4</div><div class="nm">语义中文化</div><div class="ds">对函数节点生成中文大纲(按需)</div></div>
+        <div class="step"><div class="num">STEP 5</div><div class="nm">注入LightRAG</div><div class="ds">insert_custom_kg写入检索图谱</div></div>
+        <div class="step"><div class="num">STEP 6</div><div class="nm">增量更新</div><div class="ds">git commit后增量重建受影响子树</div></div>
+      </div>
+
+      <div class="code">
+        <div class="bar"><span>克隆后自动构建 · 伪流程</span><span class="lang">SHELL</span></div>
+<pre><span class="c"># Win11 PowerShell / Linux 均可</span>
+<span class="f">irm</span> https://raw.githubusercontent.com/.../install.ps1 | iex   <span class="c"># 装codegraph(Win)</span>
+<span class="f">git</span> clone -b $branch $repo ./workspace/$repo_name              <span class="c"># opencode拉码</span>
+<span class="f">cd</span> ./workspace/$repo_name
+<span class="f">codegraph</span> init -i                                          <span class="c"># 初始化.codegraph</span>
+<span class="f">codegraph</span> index                                            <span class="c"># 全量构建知识图谱</span>
+<span class="c"># 之后 opencode 对话/MCP工具即可查 codegraph_callers / codegraph_explore</span></pre>
+      </div>
+
+      <div class="note"><span class="t">关键价值：替换方案V2.0中"手写tree-sitter调用图"</span>
+        V2.0 需自行实现 AST 解析、跨文件符号解析、调用边提取；V3.0 直接复用 CodeGraph 的成熟实现（多语言、增量、MCP），不再造轮子，且 opencode 原生支持，集成成本最低。</div>
+    </div>
+
+    <!-- 模块C LightRAG -->
+    <div class="sec" id="lightrag">
+      <h2><span class="n">05</span>模块C · LightRAG 检索（弃用 RAGFlow）</h2>
+      <p class="lead">采用 LightRAG（港大 HKUDS，lightrag-hku，MIT）作为统一检索引擎。双层级检索（low-level 实体 + high-level 主题）+ 图谱 + 重排，Win 原生 pip 部署，弃用 RAGFlow（部署重、需 Docker+WSL2）。</p>
+
+      <h3>LightRAG vs RAGFlow 选型对比</h3>
+      <table class="tbl">
+        <tr><th>维度</th><th class="hl">LightRAG（采用）</th><th>RAGFlow（弃用）</th></tr>
+        <tr><td>Win 原生部署</td><td class="yes">✓ pip直装,无需Docker</td><td class="mid">需Docker+WSL2+vm.max_map_count</td></tr>
+        <tr><td>部署复杂度</td><td class="yes">极低(单进程)</td><td class="no">重(ES+MinIO+Redis+MySQL)</td></tr>
+        <tr><td>本地调试</td><td class="yes">✓</td><td class="mid">重</td></tr>
+        <tr><td>存储</td><td>Postgres一体(KV+向量+图)</td><td>多组件</td></tr>
+        <tr><td>双层级检索</td><td class="yes">✓ low+high原生</td><td>需配置</td></tr>
+        <tr><td>图谱来源</td><td>LLM抽取实体关系</td><td>LLM抽取+自研</td></tr>
+        <tr><td>自定义KG注入</td><td class="yes">✓ insert_custom_kg</td><td class="mid">部分</td></tr>
+        <tr><td>复用opencode订阅</td><td class="yes">✓ OpenAI兼容端点</td><td class="yes">✓</td></tr>
+        <tr><td>重排</td><td class="yes">✓ 默认开启</td><td class="yes">✓</td></tr>
+        <tr><td>索引成本</td><td class="yes">低(~1/30 GraphRAG)</td><td>低</td></tr>
+        <tr><td>增量更新</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+      </table>
+
+      <h3>LightRAG 三路检索承载方案分层路由</h3>
+      <table class="tbl">
+        <tr><th>检索意图</th><th>LightRAG模式</th><th>数据源</th></tr>
+        <tr><td>历史经验匹配</td><td>low-level（实体检索）+hybrid</td><td>历史工单文档向量</td></tr>
+        <tr><td>根因传播追溯</td><td>图谱遍历（含注入的CodeGraph调用边）</td><td>LightRAG图+CodeGraph调用图</td></tr>
+        <tr><td>全局架构理解</td><td>high-level（主题/社区摘要）</td><td>代码中文大纲聚合</td></tr>
+      </table>
+
+      <h3>opencode 订阅 LLM 对接</h3>
+      <div class="code">
+        <div class="bar"><span>LightRAG .env · 对接 opencode 订阅</span><span class="lang">ENV</span></div>
+<pre><span class="c"># 复用 opencode 已订阅大模型,无需另部LLM</span>
+LLM_BINDING=openai
+LLM_MODEL=deepseek-v3                       <span class="c"># opencode订阅模型</span>
+LLM_BINDING_HOST=https://&lt;opencode&gt;/v1
+LLM_BINDING_API_KEY=&lt;opencode AK/SK&gt;
+
+EMBEDDING_BINDING=openai
+EMBEDDING_MODEL=bge-m3
+EMBEDDING_DIM=1024
+EMBEDDING_BINDING_HOST=https://&lt;MaaS&gt;/v1
+
+<span class="c"># 角色级LLM:抽取用便宜模型,根因推理用强模型,省token</span>
+EXTRACT_LLM_MODEL=qwen2.5-coder
+QUERY_LLM_MODEL=deepseek-v3</pre>
+      </div>
+
+      <h3>CodeGraph 调用图注入 LightRAG</h3>
+      <div class="code">
+        <div class="bar"><span>AST调用图 → LightRAG insert_custom_kg</span><span class="lang">PYTHON</span></div>
+<pre><span class="k">from</span> lightrag <span class="k">import</span> LightRAG, QueryParam
+
+rag = LightRAG(working_dir=<span class="s">"./rag"</span>,
+               llm_model_func=opencode_llm,     <span class="c"># opencode订阅</span>
+               embedding_func=maas_bge_m3)       <span class="c"># MaaS嵌入</span>
+
+<span class="c"># 1. 历史问题单文本索引(文本域)</span>
+<span class="k">await</span> rag.ainssert(batch_tickets_docs)
+
+<span class="c"># 2. 注入CodeGraph真实调用图(结构域,非LLM幻觉抽取)</span>
+ast_kg = {
+    <span class="s">"entities"</span>: [
+        {<span class="s">"entity_name"</span>: <span class="s">"func:OrderService.create"</span>, <span class="s">"type"</span>: <span class="s">"function"</span>,
+         <span class="s">"description"</span>: <span class="s">"创建订单:校验参数→查库存→写订单表→发MQ→返回订单号"</span>},  <span class="c"># 中文大纲</span>
+        {<span class="s">"entity_name"</span>: <span class="s">"func:PaymentClient.charge"</span>, <span class="s">"type"</span>: <span class="s">"function"</span>,
+         <span class="s">"description"</span>: <span class="s">"支付扣款:调用支付网关→记录流水"</span>},
+    ],
+    <span class="s">"relationships"</span>: [
+        {<span class="s">"src_id"</span>: <span class="s">"func:OrderService.create"</span>, <span class="s">"tgt_id"</span>: <span class="s">"func:PaymentClient.charge"</span>,
+         <span class="s">"description"</span>: <span class="s">"calls"</span>, <span class="s">"weight"</span>: 8.0},
+    ],
+}
+<span class="k">await</span> rag.ainsert_custom_kg(ast_kg)   <span class="c"># 真实调用关系进图</span>
+
+<span class="c"># 3. 根因传播追溯查询</span>
+result = <span class="k">await</span> rag.aquery(<span class="s">"PaymentClient.charge超时的根因传播路径"</span>,
+                       param=QueryParam(mode=<span class="s">"hybrid"</span>))</pre>
+      </div>
+    </div>
+
+    <!-- 5-Agent -->
+    <div class="sec" id="engine">
+      <h2><span class="n">06</span>5-Agent 智能引擎</h2>
+      <p>LangGraph 状态机编排，A2/A3 并行 fan-out，A4 fan-in 聚合做四维关联。</p>
+      <div class="arch">
+<div class="ascii">              <span class="b">┌──────────┐</span>
+START ──► <span class="g">A1 问题理解</span> ──┬─► <span class="p">A2 代码分析</span> ──┐
+                       │                  ├─(fan-in)─► <span class="g">A4 根因分析</span> ──► CRAG门 ──► HIL门 ──► <span class="g">A5 方案</span> ──► END
+                       └─► <span class="p">A3 链路分析</span> ──┘                         (Top3)
+            (并行fan-out)                  (四维关联)</div>
+      </div>
+      <table class="tbl">
+        <tr><th>Agent</th><th>职责</th><th>核心能力</th></tr>
+        <tr><td>A1 问题理解</td><td>拉云捷Bug单→抽取症状/报错→生成检索Query→定位嫌疑服务</td><td>云捷Adapter + LLM抽取</td></tr>
+        <tr><td>A2 代码分析</td><td>opencode拉码→CodeGraph构建图谱→沿报错栈静态污点追踪</td><td class="hl">opencode-codegraph + 中文大纲</td></tr>
+        <tr><td>A3 链路分析</td><td>按时间窗拉Trace→重建span树→识别异常传播路径</td><td>TraceAdapter + 异常检测</td></tr>
+        <tr><td>A4 根因分析</td><td>四维关联交叉验证→剪枝排序→输出Top-3根因</td><td>静态∩运行时交集</td></tr>
+        <tr><td>A5 方案生成</td><td>检索历史修复+最佳实践→生成补丁建议+验证用例</td><td>LightRAG high-level</td></tr>
+      </table>
+
+      <h3>根因 5 步算法</h3>
+      <ol>
+        <li><strong>定位范围</strong>：嫌疑服务 + CodeGraph 调用子图</li>
+        <li><strong>断言异常</strong>：Trace 异常 span + Metric 异常点</li>
+        <li><strong>挖掘关联</strong>：四维交集 + LightRAG 相似案例</li>
+        <li><strong>剪枝排序</strong>：置信度 score 排序，保留 Top-3</li>
+        <li><strong>输出 Top-3</strong>：每条含根因描述/置信度/证据链/定位函数</li>
+      </ol>
+    </div>
+
+    <!-- 双图谱与交叉验证 -->
+    <div class="sec" id="dualgraph">
+      <h2><span class="n">07</span>双图谱与交叉验证（核心创新）</h2>
+      <p class="lead">双图谱 = 服务级拓扑图（Trace+CMDB 聚合）+ 函数级调用图（CodeGraph 自动构建）。跨层 CONTAINS 关系实现服务→函数下钻。</p>
+      <table class="tbl">
+        <tr><th>图谱</th><th>粒度</th><th>构建</th><th>用途</th></tr>
+        <tr><td>服务级拓扑图</td><td>微服务/接口</td><td>Trace + CMDB 聚合</td><td>跨服务根因传播</td></tr>
+        <tr><td class="hl">函数级调用图</td><td>函数/方法</td><td class="hl">CodeGraph(opencode插件,自动)</td><td>精确到函数定位</td></tr>
+      </table>
+
+      <h3>静态 × 运行时交叉验证</h3>
+      <p>核心洞察：<strong>CodeGraph 静态调用图 ∩ Trace 异常传播路径</strong> 的交集函数置信度最高——既静态可达又运行时确实异常，大幅压低误报。</p>
+      <div class="code">
+        <div class="bar"><span>交叉验证 · 伪逻辑</span><span class="lang">PSEUDO</span></div>
+<pre><span class="c"># A2输出静态嫌疑函数集 S_static (CodeGraph调用图上反向BFS)</span>
+<span class="c"># A3输出运行时异常路径 P_runtime (Trace span映射到函数)</span>
+candidates = []
+<span class="k">for</span> f <span class="k">in</span> S_static:
+    <span class="k">if</span> f <span class="k">in</span> functions_of(P_runtime):       <span class="c"># 静态嫌疑 且 运行时异常路径命中</span>
+        score = w1*static_depth + w2*runtime_anomaly + w3*metric_corr + w4*change_recency
+        candidates.append((f, score))
+top3 = sorted(candidates, desc)[:3]   <span class="c"># Top-3根因</span></pre>
+      </div>
+    </div>
+
+    <!-- 双闸门飞轮 -->
+    <div class="sec" id="gate">
+      <h2><span class="n">08</span>双闸门与知识飞轮</h2>
+      <h3>双闸门机制</h3>
+      <div class="arch">
+<div class="ascii">检索证据 ─► <span class="p">CRAG自动纠偏门(机器)</span> ─► A4根因 ─► <span class="warn">HIL人工确认门(人)</span> ─► A5方案
+              │ 评估                       │ 置信度&lt;τ         │ 人工Review
+              ▼                            ▼                   ▼
+         [相关/模糊/不相关]           触发HIL            [确认/修正/驳回]
+         相关:精炼 模糊:补检 不相关:改写Query重检索</div>
+      </div>
+      <ul>
+        <li><strong>CRAG 门（机器层）</strong>：LightRAG 重排器评估证据相关性，三档处理——相关精炼、模糊补检、不相关改写 Query 重检索。</li>
+        <li><strong>HIL 门（人）</strong>：Top-3 置信度低于阈值 τ 时挂起任务，前端推送确认面板，人工确认/修正/驳回后回灌 A4。</li>
+      </ul>
+
+      <h3>知识飞轮回写</h3>
+      <p>工单解决后结构化回写知识库：抽取根因/根因函数/调用路径/修复补丁/验证用例 → BGE-M3 向量化 → LightRAG <code>ainsert</code> → 图谱 <code>SIMILAR_TO</code> 边 → 增量更新社区摘要。平台随工单积累自学习，越用越准。</p>
+    </div>
+
+    <!-- 数据流 -->
+    <div class="sec" id="dataflow">
+      <h2><span class="n">09</span>数据流时序</h2>
+      <div class="code">
+        <div class="bar"><span>端到端数据流</span><span class="lang">FLOW</span></div>
+<pre>用户提交(repo+branch+bug链接)
+  │ ▼ POST /api/v1/rca/analyze → 生成task → Celery调度
+  │ ▼ LangGraph.run(RCAState)
+  │   ├─ A1: 云捷拉Bug单 → 抽取症状/报错 → 检索Query → 嫌疑服务
+  │   ├─ A2: opencode拉码 → <span class="f">CodeGraph自动构建代码图谱</span> → <span class="f">函数中文大纲</span> → 静态污点追踪
+  │   ├─ A3: Trace拉链路 → span树 → 异常传播路径                    (与A2并行)
+  │   ├─ A4: 四维关联交叉验证(静态∩运行时) → Top-3根因
+  │   ├─ CRAG门: <span class="f">LightRAG重排</span>评估证据 → 纠偏
+  │   ├─ HIL门: 置信度&lt;τ → 前端确认面板 → 人工回灌
+  │   └─ A5: LightRAG high-level检索历史修复+最佳实践 → 补丁+验证用例
+  │ ▼ 写 rca_report(Postgres) → SSE实时推送阶段
+  │ ▼ 前端渲染6段流水线 + 4Tab报告(根因/知识库/最佳实践/方案)
+工单解决 → 飞轮回写: LightRAG.ainsert + 图谱SIMILAR_TO边 + 社区摘要增量</pre>
+      </div>
+
+      <h3>5 步标准化定位流程输出</h3>
+      <div class="steps">
+        <div class="step"><div class="num">步1</div><div class="nm">症状确认</div><div class="ds">Bug单症状+报错类型+嫌疑服务</div></div>
+        <div class="step"><div class="num">步2</div><div class="nm">链路分析</div><div class="ds">异常span树+传播路径+异常指标</div></div>
+        <div class="step"><div class="num">步3</div><div class="nm">代码定位</div><div class="ds">嫌疑函数+调用路径+中文大纲</div></div>
+        <div class="step"><div class="num">步4</div><div class="nm">根因确认</div><div class="ds">Top-3根因+置信度+证据链</div></div>
+        <div class="step"><div class="num">步5</div><div class="nm">修复方案</div><div class="ds">补丁建议+历史案例+验证用例</div></div>
+      </div>
+    </div>
+
+    <!-- Win部署 -->
+    <div class="sec" id="deploy">
+      <h2><span class="n">10</span>Win11 本地部署</h2>
+      <p class="lead">V3.0 全部组件 Win 原生可用，无需 Docker（LightRAG pip 直装、CodeGraph 有 install.ps1、opencode 跨平台）。满足"本地可调试"硬约束。</p>
+      <table class="tbl">
+        <tr><th>组件</th><th>Win部署方式</th><th>是否需Docker</th></tr>
+        <tr><td>opencode + 订阅LLM</td><td>已就绪(基座)</td><td class="no">否</td></tr>
+        <tr><td class="hl">CodeGraph</td><td><code>install.ps1</code> 或 npm</td><td class="no">否</td></tr>
+        <tr><td class="hl">LightRAG</td><td><code>pip install lightrag-hku[api]</code></td><td class="no">否</td></tr>
+        <tr><td>opencode-codegraph插件</td><td>opencode.json注册</td><td class="no">否</td></tr>
+        <tr><td>FastAPI/Celery/Redis</td><td>pip + Redis(Win版)</td><td class="no">否</td></tr>
+        <tr><td>Postgres</td><td>Win原生安装包</td><td class="no">否</td></tr>
+        <tr><td>tree-sitter(语言解析)</td><td>CodeGraph内置</td><td class="no">否</td></tr>
+      </table>
+
+      <div class="code">
+        <div class="bar"><span>Win 本地启动 · 伪步骤</span><span class="lang">POWERSHELL</span></div>
+<pre><span class="c"># 1. 装 CodeGraph(Win)</span>
+<span class="f">irm</span> https://raw.githubusercontent.com/.../install.ps1 | iex
+<span class="c"># 2. 装 LightRAG</span>
+<span class="f">pip</span> install <span class="s">"lightrag-hku[api]"</span>
+<span class="c"># 3. 配 opencode.json 注册 codegraph 插件 + MCP</span>
+<span class="c"># 4. 配 LightRAG .env 指向 opencode 订阅LLM端点</span>
+<span class="c"># 5. 启 LightRAG Server(Win用uvicorn模式)</span>
+<span class="f">lightrag-server</span>
+<span class="c"># 6. 启 RCA 后端(FastAPI) + 前端</span>
+<span class="f">uvicorn</span> app.main:app --reload</pre>
+      </div>
+
+      <div class="note warn"><span class="t">降级矩阵（保证主链路可跑）</span>
+        Trace 系统不可用→跳过 A3 仅静态分析；opencode 平台限流→本地 git clone 兜底；LightRAG 限流→进入 HIL 人工兜底；Postgres 不可用→LightRAG 降级 SQLite 文件存储。</div>
+    </div>
+
+    <!-- 路线图 -->
+    <div class="sec" id="roadmap">
+      <h2><span class="n">11</span>路线图与验证</h2>
+      <table class="tbl">
+        <tr><th>阶段</th><th>范围</th><th>交付</th></tr>
+        <tr><td>P1 主链路MVP</td><td>A1+A2(CodeGraph静态)+A4+A5，CRAG简化</td><td>跑通单服务根因，无Trace</td></tr>
+        <tr><td>P2 双图谱+交叉验证</td><td>接入A3+服务拓扑+交叉验证+代码中文化</td><td>多服务+函数级定位</td></tr>
+        <tr><td>P3 双闸门+飞轮</td><td>HIL+飞轮回写+LightRAG high-level</td><td>闭环自学习</td></tr>
+        <tr><td>P4 优化</td><td>社区摘要+分层检索融合+大规模中文化</td><td>规模化+命中率提升</td></tr>
+      </table>
+
+      <h3>评估指标</h3>
+      <table class="tbl">
+        <tr><th>指标</th><th>P1目标</th><th>P3目标</th></tr>
+        <tr><td>Top-3根因命中率</td><td>≥60%</td><td class="hl">≥80%</td></tr>
+        <tr><td>定位耗时</td><td>≤15min</td><td class="hl">≤8min</td></tr>
+        <tr><td>函数级定位准确率</td><td>≥50%</td><td class="hl">≥70%</td></tr>
+        <tr><td>HIL触发率</td><td>—</td><td>≤30%</td></tr>
+        <tr><td>飞轮增益</td><td>—</td><td>命中率月增2%</td></tr>
+      </table>
+
+      <h3>技术风险与缓解</h3>
+      <table class="tbl">
+        <tr><th>风险</th><th>等级</th><th>缓解</th></tr>
+        <tr><td>Trace→函数映射不准(符号缺失)</td><td class="mid">中</td><td>CodeGraph AST辅助解析+人工校准</td></tr>
+        <tr><td>动态调用/反射CodeGraph缺失</td><td class="mid">中</td><td>运行时Trace补边+HIL兜底</td></tr>
+        <tr><td>LLM幻觉根因</td><td class="bad">高</td><td>CRAG双闸门+四维交叉验证压低</td></tr>
+        <tr><td>opencode平台限流</td><td class="mid">中</td><td>鉴权缓存+本地git兜底降级</td></tr>
+        <tr><td>知识库冷启动</td><td class="mid">中</td><td>导入历史工单+BGE-M3预嵌入</td></tr>
+        <tr><td>中文化token成本</td><td class="mid">中</td><td>仅嫌疑子图按需中文化,角色级模型分配</td></tr>
+      </table>
+    </div>
+
+    <!-- 关键创新 -->
+    <div class="sec" id="innov">
+      <h2><span class="n">12</span>关键创新与方案对比</h2>
+      <div class="innov">
+        <div class="it"><div class="ic">🧩</div><h4>① opencode原生代码图谱</h4><p>用 opencode-codegraph 插件 + CodeGraph 自动构建函数级调用图，替代手写 tree-sitter，不造轮子，多语言+增量+MCP原生。</p></div>
+        <div class="it"><div class="ic">🀄</div><h4>② 代码中文语义化</h4><p>opencode 订阅 LLM 按函数级 NL Outline 范式生成中文大纲，保留符号名+中文实现描述，提升检索可读性与命中率。</p></div>
+        <div class="it"><div class="ic">🔗</div><h4>③ 静态×运行时交叉验证</h4><p>CodeGraph 调用图 ∩ Trace 异常传播路径 = 高置信罪魁，压低静态/单维分析误报。</p></div>
+        <div class="it"><div class="ic">🎯</div><h4>④ LightRAG双层级检索</h4><p>low-level实体检索(历史经验)+high-level主题摘要(全局)，Win原生pip，弃用重部署的RAGFlow。</p></div>
+        <div class="it"><div class="ic">🛡️</div><h4>⑤ 双闸门控幻觉</h4><p>CRAG机器自动纠偏 + HIL人工兜底，分级管控LLM幻觉风险。</p></div>
+        <div class="it"><div class="ic">🔄</div><h4>⑥ 知识飞轮自学习</h4><p>工单解决即回写LightRAG+图谱，平台越用越准，随历史积累增益。</p></div>
+      </div>
+
+      <h3>V2.0 → V3.0 演进对比</h3>
+      <table class="tbl">
+        <tr><th>模块</th><th>V2.0</th><th class="hl">V3.0</th></tr>
+        <tr><td>函数级调用图</td><td>手写tree-sitter+NetworkX</td><td class="yes">opencode-codegraph插件(自动)</td></tr>
+        <tr><td>函数语义</td><td>无,仅符号</td><td class="yes">中文NL大纲(opencode LLM)</td></tr>
+        <tr><td>检索引擎</td><td>Milvus+BGE+reranker手搭</td><td class="yes">LightRAG一体(不造轮子)</td></tr>
+        <tr><td>社区摘要</td><td>自建Louvain+LLM摘要</td><td class="yes">LightRAG high-level原生</td></tr>
+        <tr><td>向量库</td><td>Milvus(独立)</td><td class="yes">Postgres一体(LightRAG)</td></tr>
+        <tr><td>Win部署</td><td>需Milvus+Neo4j</td><td class="yes">全pip/ps1,无需Docker</td></tr>
+        <tr><td>造轮子程度</td><td>中(多组件自建)</td><td class="yes">低(全复用业界项目)</td></tr>
+      </table>
+
+      <div class="note ok"><span class="t">结论</span>
+        V3.0 在 V2.0 双图谱+交叉验证+双闸门+飞轮的核心创新基础上，将函数级调用图收敛到 opencode-codegraph 插件、检索收敛到 LightRAG、函数语义增强为中文大纲，全部复用业界已有开源项目，Win 原生可部署，复用 opencode 订阅大模型，满足"不重复造轮子"约束。</div>
+    </div>
+
+    <div class="refs">
+      <strong>参考来源：</strong>
+      <a href="https://github.com/colbymchenry/codegraph" target="_blank">CodeGraph (colbymchenry/codegraph, 42.8k★)</a> ·
+      <a href="https://www.npmjs.com/package/opencode-codegraph" target="_blank">opencode-codegraph 插件 (npm)</a> ·
+      <a href="https://github.com/HKUDS/LightRAG" target="_blank">LightRAG (HKUDS)</a> ·
+      <a href="https://arxiv.org/html/2408.04820v3" target="_blank">Natural Language Outlines for Code (Google, FSE'25)</a> ·
+      <a href="https://www.ibm.com/think/tutorials/code-summarization-with-granite" target="_blank">IBM Granite Code Summarization</a> ·
+      <a href="https://ragflow.io/docs/dev" target="_blank">RAGFlow 文档(对比参考,未采用)</a>
+    </div>
+
+    <div class="foot">
+      问题单智能根因分析平台 · 方案总结 V3.0 · opencode + CodeGraph + LightRAG 融合<br>
+      本文档为方案设计稿，未包含可运行的开发代码 · 2026.08
+    </div>
+
+  </main>
+</div>
+</body>
+</html>
