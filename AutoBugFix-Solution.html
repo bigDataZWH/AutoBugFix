@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoBugFix · 问题单自动定位·出方案·修复 Agent — 完整方案 C</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=JetBrains+Mono:wght@400;500;700&family=Spline+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0e17;
+  --bg-grid:rgba(34,211,238,.04);
+  --surface:#10172a;
+  --surface-2:#161f38;
+  --surface-3:#1d2848;
+  --border:#233056;
+  --border-bright:#324373;
+  --text:#e9eef8;
+  --text-mute:#8a99bf;
+  --text-dim:#5d6b94;
+  --cyan:#22d3ee;
+  --cyan-dim:#0e7490;
+  --amber:#fbbf24;
+  --amber-dim:#92600a;
+  --violet:#a78bfa;
+  --violet-dim:#5b21b6;
+  --green:#34d399;
+  --red:#f87171;
+  --brand:#6366f1;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --disp:'Bricolage Grotesque',sans-serif;
+  --body:'Spline Sans',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--body);
+  font-size:15px;
+  line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+  background-image:
+    linear-gradient(var(--bg-grid) 1px,transparent 1px),
+    linear-gradient(90deg,var(--bg-grid) 1px,transparent 1px);
+  background-size:48px 48px;
+  background-position:center top;
+}
+::selection{background:var(--cyan);color:var(--bg)}
+
+/* layout */
+.wrap{max-width:1320px;margin:0 auto;padding:0 32px}
+.grid-layout{display:grid;grid-template-columns:248px 1fr;gap:0;align-items:start}
+
+/* sidebar */
+aside.toc{
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+  padding:28px 20px 28px 0;border-right:1px solid var(--border);
+  font-family:var(--mono);font-size:12.5px;
+}
+aside.toc::-webkit-scrollbar{width:4px}
+aside.toc::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.toc-brand{font-family:var(--disp);font-weight:800;font-size:18px;letter-spacing:-.02em;color:var(--text);margin-bottom:6px;line-height:1.1}
+.toc-brand span{color:var(--cyan)}
+.toc-tag{font-size:10px;color:var(--text-dim);letter-spacing:.18em;text-transform:uppercase;margin-bottom:24px}
+.toc nav ul{list-style:none}
+.toc nav li{margin-bottom:2px}
+.toc nav a{
+  display:block;padding:6px 12px;border-radius:6px;color:var(--text-mute);
+  text-decoration:none;border-left:2px solid transparent;transition:.2s;line-height:1.4;
+}
+.toc nav a:hover{color:var(--text);background:var(--surface)}
+.toc nav a.active{color:var(--cyan);border-left-color:var(--cyan);background:rgba(34,211,238,.06)}
+.toc nav .sub a{padding-left:26px;font-size:11.5px;color:var(--text-dim)}
+.toc nav .sub a:hover{color:var(--text-mute)}
+.toc-meta{margin-top:24px;padding-top:18px;border-top:1px solid var(--border);font-size:10.5px;color:var(--text-dim);line-height:1.6}
+.toc-meta b{color:var(--amber);font-weight:500}
+
+/* main */
+main{padding:0 0 80px 48px;min-width:0}
+section{padding:56px 0 8px;border-bottom:1px solid var(--border)}
+section:last-child{border-bottom:none}
+.sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:6px}
+.sec-num{
+  font-family:var(--mono);font-size:13px;font-weight:500;color:var(--cyan);
+  background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.25);
+  padding:2px 8px;border-radius:5px;flex-shrink:0;
+}
+h2{font-family:var(--disp);font-weight:700;font-size:30px;letter-spacing:-.025em;line-height:1.15;color:var(--text)}
+.sec-sub{font-family:var(--mono);font-size:12px;color:var(--text-dim);margin:4px 0 22px;letter-spacing:.04em}
+h3{font-family:var(--disp);font-weight:600;font-size:21px;letter-spacing:-.02em;margin:34px 0 14px;color:var(--text);display:flex;align-items:center;gap:10px}
+h3 .dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);flex-shrink:0;box-shadow:0 0 12px var(--cyan)}
+h4{font-family:var(--mono);font-weight:500;font-size:14px;color:var(--amber);margin:24px 0 10px;letter-spacing:.03em;text-transform:uppercase}
+p{margin:0 0 14px;color:var(--text)}
+p .muted{color:var(--text-mute)}
+strong{color:var(--text);font-weight:600}
+em{color:var(--cyan);font-style:normal;font-weight:500}
+a.il{color:var(--cyan);text-decoration:none;border-bottom:1px solid rgba(34,211,238,.3)}
+a.il:hover{border-color:var(--cyan)}
+ul{margin:0 0 16px;padding-left:22px}
+li{margin-bottom:6px}
+li::marker{color:var(--cyan)}
+
+/* hero */
+.hero{padding:120px 0 90px;border-bottom:1px solid var(--border);position:relative;overflow:hidden}
+.hero::before{
+  content:'';position:absolute;top:-200px;right:-200px;width:680px;height:680px;
+  background:radial-gradient(circle,rgba(34,211,238,.10),transparent 60%);
+  pointer-events:none;
+}
+.hero::after{
+  content:'';position:absolute;bottom:-160px;left:-160px;width:520px;height:520px;
+  background:radial-gradient(circle,rgba(167,139,250,.08),transparent 60%);
+  pointer-events:none;
+}
+.hero-kicker{font-family:var(--mono);font-size:12px;color:var(--cyan);letter-spacing:.3em;text-transform:uppercase;margin-bottom:22px;display:flex;align-items:center;gap:12px}
+.hero-kicker::before{content:'';width:40px;height:1px;background:var(--cyan)}
+.hero h1{font-family:var(--disp);font-weight:700;font-size:clamp(40px,6vw,68px);line-height:1.02;letter-spacing:-.035em;margin-bottom:24px;position:relative}
+.hero h1 .accent{color:var(--cyan)}
+.hero h1 .stroke{-webkit-text-stroke:1.5px var(--amber);color:transparent;font-style:italic}
+.hero-lead{font-size:19px;color:var(--text-mute);max-width:720px;margin-bottom:36px;line-height:1.55;position:relative}
+.hero-badges{display:flex;flex-wrap:wrap;gap:10px;position:relative}
+.badge{
+  font-family:var(--mono);font-size:11.5px;padding:7px 14px;border-radius:30px;
+  border:1px solid var(--border);background:var(--surface);color:var(--text-mute);letter-spacing:.02em;
+  display:inline-flex;align-items:center;gap:7px;
+}
+.badge .pip{width:6px;height:6px;border-radius:50%}
+.badge.cyan .pip{background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+.badge.amber .pip{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+.badge.violet .pip{background:var(--violet);box-shadow:0 0 8px var(--violet)}
+.badge.green .pip{background:var(--green)}
+
+/* the big idea */
+.idea-box{
+  margin:40px 0;padding:36px;border-radius:16px;position:relative;overflow:hidden;
+  background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(34,211,238,.05));
+  border:1px solid var(--border-bright);
+}
+.idea-box::before{content:'';position:absolute;inset:0;background-image:linear-gradient(var(--bg-grid) 1px,transparent 1px),linear-gradient(90deg,var(--bg-grid) 1px,transparent 1px);background-size:28px 28px;opacity:.5;pointer-events:none}
+.idea-box>*{position:relative}
+.idea-label{font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:.2em;text-transform:uppercase;margin-bottom:14px}
+.idea-box h3{margin-top:0;font-size:26px}
+.idea-formula{
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin:22px 0 8px;
+  font-family:var(--disp);font-weight:600;font-size:clamp(16px,2vw,21px);letter-spacing:-.01em;
+}
+.idea-pill{padding:10px 18px;border-radius:30px;border:1px solid}
+.idea-pill.brain{color:var(--cyan);border-color:var(--cyan-dim);background:rgba(34,211,238,.08)}
+.idea-pill.hands{color:var(--amber);border-color:var(--amber-dim);background:rgba(251,191,36,.08)}
+.idea-pill.gate{color:var(--violet);border-color:var(--violet-dim);background:rgba(167,139,250,.08)}
+.idea-plus{color:var(--text-dim);font-family:var(--mono);font-size:18px}
+
+/* architecture svg */
+.arch{margin:24px 0;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;overflow-x:auto}
+.arch svg{width:100%;height:auto;min-width:560px;display:block}
+
+/* callout */
+.callout{
+  margin:22px 0;padding:20px 24px;border-radius:12px;border-left:3px solid;
+  background:var(--surface);font-size:14px;
+}
+.callout.cyan{border-color:var(--cyan);background:linear-gradient(90deg,rgba(34,211,238,.07),transparent)}
+.callout.amber{border-color:var(--amber);background:linear-gradient(90deg,rgba(251,191,36,.07),transparent)}
+.callout.violet{border-color:var(--violet);background:linear-gradient(90deg,rgba(167,139,250,.07),transparent)}
+.callout.red{border-color:var(--red);background:linear-gradient(90deg,rgba(248,113,113,.07),transparent)}
+.callout .cl-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;margin-bottom:6px;display:block}
+.callout.cyan .cl-label{color:var(--cyan)}
+.callout.amber .cl-label{color:var(--amber)}
+.callout.violet .cl-label{color:var(--violet)}
+.callout.red .cl-label{color:var(--red)}
+
+/* code */
+.code{
+  margin:18px 0;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:#0c1322;
+}
+.code-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:9px 16px;background:var(--surface-2);border-bottom:1px solid var(--border);
+  font-family:var(--mono);font-size:11.5px;color:var(--text-mute);
+}
+.code-head .dots{display:flex;gap:6px}
+.code-head .dots i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.code-head .dots i:nth-child(1){background:var(--red);opacity:.6}
+.code-head .dots i:nth-child(2){background:var(--amber);opacity:.6}
+.code-head .dots i:nth-child(3){background:var(--green);opacity:.6}
+.code-head .lang{color:var(--cyan)}
+pre{padding:18px 20px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.65}
+pre::-webkit-scrollbar{height:6px}
+pre::-webkit-scrollbar-thumb{background:var(--border-bright);border-radius:4px}
+code{font-family:var(--mono)}
+.k{color:#c792ea}
+.s{color:#c3e88d}
+.f{color:#82aaff}
+.c{color:#5d6b94;font-style:italic}
+.n{color:#f78c6c}
+.t{color:#ffcb6b}
+.p{color:#89ddff}
+
+/* tables */
+.tbl-wrap{margin:22px 0;overflow-x:auto;border-radius:12px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:520px}
+thead{background:var(--surface-2)}
+th{
+  text-align:left;padding:13px 16px;font-family:var(--mono);font-weight:500;font-size:11.5px;
+  color:var(--text-mute);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border);
+}
+td{padding:12px 16px;border-bottom:1px solid var(--border);vertical-align:top;color:var(--text)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--surface)}
+td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px}
+.tag.cyan{color:var(--cyan);background:rgba(34,211,238,.1)}
+.tag.amber{color:var(--amber);background:rgba(251,191,36,.1)}
+.tag.violet{color:var(--violet);background:rgba(167,139,250,.1)}
+.tag.green{color:var(--green);background:rgba(52,211,153,.1)}
+.tag.red{color:var(--red);background:rgba(248,113,113,.1)}
+
+/* module cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin:22px 0}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;transition:.25s}
+.card:hover{border-color:var(--border-bright);transform:translateY(-2px)}
+.card .c-num{font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-bottom:8px}
+.card h4{margin:0 0 6px;text-transform:none;font-family:var(--disp);font-size:16px;color:var(--text)}
+.card p{font-size:13px;color:var(--text-mute);margin:0}
+
+/* roadmap */
+.roadmap{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:22px 0}
+.phase{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;position:relative;overflow:hidden}
+.phase::before{content:'';position:absolute;top:0;left:0;width:100%;height:3px}
+.phase.p1::before{background:linear-gradient(90deg,var(--cyan),transparent)}
+.phase.p2::before{background:linear-gradient(90deg,var(--amber),transparent)}
+.phase.p3::before{background:linear-gradient(90deg,var(--violet),transparent)}
+.phase .ph-tag{font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:.1em;margin-bottom:8px}
+.phase.p1 .ph-tag{color:var(--cyan)}
+.phase.p2 .ph-tag{color:var(--amber)}
+.phase.p3 .ph-tag{color:var(--violet)}
+.phase h4{margin:0 0 14px;font-family:var(--disp);font-size:17px;color:var(--text)}
+.phase ul{padding-left:18px;font-size:13px;color:var(--text-mute)}
+.phase ul li{margin-bottom:8px}
+.phase .ph-goal{margin-top:14px;padding-top:14px;border-top:1px dashed var(--border);font-size:12.5px;color:var(--text-mute)}
+
+/* weekly */
+.week{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:22px 0}
+.wk{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px}
+.wk .wk-h{font-family:var(--mono);font-size:12px;color:var(--cyan);margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.wk .wk-item{margin-bottom:12px;font-size:12.5px}
+.wk .wk-item b{color:var(--text);font-weight:500;display:block;margin-bottom:2px}
+.wk .wk-item span{color:var(--green);font-family:var(--mono);font-size:11px}
+.wk .wk-item span::before{content:'✓ '}
+
+/* metrics */
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:22px 0}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center}
+.metric .m-val{font-family:var(--disp);font-weight:700;font-size:30px;color:var(--cyan);line-height:1}
+.metric .m-lab{font-size:11.5px;color:var(--text-mute);margin-top:8px;font-family:var(--mono)}
+
+/* reveal anim */
+.reveal{opacity:0;transform:translateY(20px);animation:rv .7s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes rv{to{opacity:1;transform:none}}
+.d1{animation-delay:.05s}.d2{animation-delay:.12s}.d3{animation-delay:.19s}.d4{animation-delay:.26s}.d5{animation-delay:.33s}
+
+/* mobile */
+@media(max-width:980px){
+  .grid-layout{grid-template-columns:1fr}
+  aside.toc{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border);padding:20px}
+  main{padding:0 0 60px}
+  .roadmap,.week{grid-template-columns:1fr}
+  .hero{padding:80px 0 60px}
+}
+</style>
+</head>
+<body>
+<div class="grid-layout">
+  <!-- SIDEBAR -->
+  <aside class="toc">
+    <div class="toc-brand">Auto<span>Bug</span>Fix</div>
+    <div class="toc-tag">方案 C · 完整设计</div>
+    <nav id="tocnav">
+      <ul>
+        <li><a href="#hero">概览</a></li>
+        <li><a href="#principles">设计目标与原则</a></li>
+        <li><a href="#why">为什么是方案 C</a></li>
+        <li><a href="#arch">整体架构</a></li>
+        <li><a href="#modules">核心模块设计</a>
+          <ul class="sub">
+            <li><a href="#mod-understand">问题理解</a></li>
+            <li><a href="#mod-locate">根因定位</a></li>
+            <li><a href="#mod-orchestrate">方案编排</a></li>
+          </ul>
+        </li>
+        <li><a href="#fixexec">FixExecutor 抽象层</a></li>
+        <li><a href="#opencode">OpenCode 集成</a></li>
+        <li><a href="#intel">代码智能层</a></li>
+        <li><a href="#gates">验证护栏</a></li>
+        <li><a href="#deploy">Win11 部署</a></li>
+        <li><a href="#roadmap">演进路线</a></li>
+        <li><a href="#phase1">Phase 1 任务拆解</a></li>
+        <li><a href="#metrics">评估与度量</a></li>
+        <li><a href="#risk">风险与对策</a></li>
+        <li><a href="#stack">技术选型总表</a></li>
+      </ul>
+    </nav>
+    <div class="toc-meta">
+      版本 <b>v1.0</b><br>
+      部署 <b>Win11 + WSL2</b><br>
+      执行层 <b>OpenCode</b><br>
+      编排 <b>LangGraph</b>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+    <!-- HERO -->
+    <section id="hero" class="hero" style="border-bottom:1px solid var(--border)">
+      <div class="reveal">
+        <div class="hero-kicker">Issue Auto-Fix Agent · 完整方案</div>
+        <h1>问题单自动定位<br><span class="accent">出方案</span> · 修复 <span class="stroke">Agent</span></h1>
+        <p class="hero-lead">自研"定位 + 验证"大脑，复用 OpenCode"改代码"手脚。以最小代价换快速验证与成熟基建，把自研火力集中在根因定位这个真正的壁垒上。</p>
+        <div class="hero-badges">
+          <span class="badge cyan"><i class="pip"></i>自研编排层 · 核心资产</span>
+          <span class="badge amber"><i class="pip"></i>OpenCode headless · 执行层</span>
+          <span class="badge violet"><i class="pip"></i>FixExecutor · 可切换</span>
+          <span class="badge green"><i class="pip"></i>三重护栏 · 防幻觉</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 1 PRINCIPLES -->
+    <section id="principles">
+      <div class="sec-head"><span class="sec-num">01</span></div>
+      <h2>设计目标与原则</h2>
+      <p class="sec-sub">// Design Goals &amp; Principles</p>
+      <p>实现一个 Agent，能够自动完成问题单的 <em>根因定位 → 方案生成 → 代码修复 → 验证</em> 全流程，最终产出可审核的 PR。方案 C 遵循以下七条原则：</p>
+      <div class="cards">
+        <div class="card reveal d1"><div class="c-num">P01</div><h4>自研聚焦壁垒</h4><p>根因定位与验证护栏是差异化核心，必须自研并深度优化。</p></div>
+        <div class="card reveal d2"><div class="c-num">P02</div><h4>复用成熟基建</h4><p>代码修改、LSP、Git 快照等已被大规模验证的基建，复用 OpenCode。</p></div>
+        <div class="card reveal d3"><div class="c-num">P03</div><h4>抽象层解耦</h4><p>FixExecutor 接口隔离编排与执行，保留切换 / 并跑执行器的自由度。</p></div>
+        <div class="card reveal d1"><div class="c-num">P04</div><h4>证据驱动</h4><p>每个定位结论、每个补丁必须有可追溯证据，禁臆测。</p></div>
+        <div class="card reveal d2"><div class="c-num">P05</div><h4>三重护栏</h4><p>编译门 + 测试门 + 静态门，硬阻断幻觉修复。</p></div>
+        <div class="card reveal d3"><div class="c-num">P06</div><h4>状态机驱动</h4><p>每阶段准出条件明确，失败回退而非一路到底。</p></div>
+        <div class="card reveal d1"><div class="c-num">P07</div><h4>Human-in-the-Loop</h4><p>高风险变更强制人工审核。</p></div>
+      </div>
+    </section>
+
+    <!-- 2 WHY -->
+    <section id="why">
+      <div class="sec-head"><span class="sec-num">02</span></div>
+      <h2>为什么是方案 C</h2>
+      <p class="sec-sub">// Why Hybrid · Brain + Hands</p>
+
+      <div class="idea-box reveal">
+        <span class="idea-label">核心洞察</span>
+        <h3>问题单修复的差异化在"定位准不准、验证严不严"，不在"改代码稳不稳"</h3>
+        <p class="muted">把 OpenCode 不擅长的（定位 / 验证）自研做到极致；把 OpenCode 擅长的（改代码 / LSP / Git）直接复用。</p>
+        <div class="idea-formula">
+          <span class="idea-pill brain">自研定位 + 验证 · 大脑</span>
+          <span class="idea-plus">+</span>
+          <span class="idea-pill hands">OpenCode 改代码 · 手脚</span>
+          <span class="idea-plus">+</span>
+          <span class="idea-pill gate">FixExecutor + 三重门 · 护栏</span>
+        </div>
+      </div>
+
+      <h3><span class="dot"></span>三条业界洞察支撑选型</h3>
+      <ul>
+        <li><strong>Agent Harness 定律</strong>：Agent 性能中 <em>98.4%</em> 取决于基础设施（工具 / 沙箱 / 上下文 / 循环控制），仅 1.6% 来自 LLM 本身。→ 把工程基建做厚，不重复造轮子。</li>
+        <li><strong>定位是瓶颈</strong>：SWE-bench 失败 case 中 <em>定位错误占 60%+</em>。错误文件 → 错误补丁。→ 根因定位是整个系统的差异化核心。</li>
+        <li><strong>护栏比自由度更重要</strong>：三重护栏（检索脚手架 + 编译门 + 测试门）能将幻觉修复率从 ~40% 降到 <em>&lt;10%</em>。→ 约束 LLM 行动空间，强制证据闭环。</li>
+      </ul>
+
+      <h3><span class="dot"></span>三方案分维度对比</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>维度</th><th>A · 重新自研</th><th>B · 直接用 OpenCode</th><th>C · 混合（采纳）</th></tr></thead>
+          <tbody>
+            <tr><td>上线速度</td><td><span class="tag red">慢（月级）</span></td><td><span class="tag green">快（周级）</span></td><td><span class="tag amber">较快（2-4 周）</span></td></tr>
+            <tr><td><strong>根因定位精度</strong></td><td><span class="tag green">可极致优化</span></td><td><span class="tag red">弱（通用检索）</span></td><td><span class="tag green">强（自研定位）</span></td></tr>
+            <tr><td>验证护栏强度</td><td><span class="tag green">三重门可控</span></td><td><span class="tag red">弱（无内置）</span></td><td><span class="tag green">三重门可控</span></td></tr>
+            <tr><td>改代码基建成熟度</td><td><span class="tag red">需自建踩坑</span></td><td><span class="tag green">已验证 16M 月活</span></td><td><span class="tag green">复用 OpenCode</span></td></tr>
+            <tr><td>可控性 / 定制深度</td><td><span class="tag green">完全可控</span></td><td><span class="tag red">黑盒</span></td><td><span class="tag amber">编排可控</span></td></tr>
+            <tr><td>可审计 / 可观测</td><td><span class="tag green">全链路 trace</span></td><td><span class="tag red">弱</span></td><td><span class="tag green">强</span></td></tr>
+            <tr><td>开发成本</td><td><span class="tag red">极高</span></td><td><span class="tag green">低</span></td><td><span class="tag amber">中</span></td></tr>
+            <tr><td>外部依赖风险</td><td><span class="tag green">无</span></td><td><span class="tag red">高（版本 / 配额）</span></td><td><span class="tag amber">中（可对冲）</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout cyan">
+        <span class="cl-label">结论</span>
+        方案 A 把成熟基建也自研了，边际收益极低、风险极高；方案 B 把差异化能力也交给 OpenCode，质量上限被锁死。方案 C 把差异化能力自研做到极致、基础设施直接复用 OpenCode，并用 FixExecutor 抽象层保证"复用但不锁定"。
+      </div>
+    </section>
+
+    <!-- 3 ARCH -->
+    <section id="arch">
+      <div class="sec-head"><span class="sec-num">03</span></div>
+      <h2>整体架构</h2>
+      <p class="sec-sub">// Architecture · 三层一抽象</p>
+      <p>系统分为 <strong>自研编排层</strong>（核心资产）、<strong>FixExecutor 执行抽象层</strong>（解耦）、<strong>OpenCode 执行层</strong>（复用成熟基建），下方为 <strong>支撑能力层</strong>。</p>
+
+      <div class="arch reveal">
+        <svg viewBox="0 0 720 600" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="M1 1 L7 4 L1 7 Z" fill="#8a99bf"/></marker>
+            <marker id="ah2" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="M1 1 L7 4 L1 7 Z" fill="#22d3ee"/></marker>
+          </defs>
+          <style>text{font-family:'Spline Sans',sans-serif}</style>
+
+          <!-- orchestration layer -->
+          <rect x="24" y="20" width="672" height="186" rx="12" fill="#10172a" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="6 4"/>
+          <text x="360" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#e9eef8">自研编排层（LangGraph 状态机）— 核心资产</text>
+          <rect x="44" y="58" width="148" height="42" rx="8" fill="#1d2848" stroke="#233056"/><text x="118" y="76" text-anchor="middle" font-size="13" font-weight="500" fill="#e9eef8">问题理解与分类</text><text x="118" y="92" text-anchor="middle" font-size="11" fill="#8a99bf">信号 · 严重度 · 复现判定</text>
+          <rect x="208" y="58" width="148" height="42" rx="8" fill="rgba(34,211,238,.08)" stroke="#22d3ee" stroke-width="1.5"/><text x="282" y="76" text-anchor="middle" font-size="13" font-weight="600" fill="#22d3ee">根因定位 ★</text><text x="282" y="92" text-anchor="middle" font-size="11" fill="#8a99bf">向量 · BM25 · AST · LSP</text>
+          <rect x="372" y="58" width="148" height="42" rx="8" fill="#1d2848" stroke="#233056"/><text x="446" y="76" text-anchor="middle" font-size="13" font-weight="500" fill="#e9eef8">方案编排</text><text x="446" y="92" text-anchor="middle" font-size="11" fill="#8a99bf">修复假设 · PatchPolicy</text>
+          <rect x="536" y="58" width="140" height="42" rx="8" fill="#1d2848" stroke="#233056"/><text x="606" y="76" text-anchor="middle" font-size="13" font-weight="500" fill="#e9eef8">验证护栏</text><text x="606" y="92" text-anchor="middle" font-size="11" fill="#8a99bf">编译 · 测试 · 静态门</text>
+          <line x1="192" y1="79" x2="208" y2="79" stroke="#8a99bf" stroke-width="1.5" marker-end="url(#ah)"/>
+          <line x1="356" y1="79" x2="372" y2="79" stroke="#8a99bf" stroke-width="1.5" marker-end="url(#ah)"/>
+          <line x1="520" y1="79" x2="536" y2="79" stroke="#8a99bf" stroke-width="1.5" marker-end="url(#ah)"/>
+
+          <!-- FixExecutor abstract -->
+          <rect x="44" y="130" width="632" height="62" rx="8" fill="rgba(99,102,241,.08)" stroke="#6366f1" stroke-width="1.5"/>
+          <text x="360" y="150" text-anchor="middle" font-size="13" font-weight="600" fill="#a78bfa">FixExecutor 执行抽象层（解耦：可切换 / 并跑执行器）</text>
+          <rect x="80" y="160" width="220" height="24" rx="6" fill="#10172a" stroke="#22d3ee"/><text x="190" y="176" text-anchor="middle" font-size="12" font-weight="500" fill="#22d3ee">OpenCodeExecutor（默认）</text>
+          <rect x="318" y="160" width="180" height="24" rx="6" fill="#10172a" stroke="#233056" stroke-dasharray="4 3"/><text x="408" y="176" text-anchor="middle" font-size="12" fill="#8a99bf">NativeExecutor（自研·预留）</text>
+          <rect x="514" y="160" width="146" height="24" rx="6" fill="#10172a" stroke="#fbbf24"/><text x="587" y="176" text-anchor="middle" font-size="12" fill="#fbbf24">DiffAuditor（审计）</text>
+          <line x1="282" y1="100" x2="282" y2="130" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ah2)"/>
+          <line x1="446" y1="100" x2="446" y2="130" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ah2)"/>
+
+          <!-- execution layer -->
+          <rect x="24" y="230" width="672" height="100" rx="12" fill="#10172a" stroke="#233056" stroke-width="1.5" stroke-dasharray="6 4"/>
+          <text x="360" y="252" text-anchor="middle" font-size="14" font-weight="700" fill="#e9eef8">修复执行层（复用成熟基建）</text>
+          <rect x="44" y="268" width="150" height="42" rx="8" fill="#1d2848" stroke="#233056"/><text x="119" y="286" text-anchor="middle" font-size="13" font-weight="500" fill="#fbbf24">OpenCode headless</text><text x="119" y="302" text-anchor="middle" font-size="11" fill="#8a99bf">serve · run · ACP</text>
+          <rect x="212" y="268" width="142" height="42" rx="8" fill="#1d2848" stroke="#233056"/><text x="283" y="286" text-anchor="middle" font-size="13" font-weight="500" fill="#e9eef8">LSP 语义导航</text><text x="283" y="302" text-anchor="middle" font-size="11" fill="#8a99bf">20+ 语言自动加载</text>
+          <rect x="372" y="268" width="138" height="42" rx="8" fill="#1d2848" stroke="#233056"/><text x="441" y="286" text-anchor="middle" font-size="13" font-weight="500" fill="#e9eef8">终端 / 沙箱</text><text x="441" y="302" text-anchor="middle" font-size="11" fill="#8a99bf">命令执行 · 隔离</text>
+          <rect x="528" y="268" width="148" height="42" rx="8" fill="#1d2848" stroke="#233056"/><text x="602" y="286" text-anchor="middle" font-size="13" font-weight="500" fill="#e9eef8">Git 快照</text><text x="602" y="302" text-anchor="middle" font-size="11" fill="#8a99bf">undo / redo · 回滚</text>
+          <line x1="360" y1="192" x2="360" y2="230" stroke="#8a99bf" stroke-width="1.5" marker-end="url(#ah)"/>
+
+          <!-- support layer -->
+          <rect x="24" y="354" width="672" height="100" rx="12" fill="#10172a" stroke="#233056" stroke-width="1.5" stroke-dasharray="6 4"/>
+          <text x="360" y="376" text-anchor="middle" font-size="14" font-weight="700" fill="#e9eef8">支撑能力层</text>
+          <rect x="44" y="392" width="210" height="42" rx="8" fill="#1d2848" stroke="#233056"/><text x="149" y="410" text-anchor="middle" font-size="13" font-weight="500" fill="#e9eef8">代码智能服务</text><text x="149" y="426" text-anchor="middle" font-size="11" fill="#8a99bf">向量库 · BM25 · 调用图</text>
+          <rect x="270" y="392" width="180" height="42" rx="8" fill="#1d2848" stroke="#233056"/><text x="360" y="410" text-anchor="middle" font-size="13" font-weight="500" fill="#e9eef8">记忆与知识库</text><text x="360" y="426" text-anchor="middle" font-size="11" fill="#8a99bf">会话记忆 · 修复模式</text>
+          <rect x="466" y="392" width="210" height="42" rx="8" fill="#1d2848" stroke="#233056"/><text x="571" y="410" text-anchor="middle" font-size="13" font-weight="500" fill="#e9eef8">Win11 运行环境</text><text x="571" y="426" text-anchor="middle" font-size="11" fill="#8a99bf">WSL2 Docker · opencode CLI</text>
+          <line x1="282" y1="330" x2="149" y2="392" stroke="#8a99bf" stroke-width="1.5" stroke-dasharray="3 3" marker-end="url(#ah)"/>
+          <line x1="441" y1="330" x2="571" y2="392" stroke="#8a99bf" stroke-width="1.5" stroke-dasharray="3 3" marker-end="url(#ah)"/>
+          <rect x="120" y="358" width="58" height="16" rx="8" fill="#10172a" stroke="#233056"/><text x="149" y="370" text-anchor="middle" font-size="10" fill="#8a99bf">MCP 注入</text>
+
+          <!-- state machine -->
+          <rect x="24" y="478" width="672" height="100" rx="12" fill="#10172a" stroke="#233056"/>
+          <text x="360" y="500" text-anchor="middle" font-size="13" font-weight="600" fill="#8a99bf">状态机流水线</text>
+          <text x="360" y="524" text-anchor="middle" font-size="12" fill="#e9eef8" font-family="JetBrains Mono">RECEIVED → UNDERSTOOD → REPRODUCED → LOCALIZED → PATCHED → VERIFIED → NEEDS_REVIEW → MERGED</text>
+          <text x="360" y="548" text-anchor="middle" font-size="11" fill="#f87171">失败回退 ≤ K 轮 → BLOCKED / NEEDS_REVIEW · 每阶段准出条件明确</text>
+        </svg>
+      </div>
+    </section>
+
+    <!-- 4 MODULES -->
+    <section id="modules">
+      <div class="sec-head"><span class="sec-num">04</span></div>
+      <h2>核心模块设计</h2>
+      <p class="sec-sub">// Core Modules</p>
+
+      <h3 id="mod-understand"><span class="dot"></span>问题理解与分类</h3>
+      <p>把自然语言问题单结构化为 <code>IssueProfile</code>，输出可被下游消费的 schema。</p>
+      <div class="cards">
+        <div class="card"><h4>分类树</h4><p>Bug（逻辑 / 并发 / 资源泄漏 / 边界 / 兼容）/ Feature / 配置 / 文档 / 性能</p></div>
+        <div class="card"><h4>信号提取器</h4><p>从描述 / 日志 / 堆栈抽取 stack frame、error code、版本号、环境、触发条件</p></div>
+        <div class="card"><h4>严重度评估</h4><p>影响面（crash / data loss / security）× 复现频率</p></div>
+        <div class="card"><h4>复现可行性</h4><p>决定走"自动复现"还是"假设驱动"</p></div>
+      </div>
+      <div class="code">
+        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>IssueProfile · 输出 schema</span><span class="lang">json</span></div>
+<pre><span class="p">{</span>
+  <span class="t">"issue_id"</span>: <span class="s">"ISS-1234"</span>,
+  <span class="t">"type"</span>: <span class="s">"bug"</span>, <span class="t">"subtype"</span>: <span class="s">"concurrency"</span>, <span class="t">"severity"</span>: <span class="s">"P1"</span>,
+  <span class="t">"signals"</span>: <span class="p">{</span>
+    <span class="t">"stack_frames"</span>: [<span class="s">"com.app.Service.handle(:88)"</span>, <span class="s">"com.app.Pool.acquire(:42)"</span>],
+    <span class="t">"error_codes"</span>: [<span class="s">"DEADLOCK_DETECTED"</span>],
+    <span class="t">"keywords"</span>: [<span class="s">"连接池"</span>, <span class="s">"超时"</span>, <span class="s">"并发"</span>]
+  <span class="p">}</span>,
+  <span class="t">"reproducible"</span>: <span class="k">true</span>,
+  <span class="t">"repro_hints"</span>: <span class="s">"高并发下连续调用 acquire()，约 50 QPS 触发"</span>,
+  <span class="t">"suspected_areas"</span>: [<span class="p">{</span><span class="t">"path"</span>: <span class="s">"src/.../Pool.java"</span>, <span class="t">"reason"</span>: <span class="s">"堆栈顶层"</span>, <span class="t">"confidence"</span>: <span class="n">0.85</span><span class="p">}</span>]
+<span class="p">}</span></pre>
+      </div>
+
+      <h3 id="mod-locate"><span class="dot"></span>根因定位（核心差异化）</h3>
+      <p>采用 <em>"检索 + 导航 + 证据"</em>三层定位，对标 Agentless + AutoCodeRover 最佳实践。</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>层级</th><th>定位目标</th><th>技术手段</th></tr></thead>
+          <tbody>
+            <tr><td><span class="tag cyan">第一层</span></td><td>文件级（Where）</td><td>向量检索（bge-m3）+ BM25 精确匹配 + RRF 融合 + Git 历史信号</td></tr>
+            <tr><td><span class="tag amber">第二层</span></td><td>符号级（What）</td><td>Tree-sitter 增量解析 AST + LSP go-to-def / find-refs + 调用图 DFS</td></tr>
+            <tr><td><span class="tag violet">第三层</span></td><td>行级（Which line）</td><td>LLM 结合上下文给精确行号 + 证据引用 + 置信度</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout amber">
+        <span class="cl-label">证据闭环护栏</span>
+        每个定位结论必须附带（代码引用、推理依据、置信度），无证据标记 <code>LOW_CONFIDENCE</code>。结论必须可被 LSP / AST 验证（行号存在、符号确实在该文件）。置信度 &lt; 阈值 → 触发第二轮扩展检索或转人工。
+      </div>
+
+      <h3 id="mod-orchestrate"><span class="dot"></span>方案编排</h3>
+      <p>基于定位证据组装修复指令与约束，交付 FixExecutor。修复假设先行，再写代码。</p>
+      <div class="code">
+        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>PatchPolicy · 补丁策略约束</span><span class="lang">json</span></div>
+<pre><span class="p">{</span>
+  <span class="t">"max_files"</span>: <span class="n">5</span>,
+  <span class="t">"max_changed_lines"</span>: <span class="n">300</span>,
+  <span class="t">"allow_dependency_change"</span>: <span class="k">false</span>,
+  <span class="t">"allow_test_deletion"</span>: <span class="k">false</span>,
+  <span class="t">"allow_config_change"</span>: <span class="s">"review_only"</span>,
+  <span class="t">"file_whitelist"</span>: [<span class="s">"src/main/com/app/Pool.java"</span>, <span class="s">"src/main/com/app/Service.java"</span>],
+  <span class="t">"forbidden_diff_patterns"</span>: [
+    <span class="s">"@pytest.mark.skip"</span>, <span class="s">"pytest.skip("</span>, <span class="s">"|| true"</span>,
+    <span class="s">"continue-on-error: true"</span>, <span class="s">"except: pass"</span>, <span class="s">"except Exception: pass"</span>
+  ]
+<span class="p">}</span></pre>
+      </div>
+    </section>
+
+    <!-- 5 FIXEXEC -->
+    <section id="fixexec">
+      <div class="sec-head"><span class="sec-num">05</span></div>
+      <h2>FixExecutor 执行抽象层</h2>
+      <p class="sec-sub">// Abstraction Layer · 复用但不锁定</p>
+      <p>隔离编排层与执行层。编排层只依赖 <code>FixExecutor</code> 接口，不感知底层是 OpenCode 还是自研执行器。这样执行层可切换、可并跑，迁移成本被控制在接口层内。</p>
+
+      <h4>接口契约</h4>
+      <div class="code">
+        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>fix_executor.py · Protocol 契约</span><span class="lang">python</span></div>
+<pre><span class="k">from</span> typing <span class="k">import</span> Protocol
+<span class="k">from</span> pydantic <span class="k">import</span> BaseModel
+
+
+<span class="k">class</span> <span class="t">FixRequest</span>(BaseModel):
+    issue_profile: dict
+    localization: dict
+    fix_hypothesis: str
+    patch_policy: dict
+    repo_path: str
+    session_id: str | <span class="k">None</span> = <span class="k">None</span>
+    feedback: str | <span class="k">None</span> = <span class="k">None</span>
+
+
+<span class="k">class</span> <span class="t">FixResult</span>(BaseModel):
+    success: bool
+    session_id: str
+    diff: str
+    changed_files: list[str]
+    tool_calls: list[dict]
+    snapshot_ref: str
+    executor_log: str
+    error: str | <span class="k">None</span> = <span class="k">None</span>
+
+
+<span class="k">class</span> <span class="t">FixExecutor</span>(Protocol):
+    <span class="k">def</span> <span class="f">execute</span>(self, request: FixRequest) -> FixResult: ...
+    <span class="k">def</span> <span class="f">iterate</span>(self, request: FixRequest, feedback: str) -> FixResult: ...
+    <span class="k">def</span> <span class="f">rollback</span>(self, session_id: str, snapshot_ref: str) -> bool: ...
+    <span class="k">def</span> <span class="f">health_check</span>(self) -> bool: ...</pre>
+      </div>
+
+      <h4>DiffAuditor · 执行后独立审计</h4>
+      <p>在 FixExecutor 返回后、验证护栏前，对 diff 做独立审计。审计失败 → 直接拒绝，不进入验证阶段，反馈给 FixExecutor 迭代。</p>
+      <div class="code">
+        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>diff_auditor.py</span><span class="lang">python</span></div>
+<pre><span class="k">class</span> <span class="t">DiffAuditor</span>:
+    <span class="k">def</span> <span class="f">audit</span>(self, diff: str, policy: PatchPolicy) -> AuditReport:
+        violations = []
+        <span class="k">for</span> pattern <span class="k">in</span> policy.forbidden_diff_patterns:
+            <span class="k">if</span> pattern <span class="k">in</span> diff:
+                violations.append(<span class="s">f"禁用模式命中: {pattern}"</span>)
+        changed = parse_changed_files(diff)
+        <span class="k">for</span> f <span class="k">in</span> changed:
+            <span class="k">if</span> f <span class="k">not in</span> policy.file_whitelist:
+                violations.append(<span class="s">f"越界修改: {f}"</span>)
+        <span class="k">if</span> len(changed) > policy.max_files:
+            violations.append(<span class="s">f"文件数超限: {len(changed)} > {policy.max_files}"</span>)
+        <span class="k">return</span> AuditReport(passed=<span class="k">len</span>(violations) == <span class="n">0</span>, violations=violations)</pre>
+      </div>
+    </section>
+
+    <!-- 6 OPENCODE -->
+    <section id="opencode">
+      <div class="sec-head"><span class="sec-num">06</span></div>
+      <h2>OpenCode 集成实现</h2>
+      <p class="sec-sub">// Integration · 三通道 + 自定义 Agent</p>
+
+      <h4>OpenCode 能力映射</h4>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>原需自研模块</th><th>OpenCode 能力</th><th>复用方式</th></tr></thead>
+          <tbody>
+            <tr><td>LSP 语义导航</td><td>内置 LSP（20+ 语言，实时诊断反馈）</td><td>启用 OPENCODE_EXPERIMENTAL_LSP_TOOL</td></tr>
+            <tr><td>补丁生成</td><td>Build Agent（文件读写、跨文件编辑）</td><td>opencode run --agent issue-fixer</td></tr>
+            <tr><td>终端 / 沙箱</td><td>内置终端工具</td><td>编排层验证阶段调用</td></tr>
+            <tr><td>Git 集成</td><td>Git 快照 + /undo /redo</td><td>利用回滚做验证失败回退</td></tr>
+            <tr><td>多候选</td><td>多会话并行</td><td>并行 opencode run</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>三种集成通道</h4>
+      <div class="cards">
+        <div class="card"><div class="c-num">通道 1</div><h4>opencode run</h4><p>单次调用，补丁生成阶段。冷启动，--format json 返回结构化结果。</p></div>
+        <div class="card"><div class="c-num">通道 2</div><h4>opencode serve</h4><p>常驻后端，多轮迭代修复。--attach + --session 复用实例，消除冷启动。</p></div>
+        <div class="card"><div class="c-num">通道 3</div><h4>MCP Server 桥接</h4><p>自研代码智能层反向注入，让 Build Agent 主动检索定位证据。</p></div>
+      </div>
+      <div class="code">
+        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>三通道命令示例</span><span class="lang">bash</span></div>
+<pre><span class="c"># 通道 1：单次补丁生成</span>
+opencode run --model anthropic/claude-sonnet-4 \
+  --agent issue-fixer --format json \
+  <span class="s">"{修复指令 + 定位证据 + PatchPolicy}"</span>
+
+<span class="c"># 通道 2：常驻后端 + 多轮迭代</span>
+opencode serve --port 4096
+opencode run --attach http://localhost:4096 \
+  --session {session_id} --format json \
+  <span class="s">"上轮验证失败: {test_output}. 请修正补丁。"</span>
+
+<span class="c"># 通道 3：注入自研代码智能 MCP</span>
+opencode mcp add code-intelligence \
+  --command <span class="s">"node"</span> --args <span class="s">"mcp-code-intel-server.js"</span></pre>
+      </div>
+
+      <h4>OpenCodeExecutor 实现骨架</h4>
+      <div class="code">
+        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>opencode_executor.py · 默认 FixExecutor 实现</span><span class="lang">python</span></div>
+<pre><span class="k">import</span> subprocess, json
+
+<span class="k">class</span> <span class="t">OpenCodeExecutor</span>:
+    <span class="k">def</span> <span class="f">__init__</span>(self, serve_url=<span class="s">"http://localhost:4096"</span>, model=<span class="s">"anthropic/claude-sonnet-4"</span>):
+        self.serve_url, self.model = serve_url, model
+        self._ensure_serve()
+
+    <span class="k">def</span> <span class="f">_ensure_serve</span>(self):
+        <span class="k">if not</span> self._probe_serve():
+            subprocess.Popen([<span class="s">"opencode"</span>, <span class="s">"serve"</span>, <span class="s">"--port"</span>, <span class="s">"4096"</span>],
+                             stdout=subprocess.DEVNULL)
+
+    <span class="k">def</span> <span class="f">execute</span>(self, request: FixRequest) -> FixResult:
+        prompt = self._build_prompt(request)
+        cmd = [<span class="s">"opencode"</span>, <span class="s">"run"</span>, <span class="s">"--attach"</span>, self.serve_url,
+               <span class="s">"--model"</span>, self.model, <span class="s">"--agent"</span>, <span class="s">"issue-fixer"</span>,
+               <span class="s">"--format"</span>, <span class="s">"json"</span>]
+        <span class="k">if</span> request.session_id:
+            cmd += [<span class="s">"--session"</span>, request.session_id]
+        cmd += [prompt]
+        proc = subprocess.run(cmd, capture_output=<span class="k">True</span>, text=<span class="k">True</span>,
+                              cwd=request.repo_path, timeout=<span class="n">600</span>)
+        <span class="k">return</span> self._parse(proc.stdout, request)
+
+    <span class="k">def</span> <span class="f">iterate</span>(self, request, feedback): ...
+    <span class="k">def</span> <span class="f">rollback</span>(self, session_id, snapshot_ref): ...
+    <span class="k">def</span> <span class="f">_build_prompt</span>(self, request): ...
+    <span class="k">def</span> <span class="f">_parse</span>(self, stdout, request) -> FixResult: ...</pre>
+      </div>
+
+      <h4>自定义 issue-fixer Agent</h4>
+      <div class="code">
+        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>opencode.json · issue-fixer agent 配置</span><span class="lang">json</span></div>
+<pre><span class="p">{</span>
+  <span class="t">"agent"</span>: <span class="s">"issue-fixer"</span>,
+  <span class="t">"model"</span>: <span class="s">"anthropic/claude-sonnet-4"</span>,
+  <span class="t">"system_prompt"</span>: <span class="s">"你是问题修复 Agent。规则:1.只修改定位证据指向的文件 2.禁止 @pytest.mark.skip / || true 3.禁止注释测试断言 4.禁止 except:pass 5.修改后说明根因和思路 6.最多改 max_files 个文件"</span>,
+  <span class="t">"tools"</span>: [<span class="s">"read"</span>, <span class="s">"write"</span>, <span class="s">"edit"</span>, <span class="s">"bash"</span>, <span class="s">"lsp"</span>, <span class="s">"grep"</span>],
+  <span class="t">"lsp"</span>: <span class="k">true</span>
+<span class="p">}</span></pre>
+      </div>
+    </section>
+
+    <!-- 7 INTEL -->
+    <section id="intel">
+      <div class="sec-head"><span class="sec-num">07</span></div>
+      <h2>代码智能层</h2>
+      <p class="sec-sub">// Code Intelligence</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>能力</th><th>工具</th><th>用途</th></tr></thead>
+          <tbody>
+            <tr><td>增量解析</td><td>Tree-sitter</td><td>构建 / 更新 AST，符号提取</td></tr>
+            <tr><td>语义导航</td><td>LSP (pyright / gopls / tsserver)</td><td>跨文件定义跳转、引用查找</td></tr>
+            <tr><td>向量检索</td><td>Embedding + Qdrant</td><td>语义召回</td></tr>
+            <tr><td>关键词检索</td><td>BM25 (Tantivy)</td><td>精确符号 / 错误码匹配</td></tr>
+            <tr><td>Repo Map</td><td>文件树 + 符号摘要</td><td>全局上下文</td></tr>
+            <tr><td>调用图</td><td>自研</td><td>调用链 DFS</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout violet">
+        <span class="cl-label">索引策略</span>
+        监听 git 事件增量更新；向量索引按 <strong>符号块（函数级）</strong> 而非整文件，提升召回精度。Phase 3 将其封装为 MCP Server，通过 <code>opencode mcp add</code> 反向注入 OpenCode Build Agent。
+      </div>
+    </section>
+
+    <!-- 8 GATES -->
+    <section id="gates">
+      <div class="sec-head"><span class="sec-num">08</span></div>
+      <h2>验证护栏</h2>
+      <p class="sec-sub">// Triple Gates · 防幻觉最后防线</p>
+      <div class="cards">
+        <div class="card"><div class="c-num">门 1</div><h4>编译门</h4><p>补丁必须通过 build，否则拒绝。</p></div>
+        <div class="card"><div class="c-num">门 2</div><h4>测试门</h4><p>复现用例 FAIL→PASS + 原有测试无回归 + 覆盖率不降。</p></div>
+        <div class="card"><div class="c-num">门 3</div><h4>静态门</h4><p>lint / typecheck + 安全扫描（semgrep / codeql）。</p></div>
+      </div>
+      <div class="callout red">
+        <span class="cl-label">失败处理</span>
+        失败 → 收集失败证据 → 反馈 <code>FixExecutor.iterate()</code>（最多 3 轮）→ 超过 3 轮转 <code>NEEDS_REVIEW</code> 并附带失败 trace。
+      </div>
+    </section>
+
+    <!-- 9 DEPLOY -->
+    <section id="deploy">
+      <div class="sec-head"><span class="sec-num">09</span></div>
+      <h2>Win11 部署方案</h2>
+      <p class="sec-sub">// Deployment · Win11 + WSL2</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>组件</th><th>Win11 方案</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>OpenCode CLI</td><td>scoop install opencode</td><td>原生 Windows 支持</td></tr>
+            <tr><td>编排层</td><td>Python (LangGraph) 跑 Win11 本地</td><td>subprocess 调用 opencode</td></tr>
+            <tr><td>沙箱执行</td><td>WSL2 + Docker Desktop</td><td>完整 Linux 沙箱</td></tr>
+            <tr><td>LSP Server</td><td>各语言 LSP</td><td>OpenCode 自动加载</td></tr>
+            <tr><td>向量库</td><td>Qdrant (Docker in WSL2)</td><td>轻量部署</td></tr>
+            <tr><td>代码检出</td><td>Win11 原生 git 或 WSL2 内</td><td>避免跨文件系统读写</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="code">
+        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>环境初始化</span><span class="lang">bash</span></div>
+<pre>scoop install opencode          <span class="c"># 1. 安装 opencode</span>
+opencode auth login            <span class="c"># 2. 公司订阅认证</span>
+export OPENCODE_EXPERIMENTAL_LSP_TOOL=<span class="n">1</span>  <span class="c"># 3. 启用 LSP</span>
+opencode serve --port 4096     <span class="c"># 4. 常驻后端</span>
+opencode run --format json <span class="s">"ping"</span>  <span class="c"># 5. 验证</span></pre>
+      </div>
+      <div class="callout amber">
+        <span class="cl-label">文件系统注意</span>
+        代码检出在 WSL2 内（<code>\\wsl$\...</code>）或 Win11 本地，<strong>避免跨文件系统读写</strong>（性能损耗大）。Docker 卷挂载用 WSL2 内路径。
+      </div>
+    </section>
+
+    <!-- 10 ROADMAP -->
+    <section id="roadmap">
+      <div class="sec-head"><span class="sec-num">10</span></div>
+      <h2>演进路线</h2>
+      <p class="sec-sub">// Evolution · 三阶段</p>
+      <div class="roadmap">
+        <div class="phase p1 reveal d1">
+          <div class="ph-tag">PHASE 1 · 0-1 月</div>
+          <h4>OpenCode 集成快速闭环</h4>
+          <ul>
+            <li>LangGraph 状态机骨架 + WSL2 沙箱</li>
+            <li>问题理解 + 向量 / BM25 检索 + Tree-sitter AST 定位</li>
+            <li>OpenCodeExecutor + 自定义 issue-fixer agent</li>
+            <li>编译门 + 测试门</li>
+          </ul>
+          <div class="ph-goal">目标：单语言（Python/TS），简单 Bug 端到端跑通</div>
+        </div>
+        <div class="phase p2 reveal d2">
+          <div class="ph-tag">PHASE 2 · 1-3 月</div>
+          <h4>执行层抽象 + 定位增强</h4>
+          <ul>
+            <li>定义 FixExecutor 接口，OpenCode 为默认实现</li>
+            <li>DiffAuditor diff 审计 + 禁用模式检测</li>
+            <li>LSP 语义导航 + 调用图分析</li>
+            <li>多语言（Go / Java）+ 多候选补丁</li>
+            <li>静态门 + 安全扫描 + Langfuse 可观测</li>
+          </ul>
+          <div class="ph-goal">目标：多语言、多候选、全护栏</div>
+        </div>
+        <div class="phase p3 reveal d3">
+          <div class="ph-tag">PHASE 3 · 3-6 月</div>
+          <h4>核心资产沉淀</h4>
+          <ul>
+            <li>代码智能层封装 MCP Server，反向注入 OpenCode</li>
+            <li>记忆与知识库 RAG，历史相似 issue 复用</li>
+            <li>修复模式自学习：成功补丁反哺知识库</li>
+            <li>NativeExecutor 自研执行器（可选 · 并跑 / 备份）</li>
+            <li>Human-in-the-Loop 审核闭环优化</li>
+          </ul>
+          <div class="ph-goal">目标：资产沉淀、自学习、可切换</div>
+        </div>
+      </div>
+      <div class="callout cyan">
+        <span class="cl-label">切换保险</span>
+        得益于 Phase 2 抽象层，若 OpenCode 出现输出不稳定 / 配额不足 / 定制受限，可切换或并跑自研执行器，迁移成本限于接口层。
+      </div>
+    </section>
+
+    <!-- 11 PHASE1 WEEKLY -->
+    <section id="phase1">
+      <div class="sec-head"><span class="sec-num">11</span></div>
+      <h2>Phase 1 周粒度任务拆解</h2>
+      <p class="sec-sub">// Weekly Breakdown · 含验收标准</p>
+      <div class="week">
+        <div class="wk reveal d1">
+          <div class="wk-h">WEEK 1 · 环境与骨架</div>
+          <div class="wk-item"><b>Win11 环境搭建</b><span>opencode run ping 返回 JSON</span></div>
+          <div class="wk-item"><b>公司订阅认证</b><span>auth list 显示已认证</span></div>
+          <div class="wk-item"><b>LangGraph 状态机骨架</b><span>6 阶段空流程不报错</span></div>
+          <div class="wk-item"><b>issue-fixer agent 配置</b><span>agent list 含 issue-fixer</span></div>
+        </div>
+        <div class="wk reveal d2">
+          <div class="wk-h">WEEK 2 · 定位 MVP</div>
+          <div class="wk-item"><b>问题理解节点</b><span>输出合法 IssueProfile</span></div>
+          <div class="wk-item"><b>向量检索</b><span>Top-10 召回含目标</span></div>
+          <div class="wk-item"><b>BM25 + RRF 融合</b><span>召回含目标文件</span></div>
+          <div class="wk-item"><b>Tree-sitter AST</b><span>文件→函数级映射</span></div>
+        </div>
+        <div class="wk reveal d3">
+          <div class="wk-h">WEEK 3 · 修复闭环</div>
+          <div class="wk-item"><b>OpenCodeExecutor</b><span>返回 FixResult</span></div>
+          <div class="wk-item"><b>opencode serve 常驻</b><span>多轮迭代可用</span></div>
+          <div class="wk-item"><b>方案编排节点</b><span>request 合法</span></div>
+          <div class="wk-item"><b>端到端联调</b><span>单 Bug 跑通</span></div>
+        </div>
+        <div class="wk reveal d1">
+          <div class="wk-h">WEEK 4 · 验证与收尾</div>
+          <div class="wk-item"><b>编译门</b><span>不可 build 被拦截</span></div>
+          <div class="wk-item"><b>测试门</b><span>FAIL→PASS 才放行</span></div>
+          <div class="wk-item"><b>DiffAuditor</b><span>越界/禁用被拦截</span></div>
+          <div class="wk-item"><b>PR 生成 + 验收</b><span>3 Bug 跑通,≥1 合并</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12 METRICS -->
+    <section id="metrics">
+      <div class="sec-head"><span class="sec-num">12</span></div>
+      <h2>评估与度量</h2>
+      <p class="sec-sub">// Evaluation &amp; Metrics</p>
+      <h3><span class="dot"></span>在线指标目标</h3>
+      <div class="metrics">
+        <div class="metric"><div class="m-val">≥70%</div><div class="m-lab">定位准确率</div></div>
+        <div class="metric"><div class="m-val">≥40%</div><div class="m-lab">一次通过率</div></div>
+        <div class="metric"><div class="m-val">≤2</div><div class="m-lab">平均迭代轮数</div></div>
+        <div class="metric"><div class="m-val">&lt;15min</div><div class="m-lab">端到端耗时</div></div>
+        <div class="metric"><div class="m-val">&lt;$2</div><div class="m-lab">token 成本/issue</div></div>
+        <div class="metric"><div class="m-val">&lt;1%</div><div class="m-lab">回归率</div></div>
+      </div>
+      <div class="callout red">
+        <span class="cl-label">质量红线</span>
+        回归率 &lt; 1% · 禁用 diff 模式触发率 = 0 · 高风险变更 100% 人工审核。离线评估采用 SWE-bench resolve rate + 自建内部 issue 集（标注根因 + 黄金补丁）。
+      </div>
+    </section>
+
+    <!-- 13 RISK -->
+    <section id="risk">
+      <div class="sec-head"><span class="sec-num">13</span></div>
+      <h2>风险与对策</h2>
+      <p class="sec-sub">// Risk &amp; Mitigation</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>风险</th><th>等级</th><th>对策</th></tr></thead>
+          <tbody>
+            <tr><td>OpenCode headless 输出格式不稳定</td><td><span class="tag red">高</span></td><td>--format json + schema 校验 + fallback 解析</td></tr>
+            <tr><td>执行层黑盒，diff 超范围</td><td><span class="tag red">高</span></td><td>DiffAuditor 文件白名单 + 禁用模式硬阻断</td></tr>
+            <tr><td>定位幻觉</td><td><span class="tag red">高</span></td><td>三重护栏 + 证据强制 + 置信度阈值</td></tr>
+            <tr><td>Win11/WSL2 跨界性能</td><td><span class="tag amber">中</span></td><td>代码检出在 WSL2 内，避免跨文件系统读写</td></tr>
+            <tr><td>公司订阅配额限制</td><td><span class="tag amber">中</span></td><td>小模型初筛/定位，大模型仅补丁生成；serve 复用减冷启动</td></tr>
+            <tr><td>opencode 版本演进破坏兼容</td><td><span class="tag amber">中</span></td><td>FixExecutor 抽象层隔离；锁定版本 + CI 回归</td></tr>
+            <tr><td>验证循环死锁</td><td><span class="tag amber">中</span></td><td>K=3 轮上限 + 转人工</td></tr>
+            <tr><td>LSP 加载延迟</td><td><span class="tag green">低</span></td><td>opencode serve 常驻，避免冷启动</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 14 STACK -->
+    <section id="stack">
+      <div class="sec-head"><span class="sec-num">14</span></div>
+      <h2>技术选型总表</h2>
+      <p class="sec-sub">// Tech Stack</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>层</th><th>选型</th><th>理由</th></tr></thead>
+          <tbody>
+            <tr><td>Agent 编排</td><td>LangGraph</td><td>显式状态图、checkpoint、human-in-the-loop</td></tr>
+            <tr><td>LLM 主力</td><td>Claude Sonnet 4 / GPT-4.1</td><td>SWE-bench 领先</td></tr>
+            <tr><td>代码解析</td><td>Tree-sitter</td><td>多语言、增量</td></tr>
+            <tr><td>语义导航</td><td>OpenCode 内置 LSP</td><td>复用成熟基建</td></tr>
+            <tr><td>向量库</td><td>Qdrant</td><td>高性能、支持过滤</td></tr>
+            <tr><td>Embedding</td><td>bge-m3</td><td>多语言、代码语义好</td></tr>
+            <tr><td>沙箱</td><td>WSL2 + Docker</td><td>Win11 成熟方案</td></tr>
+            <tr><td>执行层</td><td>OpenCode headless</td><td>复用 Build / LSP / Git</td></tr>
+            <tr><td>补丁审计</td><td>自研 DiffAuditor</td><td>文件白名单 + 禁用模式</td></tr>
+            <tr><td>可观测</td><td>Langfuse</td><td>trace、成本、质量分析</td></tr>
+            <tr><td>任务队列</td><td>Celery / Temporal</td><td>长任务编排、可重试</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="idea-box reveal" style="margin-top:36px">
+        <span class="idea-label">一句话总结</span>
+        <h3>自研"定位+验证"大脑，复用 OpenCode"改代码"手脚</h3>
+        <p class="muted">以最小代价换快速验证与成熟基建，把自研火力集中在根因定位这个真正的壁垒上。FixExecutor 抽象层保证"复用但不锁定"——这是方案 C 的核心价值，也是 AutoBugFix 架构的设计依据。</p>
+      </div>
+
+      <div style="text-align:center;margin-top:48px;padding-top:28px;border-top:1px solid var(--border)">
+        <p style="font-family:var(--mono);font-size:12px;color:var(--text-dim);letter-spacing:.1em">AutoBugFix · v1.0 · 方案 C 完整设计文档 · END</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+(function(){
+  var links = document.querySelectorAll('#tocnav a');
+  var sections = [];
+  links.forEach(function(a){
+    var id = a.getAttribute('href').slice(1);
+    var sec = document.getElementById(id);
+    if(sec) sections.push({sec:sec, link:a});
+  });
+  function onScroll(){
+    var pos = window.scrollY + 140;
+    var cur = null;
+    for(var i=0;i<sections.length;i++){
+      if(sections[i].sec.offsetTop <= pos) cur = sections[i];
+    }
+    links.forEach(function(a){a.classList.remove('active')});
+    if(cur) cur.link.classList.add('active');
+  }
+  window.addEventListener('scroll', onScroll, {passive:true});
+  onScroll();
+})();
+</script>
+</body>
+</html>
