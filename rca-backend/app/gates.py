@@ -33,7 +33,7 @@ def crag_gate(evidence_list: list[Evidence]) -> CragTriage:
         avg_confidence = 0.0
 
     if avg_confidence >= config.gate.confidence_threshold:
-        refined = [ev for ev in evidence_list if any([
+        refined = [ev.model_dump() for ev in evidence_list if any([
             ev.static_depth > 0, ev.runtime_anomaly > 0,
             ev.metric_corr > 0, ev.change_recency > 0,
         ])]
@@ -46,7 +46,7 @@ def crag_gate(evidence_list: list[Evidence]) -> CragTriage:
     elif avg_confidence >= config.gate.confidence_threshold * 0.5:
         return CragTriage(
             verdict="ambiguous",
-            refined_evidence=evidence_list,
+            refined_evidence=[ev.model_dump() for ev in evidence_list],
             augmented_query="",
             rewritten_query=None,
         )

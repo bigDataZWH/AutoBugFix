@@ -1,0 +1,21 @@
+{
+  "s_static": [
+    {"func_id": "OrderLockService.acquire", "func_name": "acquire", "call_path": ["OrderController.createOrder", "OrderService.submit", "OrderLockService.acquire"], "static_depth": 3, "file": "OrderLockService.java", "line": 127},
+    {"func_id": "JedisPool.getResource", "func_name": "getResource", "call_path": ["OrderLockService.acquire", "JedisPool.getResource"], "static_depth": 4, "file": "JedisPool.java", "line": 210},
+    {"func_id": "InventoryService.deduct", "func_name": "deduct", "call_path": ["OrderService.submit", "InventoryService.deduct"], "static_depth": 2, "file": "InventoryService.java", "line": 48}
+  ],
+  "p_runtime": {
+    "span_tree": [{"span_id": "s1", "operation": "OrderService.create", "duration_ms": 3500, "error": true}],
+    "propagation_path": ["OrderService.create", "OrderLockService.acquire", "JedisPool.getResource"],
+    "functions": {"OrderLockService.acquire": 0.95, "JedisPool.getResource": 0.88},
+    "services": {"order-service": 0.92}
+  },
+  "metric_anomalies": {
+    "functions": {"OrderLockService.acquire": 0.7, "JedisPool.getResource": 0.6},
+    "services": {"order-service": 0.8}
+  },
+  "change_records": [
+    {"commit_id": "abc123", "author": "zhang", "timestamp": 1723766400, "files": ["OrderLockService.java"], "funcs": ["OrderLockService.acquire"], "commits": 3}
+  ],
+  "weights": {"w1_static_depth": 0.3, "w2_runtime_anomaly": 0.3, "w3_metric_corr": 0.2, "w4_change_recency": 0.2, "top_k": 3, "single_path_allowed": true, "metric_missing_rebalance": true, "change_missing_rebalance": true}
+}

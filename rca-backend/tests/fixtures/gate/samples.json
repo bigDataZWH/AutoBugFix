@@ -1,0 +1,45 @@
+{
+  "crag_relevant": {
+    "verdict": "relevant",
+    "refined_evidence": [{"function": "OrderLockService.acquire", "relevance": 0.9}],
+    "augmented_query": null,
+    "rewritten_query": null
+  },
+  "crag_ambiguous": {
+    "verdict": "ambiguous",
+    "refined_evidence": [{"function": "JedisPool.getResource", "relevance": 0.5}],
+    "augmented_query": "Redis连接池超时 历史案例",
+    "rewritten_query": null
+  },
+  "crag_irrelevant": {
+    "verdict": "irrelevant",
+    "refined_evidence": [],
+    "augmented_query": null,
+    "rewritten_query": "订单超时 连接池耗尽 分布式锁"
+  },
+  "hil_confirm": {
+    "task_id": "rca-20260830-0001",
+    "action": "confirm",
+    "modified_top3": null,
+    "feedback": "确认根因正确"
+  },
+  "hil_modify": {
+    "task_id": "rca-20260830-0001",
+    "action": "modify",
+    "modified_top3": [{"function_id": "JedisPool.getResource", "function_name": "getResource", "score": 0.92, "hit_kind": "intersection"}],
+    "feedback": "根因应调整为连接池耗尽"
+  },
+  "hil_reject": {
+    "task_id": "rca-20260830-0001",
+    "action": "reject",
+    "modified_top3": null,
+    "feedback": "根因分析方向错误"
+  },
+  "flywheel_payload": {
+    "root_cause": "分布式锁粒度过粗+Redis连接池耗尽",
+    "root_cause_function": "OrderLockService.acquire",
+    "call_path": ["OrderController.createOrder", "OrderService.submit", "OrderLockService.acquire"],
+    "fix_patch": "分段锁+maxActive=64+幂等拦截器",
+    "verify_case": "1000 QPS 压测 p99<500ms 无重复扣减"
+  }
+}
