@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+rca-backend/data/
+.env
+*.log
+.venv/
+venv/

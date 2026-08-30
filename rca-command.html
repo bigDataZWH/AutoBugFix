@@ -462,7 +462,7 @@ main{position:relative;z-index:2;max-width:1680px;margin:0 auto;padding:24px 28p
     <div class="console-head">
       <span class="tag">INPUT // 01</span>
       <h2>问题单根因分析请求</h2>
-      <span class="sub">opencode + RAG pipeline v2.4</span>
+      <span class="sub">5-Agent 智能引擎 v3.0 · SSE 实时流</span>
     </div>
     <div class="console-body">
       <div class="field-grid">
@@ -540,12 +540,12 @@ main{position:relative;z-index:2;max-width:1680px;margin:0 auto;padding:24px 28p
       <span class="live" id="liveStatus">● 待命</span>
     </div>
     <div class="stages" id="stages">
-      <div class="stage" data-i="0"><div class="node"><span>1</span></div><div class="stage-label">拉取问题单</div><div class="stage-done-label">fetch ticket</div></div>
-      <div class="stage" data-i="1"><div class="node"><span>2</span></div><div class="stage-label">克隆代码仓</div><div class="stage-done-label">clone repo</div></div>
-      <div class="stage" data-i="2"><div class="node"><span>3</span></div><div class="stage-label">opencode 静态分析</div><div class="stage-done-label">static scan</div></div>
-      <div class="stage" data-i="3"><div class="node"><span>4</span></div><div class="stage-label">调用链追溯</div><div class="stage-done-label">trace</div></div>
-      <div class="stage" data-i="4"><div class="node"><span>5</span></div><div class="stage-label">RAG 知识匹配</div><div class="stage-done-label">rag match</div></div>
-      <div class="stage" data-i="5"><div class="node"><span>6</span></div><div class="stage-label">方案生成</div><div class="stage-done-label">solution</div></div>
+      <div class="stage" data-i="0"><div class="node"><span>1</span></div><div class="stage-label">问题理解</div><div class="stage-done-label">A1 · analyze</div></div>
+      <div class="stage" data-i="1"><div class="node"><span>2</span></div><div class="stage-label">静态分析</div><div class="stage-done-label">A2 · static</div></div>
+      <div class="stage" data-i="2"><div class="node"><span>3</span></div><div class="stage-label">链路追溯</div><div class="stage-done-label">A3 · trace</div></div>
+      <div class="stage" data-i="3"><div class="node"><span>4</span></div><div class="stage-label">根因定位</div><div class="stage-done-label">A4 · locate</div></div>
+      <div class="stage" data-i="4"><div class="node"><span>5</span></div><div class="stage-label">闸门验证</div><div class="stage-done-label">CRAG·HIL</div></div>
+      <div class="stage" data-i="5"><div class="node"><span>6</span></div><div class="stage-label">方案生成</div><div class="stage-done-label">A5 · solution</div></div>
     </div>
   </section>
 
@@ -868,13 +868,13 @@ main{position:relative;z-index:2;max-width:1680px;margin:0 auto;padding:24px 28p
 </div>
 
 <div class="foot">
-  <span>RCA·Command v2.4.0</span>
+  <span>RCA·Command v3.0.0</span>
   <span class="sep">|</span>
-  <span>opencode engine: 0.9.3</span>
+  <span>5-Agent 智能引擎: v3.0</span>
   <span class="sep">|</span>
   <span>RAG: bge-m3 + qwen2.5-72b</span>
   <span class="sep">|</span>
-  <span>© Huawei Microservice Team</span>
+  <span>© Huawei Microservice Team · 双图谱交叉验证</span>
 </div>
 </main>
 
@@ -889,14 +889,13 @@ const liveStatus=document.getElementById('liveStatus');
 const toast=document.getElementById('toast');
 const toastMsg=document.getElementById('toastMsg');
 
-const stageNames=['拉取问题单','克隆代码仓','opencode 静态分析','调用链追溯','RAG 知识匹配','方案生成'];
 const stageLogs=[
-  '正在拉取问题单 MSP-2026-0817 ...',
-  '克隆 microservice-order-center @ release/2026.08 ...',
-  'opencode 执行 AST 分析 + 数据流追踪 ...',
-  '构建调用链，定位异常堆栈 ...',
-  'RAG 向量检索 12,847 条历史记录 ...',
-  'LLM 合成根因报告 + 修复方案 ...'
+  'A1 理解问题单，抽取症状与错误类型 ...',
+  'A2 静态分析，扫描可疑服务 ...',
+  'A3 链路追溯，定位传播路径 ...',
+  'A4 双图谱交叉验证，计算根因置信度 ...',
+  'CRAG + HIL 闸门校验 ...',
+  'A5 合成修复方案与最佳实践 ...'
 ];
 
 function showToast(msg){
@@ -915,25 +914,293 @@ async function runAnalysis(){
   runBtn.disabled=true;
   runBtn.innerHTML='<span style="display:inline-block;animation:nspin 1s linear infinite">◐</span> 分析中...';
   results.classList.remove('show');
-  stages.forEach(s=>{s.classList.remove('done','active')});
+  stages.forEach(s=>s.classList.remove('done','active'));
   liveStatus.innerHTML='<span class="dot pulse" style="background:var(--amber);box-shadow:0 0 8px var(--amber)"></span> 分析中';
   liveStatus.style.color='var(--amber)';
 
-  for(let i=0;i<stages.length;i++){
-    stages[i].classList.add('active');
-    showToast(stageLogs[i]);
-    await new Promise(r=>setTimeout(r,1100));
+  let finished=false;
+  const finalize=(ok)=>{
+    if(finished)return;
+    finished=true;
+    if(currentES){currentES.close();currentES=null;}
+    if(currentPoll){clearTimeout(currentPoll);currentPoll=null;}
+    running=false;
+    runBtn.disabled=false;
+    runBtn.innerHTML=ok?'<span>▶</span> 重新分析':'<span>▶</span> 启动根因分析';
+  };
+  const markDone=(i)=>{
     stages[i].classList.remove('active');
     stages[i].classList.add('done');
+  };
+  const setLive=(html,color)=>{
+    liveStatus.innerHTML=html;
+    liveStatus.style.color=color;
+  };
+
+  try{
+    stages[0].classList.add('active');
+    showToast('正在提交分析请求...');
+    const resp=await fetch('/api/v1/rca/analyze',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        bug_link: ticket,
+        bug_desc: document.getElementById('desc').value.trim(),
+        repo: repo,
+        branch: document.getElementById('branch').value,
+        runtime_mode:'mock_demo'
+      })
+    });
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const body=await resp.json();
+    const taskId=body.task_id;
+    markDone(0);
+    showToast('任务已提交: '+taskId);
+
+    const es=new EventSource('/api/v1/rca/'+taskId+'/stream');
+    currentES=es;
+    es.onmessage=(e)=>{
+      if(finished)return;
+      let msg;
+      try{msg=JSON.parse(e.data);}catch(_){return;}
+      if(msg.type==='final'){
+        for(let i=1;i<stages.length;i++)markDone(i);
+        renderResults(msg.data,taskId);
+        setLive('<span class="dot pulse"></span> 完成','var(--green)');
+        results.classList.add('show');
+        results.scrollIntoView({behavior:'smooth',block:'start'});
+        showToast('✓ 分析完成，置信度 '+(msg.data.top3&&msg.data.top3[0]?Math.round(msg.data.top3[0].confidence*100)+'%':'N/A'));
+        finalize(true);
+      }else if(msg.type==='error'){
+        showToast('✗ 分析失败: '+(msg.data&&msg.data.message||'未知错误'));
+        finalize(false);
+      }
+    };
+    es.onerror=()=>{ if(!finished){es.close();currentES=null;pollResult(taskId,finalize,markDone,setLive);} };
+    currentPoll=setTimeout(()=>{ if(!finished){es.close();currentES=null;pollResult(taskId,finalize,markDone,setLive);} },30000);
+  }catch(err){
+    stages.forEach(s=>s.classList.remove('active'));
+    showToast('✗ 请求失败: '+err.message);
+    finalize(false);
   }
-  liveStatus.innerHTML='<span class="dot pulse"></span> 完成';
-  liveStatus.style.color='var(--green)';
-  results.classList.add('show');
-  results.scrollIntoView({behavior:'smooth',block:'start'});
-  showToast('✓ 分析完成，置信度 94.2%');
-  running=false;
-  runBtn.disabled=false;
-  runBtn.innerHTML='<span>▶</span> 重新分析';
+}
+
+let currentES=null;
+let currentPoll=null;
+
+async function pollResult(taskId,finalize,markDone,setLive){
+  for(let i=1;i<stages.length;i++){
+    stages[i].classList.add('active');
+    await new Promise(r=>setTimeout(r,900));
+    if(i===1||i===2)stages[i].classList.remove('active');
+    if(i===1||i===2)stages[i].classList.add('done');
+  }
+  try{
+    const resp=await fetch('/api/v1/rca/'+taskId);
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const data=await resp.json();
+    for(let i=1;i<stages.length;i++)markDone(i);
+    renderResults(data,taskId);
+    setLive('<span class="dot pulse"></span> 完成','var(--green)');
+    results.classList.add('show');
+    results.scrollIntoView({behavior:'smooth',block:'start'});
+    showToast('✓ 分析完成');
+    finalize(true);
+  }catch(err){
+    showToast('✗ 获取结果失败: '+err.message);
+    finalize(false);
+  }
+}
+
+function esc(s){
+  return String(s==null?'':s).replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderResults(data,taskId){
+  const gateMap={passed:'已通过',relevant:'相关',ambiguous:'模糊',irrelevant:'不相关',pending:'待确认',confirmed:'已确认',modified:'已修改',rejected:'已拒绝',skipped:'已跳过'};
+  const top3=data.top3||[];
+  const sol=data.solution||{};
+  const top=top3[0]||{};
+  const gate=data.gate_status||{};
+
+  const head=document.querySelector('.results-head');
+  if(head){
+    const h2=head.querySelector('h2');
+    if(h2)h2.textContent='分析报告 · '+(data.task_id||taskId||'N/A');
+    const conf=head.querySelector('.confidence');
+    if(conf){
+      const pct=top.confidence?Math.round(top.confidence*100)+'%':'N/A';
+      conf.textContent='置信度 '+pct;
+      conf.style.borderColor=top.confidence>=0.6?'var(--green-dim)':'var(--amber-dim)';
+      conf.style.color=top.confidence>=0.6?'var(--green)':'var(--amber)';
+      conf.style.background=top.confidence>=0.6?'rgba(52,211,153,.08)':'rgba(251,191,36,.08)';
+    }
+    const meta=head.querySelector('.meta');
+    if(meta)meta.textContent='模式: '+(data.runtime_mode||'N/A')+' · 降级: '+(data.degraded?'是':'否')+' · CRAG='+(gateMap[gate.crag]||gate.crag||'N/A')+' · HIL='+(gateMap[gate.hil]||gate.hil||'N/A');
+  }
+
+  // ---- RCA tab ----
+  const rcaPanel=document.querySelector('.tab-panel[data-panel="rca"]');
+  if(rcaPanel){
+    const summary=rcaPanel.querySelector('.rc-summary');
+    if(summary){
+      const h3=summary.querySelector('h3');
+      if(h3)h3.textContent='根因: '+(top.root_cause||'暂无根因数据');
+      const p=summary.querySelector('p');
+      if(p){
+        let txt='定位函数: '+(top.located_function||'N/A');
+        if(top.file)txt+=' · '+esc(top.file)+(top.line?' :'+top.line:'');
+        if(top.evidence_chain&&top.evidence_chain.length)p.textContent=txt;
+        else p.textContent=txt;
+      }
+      const tags=summary.querySelector('.tags');
+      if(tags){
+        tags.innerHTML='';
+        const chips=[];
+        if(data.error_type)chips.push({t:data.error_type,c:'amber'});
+        if(data.degraded)chips.push({t:'降级模式',c:'violet'});
+        (data.suspect_services||[]).slice(0,3).forEach(s=>chips.push({t:s,c:'cyan'}));
+        if(top.file)chips.push({t:esc(top.file.split('/').pop()),c:''});
+        chips.forEach(c=>{
+          const span=document.createElement('span');
+          span.className='chip'+(c.c?' '+c.c:'');
+          span.textContent=c.t;
+          tags.appendChild(span);
+        });
+      }
+    }
+
+    const cs=rcaPanel.querySelector('.call-stack');
+    if(cs&&top.evidence_chain&&top.evidence_chain.length){
+      cs.innerHTML='';
+      top.evidence_chain.forEach((line,i)=>{
+        const d=document.createElement('div');
+        d.className='stack-line'+(i===0?' culprit':'');
+        d.innerHTML='<span class="ln">→</span><span class="fn">'+esc(line)+'</span>';
+        if(i===0){
+          const b=document.createElement('span');
+          b.style.cssText='color:var(--red);font-size:9px;margin-left:12px;padding:2px 6px;background:rgba(248,113,113,.12);border-radius:3px';
+          b.textContent='⚠ TOP1';
+          d.appendChild(b);
+        }
+        cs.appendChild(d);
+      });
+    }
+
+    const grid=rcaPanel.querySelector('div[style*="grid-template-columns:repeat(2,1fr)"]');
+    if(grid){
+      grid.innerHTML='';
+      const items=top3.slice(0,4);
+      if(items.length===0){
+        const card=document.createElement('div');
+        card.className='kb-card';
+        card.style.margin='0';
+        card.innerHTML='<div class="kb-card-head"><h4>N/A</h4></div><div class="kb-card-body">无根因数据</div>';
+        grid.appendChild(card);
+      }else{
+        items.forEach((rc,i)=>{
+          const card=document.createElement('div');
+          card.className='kb-card';
+          card.style.margin='0';
+          const desc=document.createElement('div');
+          desc.className='kb-card-body';
+          desc.textContent=rc.root_cause||'未知';
+          const metaDiv=document.createElement('div');
+          metaDiv.style.cssText='font-size:10px;color:var(--txt-2);margin-top:4px;font-family:JetBrains Mono';
+          metaDiv.textContent='置信度 '+(rc.confidence*100).toFixed(1)+'% · '+(rc.file?rc.file.split('/').pop()+(rc.line?':'+rc.line:''):'');
+          desc.appendChild(metaDiv);
+          const headDiv=document.createElement('div');
+          headDiv.className='kb-card-head';
+          headDiv.innerHTML='<h4>候选根因 #'+(i+1)+'</h4>';
+          card.appendChild(headDiv);
+          card.appendChild(desc);
+          grid.appendChild(card);
+        });
+      }
+    }
+  }
+
+  // ---- KB tab ----
+  const kbPanel=document.querySelector('.tab-panel[data-panel="kb"]');
+  if(kbPanel){
+    let html='<p style="font-size:12px;color:var(--txt-2);margin-bottom:16px">症状: <b style="color:var(--txt-0)">'+esc((data.symptoms||[]).join('、')||'N/A')+'</b></p>';
+    const hist=sol.historical_cases||[];
+    if(hist.length>0){
+      hist.forEach((h,i)=>{
+        html+='<div class="kb-card"><div class="kb-card-head"><span class="kb-sim">#'+(i+1)+'</span><h4>历史相似案例</h4></div><div class="kb-card-body">'+esc(h)+'</div></div>';
+      });
+    }else{
+      html+='<div class="kb-card"><div class="kb-card-body" style="color:var(--txt-2)">暂无知识库匹配结果（mock_demo 模式，可接入 LightRAG 在线检索）</div></div>';
+    }
+    kbPanel.innerHTML=html;
+  }
+
+  // ---- BP tab ----
+  const bpPanel=document.querySelector('.tab-panel[data-panel="bp"]');
+  if(bpPanel){
+    const practices=sol.best_practices||[];
+    let html='<p style="font-size:12px;color:var(--txt-2);margin-bottom:8px">引擎推荐 <b style="color:var(--cyan)">'+practices.length+'</b> 条最佳实践。</p>';
+    if(practices.length===0){
+      html+='<div class="bp-item"><div class="bp-content"><p style="color:var(--txt-2)">暂无最佳实践（mock_demo 模式）</p></div></div>';
+    }else{
+      practices.forEach((p,i)=>{
+        html+='<div class="bp-item"><div class="bp-num">'+String(i+1).padStart(2,'0')+'</div><div class="bp-content"><h4>最佳实践 #'+(i+1)+'</h4><p>'+esc(p)+'</p></div></div>';
+      });
+    }
+    bpPanel.innerHTML=html;
+  }
+
+  // ---- Solution tab ----
+  const solPanel=document.querySelector('.tab-panel[data-panel="sol"]');
+  if(solPanel){
+    let html='';
+    if(sol.patch_suggestion){
+      html+='<div class="section-title">修复方案</div>';
+      html+='<div class="sol-block" style="grid-column:1/-1"><div class="code-block" style="white-space:pre-wrap">'+esc(sol.patch_suggestion)+'</div></div>';
+    }
+    const diffs=sol.diffs||[];
+    if(diffs.length>0){
+      html+='<div class="section-title">代码对比</div>';
+      html+='<div class="solution-grid">';
+      diffs.forEach(d=>{
+        html+='<div class="sol-block before"><h4><span class="ic">✕</span>修复前 · '+esc(d.file||'')+'</h4><div class="code-block" style="white-space:pre-wrap">'+esc(d.before||'')+'</div></div>';
+        html+='<div class="sol-block after"><h4><span class="ic">✓</span>修复后 · '+esc(d.file||'')+'</h4><div class="code-block" style="white-space:pre-wrap">'+esc(d.after||'')+'</div></div>';
+      });
+      html+='</div>';
+    }
+    const steps=sol.steps||[];
+    if(steps.length>0){
+      html+='<div class="section-title">实施步骤</div>';
+      html+='<ol class="steps">';
+      steps.forEach(s=>{
+        html+='<li><b>'+esc(s.action||'')+'</b> '+esc(s.detail||'')+'</li>';
+      });
+      html+='</ol>';
+    }
+    const tests=sol.test_cases||[];
+    if(tests.length>0){
+      html+='<div class="section-title">测试用例</div>';
+      html+='<div class="verify-grid">';
+      tests.forEach((t,i)=>{
+        html+='<div class="verify-card"><div class="v-ic">🧪</div><div class="v-t">用例 '+(i+1)+'</div><div class="v-v" style="font-size:11px;color:var(--txt-1);line-height:1.4">'+esc(t)+'</div></div>';
+      });
+      html+='</div>';
+    }
+    const verify=sol.verify_expected||{};
+    const vkeys=Object.keys(verify);
+    if(vkeys.length>0){
+      html+='<div class="section-title">验证预期</div>';
+      html+='<div class="verify-grid">';
+      vkeys.forEach(k=>{
+        html+='<div class="verify-card"><div class="v-ic">✓</div><div class="v-t">'+esc(k)+'</div><div class="v-v">'+esc(verify[k])+'</div></div>';
+      });
+      html+='</div>';
+    }
+    if(!html){
+      html='<p style="color:var(--txt-2);padding:20px">暂无方案数据（mock_demo 模式）</p>';
+    }
+    solPanel.innerHTML=html;
+  }
 }
 
 runBtn.addEventListener('click',runAnalysis);
