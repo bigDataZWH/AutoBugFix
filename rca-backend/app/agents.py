@@ -136,6 +136,10 @@ class AgentA2:
 
 
 class AgentA3:
+    def __init__(self, trace_data: Optional[Any] = None, cmdb: Optional[Any] = None) -> None:
+        self._trace_data = trace_data
+        self._cmdb = cmdb
+
     def run(self, suspect_services: list[str]) -> AnomalyPath:
         if config.runtime_mode == "mock_demo":
             return AnomalyPath(
@@ -143,6 +147,19 @@ class AgentA3:
                 propagation_path=suspect_services,
                 functions=[f"{s}::handler" for s in suspect_services],
                 runtime_anomaly=0.8,
+            )
+        # Spec5: 真实 Trace → 服务级拓扑 → 异常路径
+        if self._trace_data is not None:
+            from .service_topology import build_anomaly_path_from_trace, build_service_topology_degraded
+            path = build_anomaly_path_from_trace(self._trace_data, suspect_service=suspect_services[0] if suspect_services else "")
+            if path.functions:
+                return path
+            # Trace 缺失降级
+            return AnomalyPath(
+                span_tree={},
+                propagation_path=[],
+                functions=[],
+                runtime_anomaly=0.0,
             )
         return AnomalyPath(
             span_tree={},

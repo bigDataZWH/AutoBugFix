@@ -85,11 +85,12 @@ class CodeGraph:
             row = conn.execute("SELECT * FROM nodes WHERE symbol=?", (symbol,)).fetchone()
             return dict(row) if row else None
 
-    def _build_node(self, row: dict[str, Any]) -> CPGNode:
+    def _build_node(self, row) -> CPGNode:
+        data = dict(row) if not isinstance(row, dict) else row
         return CPGNode(
-            symbol=row["symbol"], type=row["type"], file=row["file"],
-            line=row["line"], fan_in=row["fan_in"], fan_out=row["fan_out"],
-            complexity=row["complexity"], cn_summary=row.get("cn_summary"),
+            symbol=data["symbol"], type=data["type"], file=data["file"],
+            line=data["line"], fan_in=data["fan_in"], fan_out=data["fan_out"],
+            complexity=data["complexity"], cn_summary=data.get("cn_summary"),
         )
 
     def callers(self, symbol: str, depth: int = 2) -> CallersResponse:
@@ -124,7 +125,11 @@ class CodeGraph:
                 edges.append(CPGEdge(src=r["symbol"], tgt=symbol, type="call", weight=r["weight"]))
             current_layer = next_layer
 
-        return CallersResponse(callers=callers, edges=edges, truncated=False)
+        return CallersResponse(
+            callers=[c.model_dump() for c in callers],
+            edges=[e.model_dump() for e in edges],
+            truncated=False,
+        )
 
     def callees(self, symbol: str) -> CalleesResponse:
         node = self._get_node_by_symbol(symbol)
@@ -145,7 +150,10 @@ class CodeGraph:
             callees.append(self._build_node(r))
             edges.append(CPGEdge(src=symbol, tgt=r["symbol"], type=r["etype"], weight=r["weight"]))
 
-        return CalleesResponse(callees=callees, edges=edges)
+        return CalleesResponse(
+            callees=[c.model_dump() for c in callees],
+            edges=[e.model_dump() for e in edges],
+        )
 
     def explore(self, symbol: str, hops: int = 2) -> ExploreResponse:
         node = self._get_node_by_symbol(symbol)
@@ -186,7 +194,11 @@ class CodeGraph:
 
             current_layer = next_layer
 
-        return ExploreResponse(nodes=list(nodes_map.values()), edges=edges, center=symbol)
+        return ExploreResponse(
+            nodes=[n.model_dump() for n in nodes_map.values()],
+            edges=[e.model_dump() for e in edges],
+            center=symbol,
+        )
 
     def taint(self, entry: str, sink: str) -> TaintResponse:
         entry_node = self._get_node_by_symbol(entry)

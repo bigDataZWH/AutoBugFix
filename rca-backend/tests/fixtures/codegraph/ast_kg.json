@@ -1,0 +1,17 @@
+{
+  "entities": [
+    {"entity_name": "func:OrderController.createOrder", "type": "function", "description": "创建订单入口：接收HTTP请求→调用OrderService.submit→返回OrderResult"},
+    {"entity_name": "func:OrderService.submit", "type": "function", "description": "订单提交编排：参数校验→库存校验→创建订单→发送Kafka消息"},
+    {"entity_name": "func:OrderLockService.acquire", "type": "function", "description": "分布式锁获取：Redis SETNX+EXPIRE→重试3次→失败抛OrderLockException"},
+    {"entity_name": "func:JedisPool.getResource", "type": "function", "description": "Redis连接池获取：commons-pool2 GenericObjectPool→超时等待→返回Jedis实例"},
+    {"entity_name": "func:InventoryService.deduct", "type": "function", "description": "库存扣减：查询库存→扣减→记录流水→返回扣减结果"},
+    {"entity_name": "func:PaymentClient.charge", "type": "function", "description": "支付扣款：调用支付网关→处理回调→更新订单支付状态"}
+  ],
+  "relationships": [
+    {"src_id": "func:OrderController.createOrder", "tgt_id": "func:OrderService.submit", "description": "calls", "weight": 8.0},
+    {"src_id": "func:OrderService.submit", "tgt_id": "func:OrderLockService.acquire", "description": "calls", "weight": 7.0},
+    {"src_id": "func:OrderService.submit", "tgt_id": "func:InventoryService.deduct", "description": "calls", "weight": 6.0},
+    {"src_id": "func:OrderService.submit", "tgt_id": "func:PaymentClient.charge", "description": "calls", "weight": 5.0},
+    {"src_id": "func:OrderLockService.acquire", "tgt_id": "func:JedisPool.getResource", "description": "calls", "weight": 9.0}
+  ]
+}
