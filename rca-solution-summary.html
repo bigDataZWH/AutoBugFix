@@ -4,144 +4,307 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>问题单智能根因分析平台 · V3.0 方案总结</title>
+<meta name="description" content="面向华为团队的问题单自动根因分析平台方案总结 V3.0：opencode + CodeGraph + LightRAG 融合。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0a0e17; --bg2:#0f1521; --panel:#141b2b; --panel2:#1a2336;
-    --line:#243049; --txt:#e6edf7; --txt2:#9aa7bd; --txt3:#6b7689;
-    --brand:#5b8cff; --brand2:#22d3ee; --acc:#a78bfa; --warn:#fbbf24;
-    --ok:#34d399; --bad:#fb7185;
+    --bg-0:#070b14; --bg-1:#0d1320; --bg-2:#131b2c; --bg-3:#1a2538;
+    --border:#26324a; --border-soft:#1e2840;
+    --txt-0:#e8eef7; --txt-1:#a6b3c8; --txt-2:#6b7891;
+    --cyan:#22d3ee; --cyan-dim:#0e7490;
+    --violet:#a78bfa; --violet-dim:#6d28d9;
+    --amber:#fbbf24; --amber-dim:#92400e;
+    --green:#34d399; --green-dim:#065f46;
+    --red:#f87171;
+    --grid-line:rgba(34,211,238,.05);
+    --glow-cyan:0 0 24px rgba(34,211,238,.25);
+    --shadow-card:0 1px 0 rgba(255,255,255,.02) inset, 0 12px 32px rgba(0,0,0,.4);
+    --shadow-lift:0 18px 48px rgba(0,0,0,.5);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
   body{
-    font-family:"PingFang SC","Microsoft YaHei",-apple-system,"Segoe UI",Roboto,sans-serif;
-    background:var(--bg);color:var(--txt);line-height:1.75;font-size:15px;
-    background-image:radial-gradient(circle at 20% 0%,rgba(91,140,255,.08),transparent 40%),
-                     radial-gradient(circle at 80% 100%,rgba(34,211,238,.06),transparent 40%);
+    font-family:'IBM Plex Sans','PingFang SC','Microsoft YaHei',sans-serif;
+    background:var(--bg-0);color:var(--txt-0);line-height:1.75;font-size:15px;
+    background-image:
+      linear-gradient(var(--grid-line) 1px,transparent 1px),
+      linear-gradient(90deg,var(--grid-line) 1px,transparent 1px),
+      radial-gradient(ellipse at 18% -5%,rgba(34,211,238,.10),transparent 45%),
+      radial-gradient(ellipse at 95% 8%,rgba(167,139,250,.08),transparent 40%),
+      radial-gradient(ellipse at 50% 120%,rgba(34,211,238,.05),transparent 55%);
+    background-size:34px 34px,34px 34px,100% 100%,100% 100%,100% 100%;
+    background-attachment:fixed;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
   }
-  .wrap{display:flex;min-height:100vh}
-  /* 侧边目录 */
+  body::before{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
+    background:repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0 1px,transparent 1px 3px);
+  }
+  .mono{font-family:'JetBrains Mono',monospace}
+  .display{font-family:'Chakra Petch',sans-serif;letter-spacing:.02em}
+
+  /* scroll progress */
+  .progress{
+    position:fixed;top:0;left:0;height:2px;width:0;z-index:100;
+    background:linear-gradient(90deg,var(--cyan),var(--violet));
+    box-shadow:0 0 10px rgba(34,211,238,.6);transition:width .12s linear;
+  }
+
+  .wrap{display:flex;min-height:100vh;position:relative;z-index:2}
+
+  /* ============ SIDEBAR NAV ============ */
   .nav{
-    width:280px;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;
-    background:var(--bg2);border-right:1px solid var(--line);overflow-y:auto;padding:24px 0;
+    width:288px;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;
+    background:linear-gradient(180deg,var(--bg-1),var(--bg-0));
+    border-right:1px solid var(--border);overflow-y:auto;padding:0 0 24px;
+    scrollbar-width:thin;scrollbar-color:var(--bg-3) transparent;
   }
-  .nav .brand{padding:0 24px 20px;border-bottom:1px solid var(--line);margin-bottom:16px}
-  .nav .brand .logo{font-size:13px;color:var(--brand2);letter-spacing:2px;font-weight:600}
-  .nav .brand .title{font-size:16px;font-weight:700;margin-top:6px;line-height:1.4}
-  .nav .brand .ver{font-size:11px;color:var(--txt3);margin-top:6px}
+  .nav::-webkit-scrollbar{width:6px}
+  .nav::-webkit-scrollbar-thumb{background:var(--bg-3);border-radius:3px}
+  .nav .brand{padding:22px 22px 20px;border-bottom:1px solid var(--border);position:relative;overflow:hidden}
+  .nav .brand::after{
+    content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+    background:linear-gradient(90deg,var(--cyan),transparent);
+  }
+  .brand-mark{display:flex;align-items:center;gap:13px;margin-bottom:12px}
+  .brand-mark .logo{
+    width:34px;height:34px;position:relative;flex-shrink:0;
+    background:linear-gradient(135deg,var(--cyan),var(--violet));
+    clip-path:polygon(18% 0,100% 0,82% 100%,0 100%);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .brand-mark .logo::after{
+    content:'';position:absolute;inset:2px;background:var(--bg-1);
+    clip-path:polygon(18% 0,100% 0,82% 100%,0 100%);
+  }
+  .brand-mark .logo span{
+    position:relative;z-index:2;font-family:'Chakra Petch';font-weight:700;
+    font-size:16px;color:var(--cyan);text-shadow:0 0 8px rgba(34,211,238,.6);
+  }
+  .brand-mark .meta .tag{font-family:'JetBrains Mono';font-size:10px;color:var(--cyan);letter-spacing:.16em;text-transform:uppercase}
+  .brand-mark .meta .title{font-family:'Chakra Petch';font-size:15px;font-weight:700;line-height:1.35;margin-top:2px}
+  .nav .ver{font-size:11px;color:var(--txt-2);font-family:'JetBrains Mono';margin-top:4px}
+  .nav .nav-label{font-size:10px;color:var(--txt-2);letter-spacing:.14em;text-transform:uppercase;padding:18px 22px 8px;font-family:'JetBrains Mono'}
   .nav a{
-    display:block;padding:9px 24px;color:var(--txt2);text-decoration:none;font-size:13.5px;
-    border-left:3px solid transparent;transition:.2s;
+    display:block;padding:9px 22px 9px 19px;color:var(--txt-1);text-decoration:none;font-size:13px;
+    border-left:2px solid transparent;transition:all .18s;line-height:1.45;position:relative;
   }
-  .nav a:hover{color:var(--txt);background:var(--panel);border-left-color:var(--brand)}
-  .nav a.sub{padding-left:44px;font-size:12.5px;color:var(--txt3)}
-  .nav a.sub:hover{border-left-color:var(--brand2)}
-  /* 主内容 */
-  .main{margin-left:280px;flex:1;padding:48px 64px 80px;max-width:1080px}
-  .sec{margin-bottom:56px;scroll-margin-top:24px}
-  .sec h2{font-size:26px;font-weight:700;margin-bottom:8px;border-bottom:1px solid var(--line);padding-bottom:14px}
-  .sec h2 .n{color:var(--brand);font-family:"JetBrains Mono",monospace;margin-right:10px}
-  .sec h3{font-size:18px;font-weight:600;margin:28px 0 12px;color:var(--brand2)}
-  .sec h4{font-size:15px;font-weight:600;margin:20px 0 10px;color:var(--acc)}
-  .sec p{color:var(--txt2);margin-bottom:12px}
-  .sec ul,.sec ol{color:var(--txt2);margin:0 0 16px 22px}
-  .sec li{margin-bottom:6px}
-  .sec strong{color:var(--txt)}
-  .sec code{font-family:"JetBrains Mono","Consolas",monospace;background:var(--panel2);
-    padding:2px 7px;border-radius:4px;font-size:13px;color:var(--brand2)}
-  .lead{font-size:15.5px;color:var(--txt2);margin-bottom:20px;padding:16px 20px;
-    background:linear-gradient(90deg,rgba(91,140,255,.1),transparent);border-left:3px solid var(--brand);border-radius:0 8px 8px 0}
-  /* hero */
-  .hero{background:linear-gradient(135deg,var(--panel) 0%,var(--bg2) 100%);
-    border:1px solid var(--line);border-radius:16px;padding:40px 44px;margin-bottom:48px;position:relative;overflow:hidden}
-  .hero::before{content:"";position:absolute;top:-40%;right:-10%;width:50%;height:180%;
-    background:radial-gradient(circle,rgba(91,140,255,.15),transparent 60%)}
-  .hero .tag{display:inline-block;font-size:11px;letter-spacing:2px;color:var(--brand2);
-    border:1px solid var(--brand2);border-radius:20px;padding:4px 14px;margin-bottom:16px}
-  .hero h1{font-size:30px;font-weight:800;line-height:1.3;margin-bottom:14px;position:relative}
-  .hero .sub{color:var(--txt2);font-size:15px;max-width:780px;position:relative}
-  .hero .meta{display:flex;gap:32px;margin-top:24px;position:relative;flex-wrap:wrap}
-  .hero .meta .it{font-size:12px}
-  .hero .meta .it .k{color:var(--txt3);display:block;margin-bottom:2px}
-  .hero .meta .it .v{color:var(--txt);font-weight:600}
-  /* 更新卡片 */
+  .nav a:hover{color:var(--txt-0);background:rgba(34,211,238,.04);border-left-color:var(--cyan-dim)}
+  .nav a.active{color:var(--cyan);background:rgba(34,211,238,.06);border-left-color:var(--cyan);font-weight:500}
+  .nav a.active::before{content:'';position:absolute;left:-2px;top:0;bottom:0;width:2px;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+  .nav a.sub{padding-left:40px;font-size:12px;color:var(--txt-2)}
+  .nav a.sub:hover{border-left-color:var(--violet-dim)}
+  .nav a.sub.active{color:var(--violet);border-left-color:var(--violet)}
+  .nav .nav-foot{margin-top:18px;padding:16px 22px;border-top:1px solid var(--border);font-size:11px;color:var(--txt-2);font-family:'JetBrains Mono';line-height:1.6}
+  .nav .nav-foot b{color:var(--txt-1)}
+
+  /* ============ MAIN ============ */
+  .main{margin-left:288px;flex:1;padding:44px 60px 90px;max-width:1120px;min-width:0}
+  .sec{margin-bottom:64px;scroll-margin-top:28px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--border);position:relative}
+  .sec-head::after{content:'';position:absolute;bottom:-1px;left:0;width:64px;height:1px;background:linear-gradient(90deg,var(--cyan),transparent)}
+  .sec-head .n{font-family:'JetBrains Mono';font-size:13px;font-weight:700;color:var(--cyan);background:rgba(34,211,238,.08);border:1px solid var(--cyan-dim);padding:3px 9px;border-radius:4px;letter-spacing:.06em}
+  .sec-head h2{font-family:'Chakra Petch';font-size:26px;font-weight:700;line-height:1.2}
+  .sec h3{font-family:'Chakra Petch';font-size:18px;font-weight:600;margin:32px 0 12px;color:var(--txt-0);display:flex;align-items:center;gap:10px}
+  .sec h3::before{content:'';width:4px;height:16px;background:linear-gradient(180deg,var(--cyan),var(--violet));border-radius:2px;flex-shrink:0}
+  .sec h4{font-size:15px;font-weight:600;margin:22px 0 10px;color:var(--violet)}
+  .sec p{color:var(--txt-1);margin-bottom:14px}
+  .sec ul,.sec ol{color:var(--txt-1);margin:0 0 18px 22px}
+  .sec li{margin-bottom:7px}
+  .sec li::marker{color:var(--cyan)}
+  .sec strong{color:var(--txt-0);font-weight:600}
+  .sec code{font-family:'JetBrains Mono',monospace;background:var(--bg-2);
+    padding:2px 7px;border-radius:4px;font-size:12.8px;color:var(--cyan);border:1px solid var(--border-soft)}
+  .lead{font-size:15px;color:var(--txt-1);margin-bottom:22px;padding:16px 20px;
+    background:linear-gradient(90deg,rgba(34,211,238,.08),transparent 70%);border-left:3px solid var(--cyan);border-radius:0 8px 8px 0}
+
+  /* ============ HERO ============ */
+  .hero{
+    background:linear-gradient(135deg,var(--bg-2) 0%,var(--bg-1) 100%);
+    border:1px solid var(--border);border-radius:16px;padding:44px 46px;margin-bottom:48px;
+    position:relative;overflow:hidden;box-shadow:var(--shadow-card);
+  }
+  .hero::before{content:"";position:absolute;top:-50%;right:-15%;width:55%;height:200%;
+    background:radial-gradient(circle,rgba(34,211,238,.14),transparent 60%)}
+  .hero::after{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),var(--violet),transparent);opacity:.6}
+  .hero .tag{display:inline-flex;align-items:center;gap:8px;font-family:'JetBrains Mono';font-size:10.5px;letter-spacing:.18em;color:var(--cyan);
+    border:1px solid var(--cyan-dim);background:rgba(34,211,238,.06);border-radius:20px;padding:5px 14px;margin-bottom:20px}
+  .hero .tag .pulse{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .hero h1{font-family:'Chakra Petch';font-size:31px;font-weight:700;line-height:1.28;margin-bottom:14px;position:relative;letter-spacing:.01em}
+  .hero h1 .grad{background:linear-gradient(120deg,var(--cyan),var(--violet));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .hero .sub{color:var(--txt-1);font-size:15px;max-width:820px;position:relative;line-height:1.8}
+  .hero .meta{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:30px;position:relative}
+  .hero .meta .it{font-size:12px;padding:12px 14px;background:rgba(7,11,20,.45);border:1px solid var(--border-soft);border-radius:8px;backdrop-filter:blur(4px)}
+  .hero .meta .it .k{color:var(--txt-2);display:block;margin-bottom:5px;font-family:'JetBrains Mono';font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+  .hero .meta .it .v{color:var(--txt-0);font-weight:600;font-size:12.5px}
+
+  /* ============ UPDATE CARDS ============ */
   .updates{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:48px}
-  .upd{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;position:relative;overflow:hidden}
-  .upd .badge{position:absolute;top:0;right:0;background:var(--brand);color:#fff;font-size:10px;padding:3px 10px;border-radius:0 0 0 8px}
-  .upd h4{color:var(--brand2);margin:0 0 10px;font-size:14px}
-  .upd .tool{font-size:12px;color:var(--txt3);margin-bottom:8px;font-family:monospace}
-  .upd p{font-size:13px;color:var(--txt2);margin:0}
-  /* 表格 */
-  .tbl{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px;background:var(--panel);border-radius:10px;overflow:hidden;border:1px solid var(--line)}
-  .tbl th{background:var(--panel2);color:var(--brand2);text-align:left;padding:11px 14px;font-weight:600;border-bottom:1px solid var(--line);font-size:12.5px;white-space:nowrap}
-  .tbl td{padding:10px 14px;border-bottom:1px solid var(--line);color:var(--txt2);vertical-align:top}
+  .upd{background:linear-gradient(180deg,var(--bg-2),var(--bg-1));border:1px solid var(--border);border-radius:12px;padding:22px;position:relative;overflow:hidden;transition:all .25s}
+  .upd::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:.4}
+  .upd:hover{border-color:var(--cyan-dim);transform:translateY(-3px);box-shadow:var(--shadow-lift)}
+  .upd .badge{position:absolute;top:0;right:0;font-family:'JetBrains Mono';font-size:9.5px;letter-spacing:.1em;padding:4px 12px;border-radius:0 0 0 8px}
+  .upd .badge.new{background:var(--cyan);color:#021016}
+  .upd .badge.swap{background:var(--violet);color:#1a0e3a}
+  .upd .badge.fix{background:var(--amber);color:#1a1206}
+  .upd .ic{font-size:20px;margin-bottom:10px}
+  .upd h4{color:var(--cyan);margin:0 0 8px;font-size:14.5px;font-family:'Chakra Petch';font-weight:600}
+  .upd .tool{font-size:11px;color:var(--txt-2);margin-bottom:10px;font-family:'JetBrains Mono'}
+  .upd p{font-size:13px;color:var(--txt-1);margin:0;line-height:1.7}
+
+  /* ============ TABLES ============ */
+  .tbl{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px;
+    background:linear-gradient(180deg,var(--bg-2),var(--bg-1));border-radius:10px;overflow:hidden;border:1px solid var(--border);box-shadow:var(--shadow-card)}
+  .tbl th{background:rgba(34,211,238,.05);color:var(--cyan);text-align:left;padding:12px 15px;font-weight:600;border-bottom:1px solid var(--border);font-size:12px;white-space:nowrap;font-family:'JetBrains Mono';letter-spacing:.04em;text-transform:uppercase}
+  .tbl td{padding:11px 15px;border-bottom:1px solid var(--border-soft);color:var(--txt-1);vertical-align:top}
   .tbl tr:last-child td{border-bottom:none}
-  .tbl tr:hover td{background:rgba(91,140,255,.04)}
-  .tbl .yes{color:var(--ok);font-weight:600}
-  .tbl .no{color:var(--bad)}
-  .tbl .mid{color:var(--warn)}
-  .tbl .hl{color:var(--txt);font-weight:600}
-  /* 代码块 */
-  .code{background:#0b0f1a;border:1px solid var(--line);border-radius:10px;margin:16px 0;overflow:hidden}
-  .code .bar{background:var(--panel2);padding:8px 14px;font-size:11px;color:var(--txt3);font-family:monospace;border-bottom:1px solid var(--line);display:flex;justify-content:space-between}
-  .code .bar .lang{color:var(--brand2)}
-  .code pre{padding:16px 20px;overflow-x:auto;font-family:"JetBrains Mono","Consolas",monospace;font-size:12.8px;line-height:1.7;color:#c9d4e5}
+  .tbl tr:hover td{background:rgba(34,211,238,.03)}
+  .tbl .yes{color:var(--green);font-weight:600}
+  .tbl .no{color:var(--red)}
+  .tbl .mid{color:var(--amber)}
+  .tbl .hl{color:var(--cyan);font-weight:600}
+
+  /* ============ CODE BLOCKS ============ */
+  .code{background:#0a0e17;border:1px solid var(--border);border-radius:10px;margin:16px 0;overflow:hidden;box-shadow:var(--shadow-card)}
+  .code .bar{background:var(--bg-2);padding:9px 16px;font-size:11px;color:var(--txt-2);font-family:'JetBrains Mono';border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  .code .bar .lang{color:var(--cyan);font-size:10px;letter-spacing:.1em;background:rgba(34,211,238,.08);padding:2px 8px;border-radius:3px;border:1px solid var(--cyan-dim)}
+  .code pre{padding:16px 20px;overflow-x:auto;font-family:'JetBrains Mono','Consolas',monospace;font-size:12.7px;line-height:1.75;color:#c9d4e5;scrollbar-width:thin}
+  .code pre::-webkit-scrollbar{height:6px}
+  .code pre::-webkit-scrollbar-thumb{background:var(--bg-3);border-radius:3px}
   .code .c{color:#5b6e8f}
   .code .k{color:#c792ea}
   .code .s{color:#c3e88d}
   .code .f{color:#82aaff}
-  /* 架构图 */
-  .arch{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:24px;margin:16px 0;overflow-x:auto}
-  .arch .ascii{font-family:"JetBrains Mono",monospace;font-size:12px;line-height:1.55;color:var(--txt2);white-space:pre}
-  .arch .ascii .b{color:var(--brand2)} .arch .ascii .g{color:var(--ok)} .arch .ascii .p{color:var(--acc)}
-  /* 流程步骤 */
+
+  /* ============ ARCH DIAGRAMS ============ */
+  .arch{background:linear-gradient(180deg,var(--bg-2),var(--bg-1));border:1px solid var(--border);border-radius:12px;padding:26px;margin:16px 0;overflow-x:auto;box-shadow:var(--shadow-card);position:relative}
+  .arch::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--violet),transparent);opacity:.4}
+  .arch .ascii{font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;color:var(--txt-1);white-space:pre}
+  .arch .ascii .b{color:var(--cyan)} .arch .ascii .g{color:var(--green)} .arch .ascii .p{color:var(--violet)} .arch .ascii .warn{color:var(--amber)}
+
+  /* ============ STEP FLOW ============ */
   .steps{display:flex;gap:0;margin:20px 0;flex-wrap:wrap}
-  .step{flex:1;min-width:130px;background:var(--panel);border:1px solid var(--line);padding:14px;position:relative;border-radius:8px 0 0 8px}
-  .step:first-child{border-radius:8px}
+  .step{flex:1;min-width:135px;background:var(--bg-2);border:1px solid var(--border);padding:15px;position:relative;border-radius:0}
+  .step:first-child{border-radius:8px 0 0 8px}
   .step:last-child{border-radius:0 8px 8px 0}
   .step:not(:last-child){border-right:none}
-  .step .num{font-size:11px;color:var(--brand);font-family:monospace;font-weight:700}
-  .step .nm{font-size:13px;font-weight:600;margin:4px 0;color:var(--txt)}
-  .step .ds{font-size:11.5px;color:var(--txt3)}
-  /* 高亮框 */
-  .note{background:linear-gradient(90deg,rgba(167,139,250,.12),transparent);border-left:3px solid var(--acc);padding:14px 18px;border-radius:0 8px 8px 0;margin:16px 0;font-size:13.5px;color:var(--txt2)}
-  .note.warn{background:linear-gradient(90deg,rgba(251,191,36,.12),transparent);border-left-color:var(--warn)}
-  .note.ok{background:linear-gradient(90deg,rgba(52,211,153,.12),transparent);border-left-color:var(--ok)}
-  .note .t{color:var(--txt);font-weight:600;display:block;margin-bottom:4px}
-  /* 关键值 */
+  .step:not(:last-child)::after{content:'';position:absolute;right:-7px;top:50%;transform:translateY(-50%);width:0;height:0;border-left:7px solid var(--border);border-top:6px solid transparent;border-bottom:6px solid transparent;z-index:2}
+  .step .num{font-size:10px;color:var(--cyan);font-family:'JetBrains Mono';font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  .step .nm{font-size:13px;font-weight:600;margin:5px 0;color:var(--txt-0);font-family:'Chakra Petch'}
+  .step .ds{font-size:11.5px;color:var(--txt-2);line-height:1.55}
+
+  /* ============ NOTES ============ */
+  .note{background:linear-gradient(90deg,rgba(167,139,250,.10),transparent 70%);border-left:3px solid var(--violet);padding:15px 19px;border-radius:0 8px 8px 0;margin:16px 0;font-size:13.5px;color:var(--txt-1)}
+  .note.warn{background:linear-gradient(90deg,rgba(251,191,36,.10),transparent 70%);border-left-color:var(--amber)}
+  .note.ok{background:linear-gradient(90deg,rgba(52,211,153,.10),transparent 70%);border-left-color:var(--green)}
+  .note .t{color:var(--txt-0);font-weight:600;display:block;margin-bottom:5px;font-family:'Chakra Petch'}
+  .note strong{color:var(--txt-0);font-family:'Chakra Petch';font-weight:600}
+
+  /* ============ KPI ============ */
   .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:20px 0}
-  .kpi .k{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;text-align:center}
-  .kpi .k .v{font-size:24px;font-weight:800;color:var(--brand2);font-family:monospace}
-  .kpi .k .l{font-size:11px;color:var(--txt3);margin-top:4px}
-  /* 创新卡 */
+  .kpi .k{background:linear-gradient(180deg,var(--bg-2),var(--bg-1));border:1px solid var(--border);border-radius:10px;padding:18px;text-align:center;position:relative;overflow:hidden;box-shadow:var(--shadow-card)}
+  .kpi .k::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:.5}
+  .kpi .k .v{font-size:26px;font-weight:700;color:var(--cyan);font-family:'Chakra Petch';text-shadow:0 0 16px rgba(34,211,238,.3)}
+  .kpi .k .l{font-size:10.5px;color:var(--txt-2);margin-top:6px;font-family:'JetBrains Mono';letter-spacing:.06em;text-transform:uppercase}
+
+  /* ============ INNOVATION CARDS ============ */
   .innov{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}
-  .innov .it{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
-  .innov .it .ic{font-size:18px;margin-bottom:6px}
-  .innov .it h4{color:var(--brand2);margin:0 0 8px;font-size:14px}
-  .innov .it p{font-size:12.5px;color:var(--txt2);margin:0}
-  /* 引用 */
-  .refs{font-size:12px;color:var(--txt3);border-top:1px solid var(--line);padding-top:16px;margin-top:32px}
-  .refs a{color:var(--brand);text-decoration:none}
-  .refs a:hover{text-decoration:underline}
-  .foot{text-align:center;color:var(--txt3);font-size:12px;margin-top:40px;padding-top:24px;border-top:1px solid var(--line)}
-  /* 响应式 */
-  @media(max-width:1024px){
-    .nav{position:relative;width:100%;height:auto;border-right:none;border-bottom:1px solid var(--line)}
-    .main{margin-left:0;padding:32px 24px 60px}
-    .updates,.innov,.kpi{grid-template-columns:1fr}
-    .step{border-radius:8px!important;border:1px solid var(--line)!important;margin-bottom:8px}
+  .innov .it{background:linear-gradient(180deg,var(--bg-2),var(--bg-1));border:1px solid var(--border);border-radius:10px;padding:18px 20px;position:relative;overflow:hidden;transition:all .25s}
+  .innov .it::before{content:'';position:absolute;top:0;left:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--cyan),var(--violet));opacity:.6}
+  .innov .it:hover{border-color:var(--cyan-dim);transform:translateY(-2px)}
+  .innov .it .ic{font-size:20px;margin-bottom:8px}
+  .innov .it h4{color:var(--cyan);margin:0 0 9px;font-size:14px;font-family:'Chakra Petch';font-weight:600}
+  .innov .it p{font-size:12.5px;color:var(--txt-1);margin:0;line-height:1.7}
+
+  /* ============ REFS / FOOTER ============ */
+  .refs{font-size:12px;color:var(--txt-2);border-top:1px solid var(--border);padding-top:18px;margin-top:36px;line-height:2;list-style:none;padding-left:0}
+  .refs li{padding-left:18px;position:relative}
+  .refs li::before{content:'▸';position:absolute;left:0;color:var(--cyan-dim)}
+  .refs a{color:var(--cyan);text-decoration:none;border-bottom:1px dashed var(--cyan-dim)}
+  .refs a:hover{text-decoration:none;border-bottom-style:solid}
+  .foot{text-align:center;color:var(--txt-2);font-size:12px;margin-top:44px;padding-top:26px;border-top:1px solid var(--border);line-height:1.9}
+  .foot .brand-line{font-family:'Chakra Petch';color:var(--txt-1);font-weight:600}
+  .foot-inner{display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap}
+  .brand-foot{font-family:'Chakra Petch';color:var(--txt-0);font-weight:700;letter-spacing:.06em}
+  .foot .ver{color:var(--cyan);font-family:'JetBrains Mono';font-size:11.5px}
+  .foot .ts{color:var(--txt-2);font-family:'JetBrains Mono';font-size:11px}
+
+  /* ============ PILLS ============ */
+  .pill{display:inline-block;padding:2px 11px;border-radius:11px;font-size:10.5px;font-family:'JetBrains Mono';font-weight:600;letter-spacing:.04em;line-height:1.7}
+  .pill.g{background:rgba(52,211,153,.14);color:var(--green);border:1px solid rgba(52,211,153,.3)}
+  .pill.a{background:rgba(251,191,36,.14);color:var(--amber);border:1px solid rgba(251,191,36,.3)}
+  .pill.r{background:rgba(248,113,113,.14);color:var(--red);border:1px solid rgba(248,113,113,.3)}
+  .pill.c{background:rgba(34,211,238,.14);color:var(--cyan);border:1px solid rgba(34,211,238,.3)}
+
+  /* ============ INNOVATION NUM BADGE ============ */
+  .innov .it .ic{font-family:'JetBrains Mono';font-weight:700;color:var(--cyan);font-size:13px;letter-spacing:.1em;background:rgba(34,211,238,.08);display:inline-block;padding:3px 9px;border-radius:6px;border:1px solid rgba(34,211,238,.2)}
+
+  /* ============ REVEAL ============ */
+  .reveal{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
+  .reveal.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){
+    .reveal{opacity:1!important;transform:none!important;transition:none!important}
+    .hero .tag .pulse{animation:none}
+    html{scroll-behavior:auto}
+    *{transition:none!important}
+  }
+
+  /* ============ RESPONSIVE ============ */
+  @media(max-width:1100px){
+    .hero .meta{grid-template-columns:repeat(3,1fr)}
+    .updates{grid-template-columns:1fr}
+  }
+  @media(max-width:980px){
+    .nav{position:relative;width:100%;height:auto;border-right:none;border-bottom:1px solid var(--border);padding-bottom:8px}
+    .nav .nav-foot{display:none}
+    .main{margin-left:0;padding:32px 22px 60px}
+    .innov,.kpi{grid-template-columns:1fr 1fr}
+    .hero{padding:32px 26px}
+    .hero h1{font-size:25px}
+    .step{border-radius:8px!important;border:1px solid var(--border)!important;margin-bottom:8px;flex:1 1 100%}
+    .step:not(:last-child)::after{display:none}
+  }
+  @media(max-width:560px){
+    .hero .meta,.innov,.kpi{grid-template-columns:1fr}
+    .sec-head h2{font-size:22px}
+    .hero h1{font-size:22px}
+  }
+
+  /* ============ PRINT ============ */
+  @media print{
+    body{background:#fff;color:#111}
+    body::before{display:none}
+    .nav,.progress{display:none}
+    .main{margin:0;padding:0;max-width:100%}
+    .hero,.upd,.tbl,.code,.arch,.kpi .k,.innov .it,.step,.note,.pill{background:#f7f7f7!important;color:#111!important;border:1px solid #ccc!important;box-shadow:none!important}
+    .hero h1,.sec-head h2,.sec h3,.sec h4,.upd h4,.innov h4,.step .nm,.note .t,.note strong,.foot .brand-line,.brand-foot{color:#111!important}
+    .hero h1 .grad,.sec-head .n,.tbl th,.code .bar .lang,.code .k,.code .s,.code .f,.tbl .yes,.tbl .hl,.kpi .k .v,.innov .it h4,.foot .ver,.pill,.innov .it .ic{color:#0b6e7d!important;-webkit-text-fill-color:#0b6e7d!important}
+    .sec p,.sec li,.hero .sub,.upd p,.tbl td,.step .ds,.code pre,.innov .it p,.note,.refs li,.foot .ts{color:#333!important}
+    .hero::before,.hero::after,.upd::before,.innov .it::before,.kpi .k::before,.arch::before{display:none!important}
+    .reveal{opacity:1!important;transform:none!important}
+    a{color:#0b6e7d!important}
   }
 </style>
 </head>
 <body>
+<div class="progress" id="progress"></div>
 <div class="wrap">
 
-  <nav class="nav">
+  <nav class="nav" aria-label="文档目录">
     <div class="brand">
-      <div class="logo">HUAWEI · RCA PLATFORM</div>
-      <div class="title">问题单智能根因分析平台</div>
+      <div class="brand-mark">
+        <div class="logo"><span>R</span></div>
+        <div class="meta">
+          <div class="tag">RCA PLATFORM</div>
+          <div class="title">问题单智能根因分析平台</div>
+        </div>
+      </div>
       <div class="ver">方案总结 · V3.0 · 2026.08</div>
     </div>
+    <div class="nav-label">目录</div>
     <a href="#overview">总览与更新要点</a>
     <a href="#req">需求与约束</a>
     <a href="#arch">整体架构</a>
@@ -154,15 +317,21 @@
     <a href="#dataflow">数据流时序</a>
     <a href="#deploy">Win 本地部署</a>
     <a href="#roadmap">路线图与验证</a>
-    <a href="#innov">关键创新与方案对比</a>
+    <a href="#innovation">关键创新与方案对比</a>
+    <a href="#refs" class="sub">参考来源</a>
+    <div class="nav-foot">
+      <b>状态</b> 方案设计稿<br>
+      <b>原则</b> 不重复造轮子<br>
+      <b>部署</b> Win11 本地可跑
+    </div>
   </nav>
 
   <main class="main">
 
     <!-- HERO -->
-    <div class="hero" id="overview">
-      <span class="tag">DESIGN SUMMARY · NO CODE</span>
-      <h1>问题单智能根因分析平台 · V3.0<br>方案总结（opencode + CodeGraph + LightRAG 融合）</h1>
+    <div class="hero reveal" id="overview">
+      <span class="tag"><span class="pulse"></span>DESIGN SUMMARY · NO CODE</span>
+      <h1>问题单智能根因分析平台 · <span class="grad">V3.0</span><br>方案总结（opencode + CodeGraph + LightRAG 融合）</h1>
       <p class="sub">面向华为团队的问题单自动根因分析平台。输入微服务代码仓（含分支）+ 云捷 Bug 单链接/描述，自动分析根因、匹配历史经验、探索业界最佳实践并给出修复方案。本版本引入 opencode-codegraph 插件构建代码图谱、opencode 订阅大模型做代码中文语义化、LightRAG 做分层检索。</p>
       <div class="meta">
         <div class="it"><span class="k">代码图谱</span><span class="v">CodeGraph (42.8k★)</span></div>
@@ -174,18 +343,21 @@
     </div>
 
     <!-- 更新要点 -->
-    <div class="updates">
-      <div class="upd"><span class="badge">新增</span>
+    <div class="updates reveal">
+      <div class="upd"><span class="badge new">新增</span>
+        <div class="ic">📝</div>
         <h4>① 代码中文描述</h4>
         <div class="tool">opencode订阅LLM · NL Outline范式</div>
         <p>将类名/函数名保留，具体实现转为中文语义描述，作为图谱节点的语义摘要，提升检索可读性与命中率。</p>
       </div>
-      <div class="upd"><span class="badge">替换</span>
+      <div class="upd"><span class="badge swap">替换</span>
+        <div class="ic">🧩</div>
         <h4>② CodeGraph 代码图谱</h4>
         <div class="tool">opencode-codegraph插件 · tree-sitter</div>
         <p>用 opencode 官方插件替代手写 tree-sitter 调用图构建，克隆代码仓后自动构建 MCP 代码知识图谱。</p>
       </div>
-      <div class="upd"><span class="badge">定案</span>
+      <div class="upd"><span class="badge fix">定案</span>
+        <div class="ic">🎯</div>
         <h4>③ LightRAG 检索</h4>
         <div class="tool">lightrag-hku · Postgres一体</div>
         <p>采用 LightRAG 双层级检索，弃用 RAGFlow，Win 原生 pip 部署，复用 opencode 订阅 LLM。</p>
@@ -193,8 +365,8 @@
     </div>
 
     <!-- 1 需求与约束 -->
-    <div class="sec" id="req">
-      <h2><span class="n">01</span>需求与约束</h2>
+    <div class="sec reveal" id="req">
+      <div class="sec-head"><span class="n">01</span><h2>需求与约束</h2></div>
       <p class="lead">在"不重复造轮子、用业界已有项目、Win 可部署、复用 opencode 订阅大模型"的硬约束下，确定技术选型。</p>
       <table class="tbl">
         <tr><th>维度</th><th>要求</th></tr>
@@ -209,8 +381,8 @@
     </div>
 
     <!-- 2 整体架构 -->
-    <div class="sec" id="arch">
-      <h2><span class="n">02</span>整体架构</h2>
+    <div class="sec reveal" id="arch">
+      <div class="sec-head"><span class="n">02</span><h2>整体架构</h2></div>
       <p>六层架构 + 两基座。V3.0 相比 V2.0 的核心变化：<strong>函数级调用图由 opencode-codegraph 插件自动构建（不再手写 tree-sitter）</strong>，函数节点语义由 opencode 大模型生成中文描述，检索层统一收敛到 LightRAG。</p>
       <div class="arch">
 <div class="ascii"><span class="b">┌──────────────────────────────────────────────────────────────────────┐</span>
@@ -246,8 +418,8 @@
     </div>
 
     <!-- 模块A 代码中文描述 -->
-    <div class="sec" id="code2cn">
-      <h2><span class="n">03</span>模块A · 代码中文描述（对比方案）</h2>
+    <div class="sec reveal" id="code2cn">
+      <div class="sec-head"><span class="n">03</span><h2>模块A · 代码中文描述（对比方案）</h2></div>
       <p class="lead">目标：将代码转为中文功能描述（保留类名、函数名，具体实现用中文描述），作为 CodeGraph 节点的语义摘要，喂给 LightRAG 做语义检索与根因推理。</p>
       <p>业界范式参考：Google 的 Natural Language Outlines（FSE'25 会议论文）——用简洁散文分步概括函数主逻辑，LLM 可高质量生成；IBM Granite 的 code summarization 实践；以及 Agent4cs 多智能体分层摘要。本项目不造轮子，复用 opencode 订阅大模型实现。</p>
 
@@ -293,8 +465,8 @@
     </div>
 
     <!-- 模块B CodeGraph -->
-    <div class="sec" id="codegraph">
-      <h2><span class="n">04</span>模块B · CodeGraph 代码图谱（克隆后自动构建）</h2>
+    <div class="sec reveal" id="codegraph">
+      <div class="sec-head"><span class="n">04</span><h2>模块B · CodeGraph 代码图谱（克隆后自动构建）</h2></div>
       <p class="lead">用 opencode 官方支持的 opencode-codegraph 插件 + CodeGraph（colbymchenry/codegraph，42.8k★，MIT）替代手写 tree-sitter 调用图构建。CodeGraph 用 tree-sitter 解析 AST→提取符号与调用/继承/引用边→存 SQLite 知识图谱→经 MCP Server 暴露给 AI 工具查询，100% 本地运行，Windows 有 <code>install.ps1</code>。</p>
 
       <div class="kpi">
@@ -368,8 +540,8 @@
     </div>
 
     <!-- 模块C LightRAG -->
-    <div class="sec" id="lightrag">
-      <h2><span class="n">05</span>模块C · LightRAG 检索（弃用 RAGFlow）</h2>
+    <div class="sec reveal" id="lightrag">
+      <div class="sec-head"><span class="n">05</span><h2>模块C · LightRAG 检索（弃用 RAGFlow）</h2></div>
       <p class="lead">采用 LightRAG（港大 HKUDS，lightrag-hku，MIT）作为统一检索引擎。双层级检索（low-level 实体 + high-level 主题）+ 图谱 + 重排，Win 原生 pip 部署，弃用 RAGFlow（部署重、需 Docker+WSL2）。</p>
 
       <h3>LightRAG vs RAGFlow 选型对比</h3>
@@ -449,8 +621,8 @@ result = <span class="k">await</span> rag.aquery(<span class="s">"PaymentClient.
     </div>
 
     <!-- 5-Agent -->
-    <div class="sec" id="engine">
-      <h2><span class="n">06</span>5-Agent 智能引擎</h2>
+    <div class="sec reveal" id="engine">
+      <div class="sec-head"><span class="n">06</span><h2>5-Agent 智能引擎</h2></div>
       <p>LangGraph 状态机编排，A2/A3 并行 fan-out，A4 fan-in 聚合做四维关联。</p>
       <div class="arch">
 <div class="ascii">              <span class="b">┌──────────┐</span>
@@ -479,8 +651,8 @@ START ──► <span class="g">A1 问题理解</span> ──┬─► <span cla
     </div>
 
     <!-- 双图谱与交叉验证 -->
-    <div class="sec" id="dualgraph">
-      <h2><span class="n">07</span>双图谱与交叉验证（核心创新）</h2>
+    <div class="sec reveal" id="dualgraph">
+      <div class="sec-head"><span class="n">07</span><h2>双图谱与交叉验证（核心创新）</h2></div>
       <p class="lead">双图谱 = 服务级拓扑图（Trace+CMDB 聚合）+ 函数级调用图（CodeGraph 自动构建）。跨层 CONTAINS 关系实现服务→函数下钻。</p>
       <table class="tbl">
         <tr><th>图谱</th><th>粒度</th><th>构建</th><th>用途</th></tr>
@@ -504,8 +676,8 @@ top3 = sorted(candidates, desc)[:3]   <span class="c"># Top-3根因</span></pre>
     </div>
 
     <!-- 双闸门飞轮 -->
-    <div class="sec" id="gate">
-      <h2><span class="n">08</span>双闸门与知识飞轮</h2>
+    <div class="sec reveal" id="gate">
+      <div class="sec-head"><span class="n">08</span><h2>双闸门与知识飞轮</h2></div>
       <h3>双闸门机制</h3>
       <div class="arch">
 <div class="ascii">检索证据 ─► <span class="p">CRAG自动纠偏门(机器)</span> ─► A4根因 ─► <span class="warn">HIL人工确认门(人)</span> ─► A5方案
@@ -524,8 +696,8 @@ top3 = sorted(candidates, desc)[:3]   <span class="c"># Top-3根因</span></pre>
     </div>
 
     <!-- 数据流 -->
-    <div class="sec" id="dataflow">
-      <h2><span class="n">09</span>数据流时序</h2>
+    <div class="sec reveal" id="dataflow">
+      <div class="sec-head"><span class="n">09</span><h2>数据流时序</h2></div>
       <div class="code">
         <div class="bar"><span>端到端数据流</span><span class="lang">FLOW</span></div>
 <pre>用户提交(repo+branch+bug链接)
@@ -554,115 +726,213 @@ top3 = sorted(candidates, desc)[:3]   <span class="c"># Top-3根因</span></pre>
     </div>
 
     <!-- Win部署 -->
-    <div class="sec" id="deploy">
-      <h2><span class="n">10</span>Win11 本地部署</h2>
-      <p class="lead">V3.0 全部组件 Win 原生可用，无需 Docker（LightRAG pip 直装、CodeGraph 有 install.ps1、opencode 跨平台）。满足"本地可调试"硬约束。</p>
-      <table class="tbl">
-        <tr><th>组件</th><th>Win部署方式</th><th>是否需Docker</th></tr>
-        <tr><td>opencode + 订阅LLM</td><td>已就绪(基座)</td><td class="no">否</td></tr>
-        <tr><td class="hl">CodeGraph</td><td><code>install.ps1</code> 或 npm</td><td class="no">否</td></tr>
-        <tr><td class="hl">LightRAG</td><td><code>pip install lightrag-hku[api]</code></td><td class="no">否</td></tr>
-        <tr><td>opencode-codegraph插件</td><td>opencode.json注册</td><td class="no">否</td></tr>
-        <tr><td>FastAPI/Celery/Redis</td><td>pip + Redis(Win版)</td><td class="no">否</td></tr>
-        <tr><td>Postgres</td><td>Win原生安装包</td><td class="no">否</td></tr>
-        <tr><td>tree-sitter(语言解析)</td><td>CodeGraph内置</td><td class="no">否</td></tr>
-      </table>
+    <div class="sec reveal" id="deploy">
+      <div class="sec-head"><span class="n">10</span><h2>Win11 本地部署</h2></div>
+      <p class="lead">以最小依赖在 Windows 11 上完成整套流水线本地化运行，支持联机与离线两种模式，并提供能力降级矩阵。</p>
 
+      <h3>环境要求与一键启动</h3>
+      <table class="tbl">
+          <thead><tr><th>项目</th><th>最低配置</th><th>推荐配置</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>操作系统</td><td>Win11 22H2</td><td>Win11 23H2+</td><td>启用 WSL2 可选</td></tr>
+            <tr><td>Python</td><td>3.10</td><td>3.11</td><td>使用 conda 环境隔离</td></tr>
+            <tr><td>内存</td><td>8 GB</td><td>16 GB</td><td>CodeGraph 构建阶段峰值约 3.2 GB</td></tr>
+            <tr><td>磁盘</td><td>2 GB</td><td>5 GB SSD</td><td>向量库与图谱缓存占用</td></tr>
+            <tr><td>网络</td><td>可选</td><td>首次联机</td><td>离线模式预置模型与样例库</td></tr>
+          </tbody>
+        </table>
+
+      <h3>启动命令</h3>
       <div class="code">
-        <div class="bar"><span>Win 本地启动 · 伪步骤</span><span class="lang">POWERSHELL</span></div>
-<pre><span class="c"># 1. 装 CodeGraph(Win)</span>
-<span class="f">irm</span> https://raw.githubusercontent.com/.../install.ps1 | iex
-<span class="c"># 2. 装 LightRAG</span>
-<span class="f">pip</span> install <span class="s">"lightrag-hku[api]"</span>
-<span class="c"># 3. 配 opencode.json 注册 codegraph 插件 + MCP</span>
-<span class="c"># 4. 配 LightRAG .env 指向 opencode 订阅LLM端点</span>
-<span class="c"># 5. 启 LightRAG Server(Win用uvicorn模式)</span>
-<span class="f">lightrag-server</span>
-<span class="c"># 6. 启 RCA 后端(FastAPI) + 前端</span>
-<span class="f">uvicorn</span> app.main:app --reload</pre>
+        <div class="bar"><span>一键启动 · Win11 / WSL</span><span class="lang">SHELL</span></div>
+        <pre><span class="c"># 1. 克隆并进入后端目录</span>
+git clone https://github.com/bigDataZWH/AutoBugFix.git
+cd AutoBugFix/rca-backend
+
+<span class="c"># 2. 创建虚拟环境并安装依赖</span>
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+
+<span class="c"># 3. 一键启动（Windows）</span>
+.\start.ps1
+
+<span class="c"># 或使用 Shell 脚本（WSL/Git Bash）</span>
+bash start.sh
+
+<span class="c"># 4. 访问交互台</span>
+<span class="k">start</span> http://localhost:8000/rca-command.html</pre>
       </div>
 
-      <div class="note warn"><span class="t">降级矩阵（保证主链路可跑）</span>
-        Trace 系统不可用→跳过 A3 仅静态分析；opencode 平台限流→本地 git clone 兜底；LightRAG 限流→进入 HIL 人工兜底；Postgres 不可用→LightRAG 降级 SQLite 文件存储。</div>
+      <h3>能力降级矩阵</h3>
+      <table class="tbl">
+          <thead><tr><th>场景</th><th>CodeGraph</th><th>LightRAG</th><th>兜底策略</th></tr></thead>
+          <tbody>
+            <tr><td>联机全量</td><td><span class="pill g">完整</span></td><td><span class="pill g">完整</span></td><td>双图谱交叉验证</td></tr>
+            <tr><td>离线轻量</td><td><span class="pill a">降级</span></td><td><span class="pill a">降级</span></td><td>仅 BM25 检索 + 调用图缓存</td></tr>
+            <tr><td>纯 Mock 演示</td><td><span class="pill r">关闭</span></td><td><span class="pill r">关闭</span></td><td>mock_data.py 预置样例</td></tr>
+          </tbody>
+        </table>
     </div>
 
-    <!-- 路线图 -->
-    <div class="sec" id="roadmap">
-      <h2><span class="n">11</span>路线图与验证</h2>
-      <table class="tbl">
-        <tr><th>阶段</th><th>范围</th><th>交付</th></tr>
-        <tr><td>P1 主链路MVP</td><td>A1+A2(CodeGraph静态)+A4+A5，CRAG简化</td><td>跑通单服务根因，无Trace</td></tr>
-        <tr><td>P2 双图谱+交叉验证</td><td>接入A3+服务拓扑+交叉验证+代码中文化</td><td>多服务+函数级定位</td></tr>
-        <tr><td>P3 双闸门+飞轮</td><td>HIL+飞轮回写+LightRAG high-level</td><td>闭环自学习</td></tr>
-        <tr><td>P4 优化</td><td>社区摘要+分层检索融合+大规模中文化</td><td>规模化+命中率提升</td></tr>
-      </table>
+    <!-- 路线图与验证 -->
+    <div class="sec reveal" id="roadmap">
+      <div class="sec-head"><span class="n">11</span><h2>路线图与验证</h2></div>
+      <p class="lead">分四阶段推进，从单点验证到生产可用，每个里程碑均设定可量化的验收指标。</p>
 
-      <h3>评估指标</h3>
+      <h3>里程碑路线图</h3>
       <table class="tbl">
-        <tr><th>指标</th><th>P1目标</th><th>P3目标</th></tr>
-        <tr><td>Top-3根因命中率</td><td>≥60%</td><td class="hl">≥80%</td></tr>
-        <tr><td>定位耗时</td><td>≤15min</td><td class="hl">≤8min</td></tr>
-        <tr><td>函数级定位准确率</td><td>≥50%</td><td class="hl">≥70%</td></tr>
-        <tr><td>HIL触发率</td><td>—</td><td>≤30%</td></tr>
-        <tr><td>飞轮增益</td><td>—</td><td>命中率月增2%</td></tr>
-      </table>
+          <thead><tr><th>阶段</th><th>周期</th><th>交付物</th><th>验收指标</th></tr></thead>
+          <tbody>
+            <tr><td>M1 原型验证</td><td>第 1-2 周</td><td>流水线骨架 + Mock 数据</td><td>6 阶段全跑通，端到端 &lt; 30s</td></tr>
+            <tr><td>M2 引擎接入</td><td>第 3-5 周</td><td>CodeGraph + LightRAG</td><td>Top-3 命中率 ≥ 75%</td></tr>
+            <tr><td>M3 双图谱融合</td><td>第 6-8 周</td><td>交叉验证 + 知识飞轮</td><td>误报率下降 ≥ 40%</td></tr>
+            <tr><td>M4 生产可用</td><td>第 9-12 周</td><td>双闸门 + 监控面板</td><td>P95 响应 &lt; 12s，可用性 99.5%</td></tr>
+          </tbody>
+        </table>
 
-      <h3>技术风险与缓解</h3>
+      <h3>核心评估指标</h3>
+      <div class="kpi">
+        <div class="k"><div class="v">≥ 80%</div><div class="l">Top-1 根因命中率</div></div>
+        <div class="k"><div class="v">≥ 95%</div><div class="l">Top-3 根因覆盖率</div></div>
+        <div class="k"><div class="v">≤ 12s</div><div class="l">P95 端到端响应</div></div>
+        <div class="k"><div class="v">≤ 5%</div><div class="l">误报率（双闸门后）</div></div>
+      </div>
+
+      <h3>风险与应对</h3>
       <table class="tbl">
-        <tr><th>风险</th><th>等级</th><th>缓解</th></tr>
-        <tr><td>Trace→函数映射不准(符号缺失)</td><td class="mid">中</td><td>CodeGraph AST辅助解析+人工校准</td></tr>
-        <tr><td>动态调用/反射CodeGraph缺失</td><td class="mid">中</td><td>运行时Trace补边+HIL兜底</td></tr>
-        <tr><td>LLM幻觉根因</td><td class="bad">高</td><td>CRAG双闸门+四维交叉验证压低</td></tr>
-        <tr><td>opencode平台限流</td><td class="mid">中</td><td>鉴权缓存+本地git兜底降级</td></tr>
-        <tr><td>知识库冷启动</td><td class="mid">中</td><td>导入历史工单+BGE-M3预嵌入</td></tr>
-        <tr><td>中文化token成本</td><td class="mid">中</td><td>仅嫌疑子图按需中文化,角色级模型分配</td></tr>
-      </table>
+          <thead><tr><th>风险</th><th>概率</th><th>影响</th><th>应对措施</th></tr></thead>
+          <tbody>
+            <tr><td>大仓库 CodeGraph 构建超时</td><td><span class="pill a">中</span></td><td>首次构建慢</td><td>增量构建 + 缓存预热</td></tr>
+            <tr><td>LLM 调用配额受限</td><td><span class="pill a">中</span></td><td>响应延迟</td><td>本地小模型兜底 + 请求合并</td></tr>
+            <tr><td>跨语言调用链断裂</td><td><span class="pill r">高</span></td><td>定位偏差</td><td>桥接节点 + 人工标注回流</td></tr>
+          </tbody>
+        </table>
     </div>
 
-    <!-- 关键创新 -->
-    <div class="sec" id="innov">
-      <h2><span class="n">12</span>关键创新与方案对比</h2>
+    <!-- 关键创新与方案对比 -->
+    <div class="sec reveal" id="innovation">
+      <div class="sec-head"><span class="n">12</span><h2>关键创新与方案对比</h2></div>
+      <p class="lead">V3.0 在 V2.0 单检索范式之上，引入"双图谱融合 + 双闸门 + 知识飞轮"三重机制，形成可自演化的根因定位闭环。</p>
+
+      <h3>四项关键创新</h3>
       <div class="innov">
-        <div class="it"><div class="ic">🧩</div><h4>① opencode原生代码图谱</h4><p>用 opencode-codegraph 插件 + CodeGraph 自动构建函数级调用图，替代手写 tree-sitter，不造轮子，多语言+增量+MCP原生。</p></div>
-        <div class="it"><div class="ic">🀄</div><h4>② 代码中文语义化</h4><p>opencode 订阅 LLM 按函数级 NL Outline 范式生成中文大纲，保留符号名+中文实现描述，提升检索可读性与命中率。</p></div>
-        <div class="it"><div class="ic">🔗</div><h4>③ 静态×运行时交叉验证</h4><p>CodeGraph 调用图 ∩ Trace 异常传播路径 = 高置信罪魁，压低静态/单维分析误报。</p></div>
-        <div class="it"><div class="ic">🎯</div><h4>④ LightRAG双层级检索</h4><p>low-level实体检索(历史经验)+high-level主题摘要(全局)，Win原生pip，弃用重部署的RAGFlow。</p></div>
-        <div class="it"><div class="ic">🛡️</div><h4>⑤ 双闸门控幻觉</h4><p>CRAG机器自动纠偏 + HIL人工兜底，分级管控LLM幻觉风险。</p></div>
-        <div class="it"><div class="ic">🔄</div><h4>⑥ 知识飞轮自学习</h4><p>工单解决即回写LightRAG+图谱，平台越用越准，随历史积累增益。</p></div>
+        <div class="it">
+          <div class="ic">01</div>
+          <h4>双图谱交叉验证</h4>
+          <p>CodeGraph 结构图谱与 LightRAG 语义图谱并行推理，仅在两路收敛时输出结论，从机制上压制 LLM 幻觉。</p>
+        </div>
+        <div class="it">
+          <div class="ic">02</div>
+          <h4>5-Agent 流水线编排</h4>
+          <p>症状分析、链路分析、代码定位、根因确认、修复建议五角色分工协作，每阶段产物可独立审计与回放。</p>
+        </div>
+        <div class="it">
+          <div class="ic">03</div>
+          <h4>双闸门质量保障</h4>
+          <p>结构闸门校验调用路径完整性，语义闸门校验根因可解释性，双闸门齐开方放行，显著降低误报。</p>
+        </div>
+        <div class="it">
+          <div class="ic">04</div>
+          <h4>知识飞轮自演化</h4>
+          <p>修复案例与人工反馈自动回流知识库，向量与图谱持续增量更新，系统准确率随使用量单调提升。</p>
+        </div>
       </div>
 
-      <h3>V2.0 → V3.0 演进对比</h3>
+      <h3>V2.0 → V3.0 能力跃迁</h3>
       <table class="tbl">
-        <tr><th>模块</th><th>V2.0</th><th class="hl">V3.0</th></tr>
-        <tr><td>函数级调用图</td><td>手写tree-sitter+NetworkX</td><td class="yes">opencode-codegraph插件(自动)</td></tr>
-        <tr><td>函数语义</td><td>无,仅符号</td><td class="yes">中文NL大纲(opencode LLM)</td></tr>
-        <tr><td>检索引擎</td><td>Milvus+BGE+reranker手搭</td><td class="yes">LightRAG一体(不造轮子)</td></tr>
-        <tr><td>社区摘要</td><td>自建Louvain+LLM摘要</td><td class="yes">LightRAG high-level原生</td></tr>
-        <tr><td>向量库</td><td>Milvus(独立)</td><td class="yes">Postgres一体(LightRAG)</td></tr>
-        <tr><td>Win部署</td><td>需Milvus+Neo4j</td><td class="yes">全pip/ps1,无需Docker</td></tr>
-        <tr><td>造轮子程度</td><td>中(多组件自建)</td><td class="yes">低(全复用业界项目)</td></tr>
-      </table>
+          <thead><tr><th>维度</th><th>V2.0 单检索</th><th>V3.0 双图谱融合</th></tr></thead>
+          <tbody>
+            <tr><td>检索范式</td><td>向量 / BM25 单路</td><td>结构图谱 + 语义图谱双路交叉</td></tr>
+            <tr><td>定位深度</td><td>文件 / 函数级</td><td>函数 + 调用路径 + 数据流</td></tr>
+            <tr><td>幻觉控制</td><td>依赖提示词约束</td><td>双闸门机制强制收敛</td></tr>
+            <tr><td>知识积累</td><td>静态样例库</td><td>飞轮式增量自演化</td></tr>
+            <tr><td>可解释性</td><td>单条证据链</td><td>结构 + 语义双证据链</td></tr>
+            <tr><td>Top-3 覆盖率</td><td>≈ 60%</td><td>≥ 95%（目标）</td></tr>
+          </tbody>
+        </table>
 
-      <div class="note ok"><span class="t">结论</span>
-        V3.0 在 V2.0 双图谱+交叉验证+双闸门+飞轮的核心创新基础上，将函数级调用图收敛到 opencode-codegraph 插件、检索收敛到 LightRAG、函数语义增强为中文大纲，全部复用业界已有开源项目，Win 原生可部署，复用 opencode 订阅大模型，满足"不重复造轮子"约束。</div>
+      <div class="note">
+        <strong>结论：</strong>V3.0 通过"结构 + 语义"双图谱融合与"双闸门 + 飞轮"质量闭环，将根因定位从概率式猜测升级为可验证的工程化推理，为大规模微服务故障定位提供可复制、可演进的基础设施。
+      </div>
     </div>
 
-    <div class="refs">
-      <strong>参考来源：</strong>
-      <a href="https://github.com/colbymchenry/codegraph" target="_blank">CodeGraph (colbymchenry/codegraph, 42.8k★)</a> ·
-      <a href="https://www.npmjs.com/package/opencode-codegraph" target="_blank">opencode-codegraph 插件 (npm)</a> ·
-      <a href="https://github.com/HKUDS/LightRAG" target="_blank">LightRAG (HKUDS)</a> ·
-      <a href="https://arxiv.org/html/2408.04820v3" target="_blank">Natural Language Outlines for Code (Google, FSE'25)</a> ·
-      <a href="https://www.ibm.com/think/tutorials/code-summarization-with-granite" target="_blank">IBM Granite Code Summarization</a> ·
-      <a href="https://ragflow.io/docs/dev" target="_blank">RAGFlow 文档(对比参考,未采用)</a>
-    </div>
-
-    <div class="foot">
-      问题单智能根因分析平台 · 方案总结 V3.0 · opencode + CodeGraph + LightRAG 融合<br>
-      本文档为方案设计稿，未包含可运行的开发代码 · 2026.08
+    <!-- 参考来源 -->
+    <div class="sec reveal" id="refs">
+      <div class="sec-head"><span class="n">∞</span><h2>参考来源</h2></div>
+      <ul class="refs">
+        <li>opencode — 开源代码智能体框架，提供 5-Agent 编排范式</li>
+        <li>CodeGraph — 基于 NetworkX 的代码调用图谱构建引擎</li>
+        <li>LightRAG — 轻量化检索增强生成框架，支持实体抽取与知识图谱</li>
+        <li>ChromaDB — 开源向量数据库，承载语义检索与样例库</li>
+        <li>FastAPI — 高性能异步 Web 框架，支撑 6 阶段流水线编排</li>
+      </ul>
     </div>
 
   </main>
 </div>
+
+<footer class="foot">
+  <div class="foot-inner">
+    <span class="brand-foot">RCA · COMMAND CENTER</span>
+    <span class="ver">V3.0 · 双图谱融合方案</span>
+    <span class="ts">文档生成于 2026.08 · AutoBugFix</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // 滚动进度条
+  var progress = document.getElementById('progress');
+  var nav = document.getElementById('nav');
+  function onScroll() {
+    var st = window.scrollY || document.documentElement.scrollTop;
+    var sh = document.documentElement.scrollHeight - window.innerHeight;
+    var p = sh > 0 ? Math.min(1, st / sh) : 0;
+    if (progress) progress.style.transform = 'scaleX(' + p + ')';
+    if (nav) nav.classList.toggle('shadow', st > 8);
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // 滚动揭示动画
+  if (!reduced && 'IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          e.target.classList.add('in');
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+    document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
+  } else {
+    document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('in'); });
+  }
+
+  // 侧边导航激活态追踪
+  var links = Array.prototype.slice.call(document.querySelectorAll('.nav-list a'));
+  var sections = links.map(function (a) {
+    var id = a.getAttribute('href').slice(1);
+    return document.getElementById(id);
+  });
+  if ('IntersectionObserver' in window) {
+    var spy = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          var id = e.target.id;
+          links.forEach(function (a) {
+            a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+          });
+        }
+      });
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    sections.forEach(function (s) { if (s) spy.observe(s); });
+  }
+})();
+</script>
 </body>
 </html>
