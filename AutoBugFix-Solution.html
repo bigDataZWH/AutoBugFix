@@ -260,6 +260,63 @@ td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px
 @keyframes rv{to{opacity:1;transform:none}}
 .d1{animation-delay:.05s}.d2{animation-delay:.12s}.d3{animation-delay:.19s}.d4{animation-delay:.26s}.d5{animation-delay:.33s}
 
+/* business flow stepper */
+.flow{display:flex;align-items:flex-start;gap:0;margin:22px 0 6px;overflow-x:auto;padding:14px 4px 18px}
+.fstep{flex:1;min-width:118px;position:relative;text-align:center;padding:0 5px}
+.fstep .fnode{
+  width:46px;height:46px;border-radius:50%;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-weight:600;font-size:13px;color:var(--text);
+  background:var(--surface-3);border:2px solid var(--cyan);position:relative;z-index:2;box-shadow:0 0 0 4px var(--bg);
+}
+.fstep .fnode.c-amber{border-color:var(--amber);color:var(--amber)}
+.fstep .fnode.c-violet{border-color:var(--violet);color:var(--violet)}
+.fstep .fnode.c-green{border-color:var(--green);color:var(--green)}
+.fstep .fnode.c-brand{border-color:var(--brand);color:var(--brand)}
+.fstep .flab{font-family:var(--mono);font-size:10.5px;color:var(--text-dim);letter-spacing:.05em;line-height:1.3}
+.fstep .fname{font-size:12.5px;color:var(--text);font-weight:500;margin-top:3px;line-height:1.3}
+.fstep:not(:last-child)::after{
+  content:'';position:absolute;top:23px;left:calc(50% + 25px);width:calc(100% - 50px);height:2px;
+  background:var(--border-bright);z-index:1;
+}
+
+/* stage detail cards */
+.stage{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--cyan);border-radius:12px;padding:22px 24px;margin:14px 0}
+.stage.c-amber{border-left-color:var(--amber)}
+.stage.c-violet{border-left-color:var(--violet)}
+.stage.c-green{border-left-color:var(--green)}
+.stage.c-brand{border-left-color:var(--brand)}
+.stage .st-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.stage .st-head .st-id{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--cyan);background:rgba(34,211,238,.1);padding:3px 10px;border-radius:6px}
+.stage.c-amber .st-head .st-id{color:var(--amber);background:rgba(251,191,36,.1)}
+.stage.c-violet .st-head .st-id{color:var(--violet);background:rgba(167,139,250,.1)}
+.stage.c-green .st-head .st-id{color:var(--green);background:rgba(52,211,153,.1)}
+.stage.c-brand .st-head .st-id{color:var(--brand);background:rgba(99,102,241,.12)}
+.stage .st-head h4{margin:0;text-transform:none;font-family:var(--disp);font-size:17px;color:var(--text)}
+.stage .st-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:10px}
+.stage .st-cell{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+.stage .st-cl{font-family:var(--mono);font-size:10.5px;color:var(--text-dim);letter-spacing:.12em;text-transform:uppercase;margin-bottom:5px}
+.stage .st-cv{font-size:13px;color:var(--text);line-height:1.55}
+.stage .st-ix{margin-top:10px;padding:12px 14px;border-radius:8px;background:rgba(167,139,250,.06);border:1px dashed var(--violet-dim)}
+.stage .st-ix .st-cl{color:var(--violet)}
+
+/* UI state rail */
+.states{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:14px;margin:22px 0}
+.state{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;border-top:3px solid var(--cyan)}
+.state.s-run{border-top-color:var(--amber)}
+.state.s-confirm{border-top-color:var(--violet)}
+.state.s-review{border-top-color:var(--green)}
+.state.s-done{border-top-color:var(--brand)}
+.state.s-fail{border-top-color:var(--red)}
+.state .st-name{font-family:var(--disp);font-weight:600;font-size:15px;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.state .st-name .pip{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+.state.s-run .st-name .pip{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+.state.s-confirm .st-name .pip{background:var(--violet);box-shadow:0 0 8px var(--violet)}
+.state.s-review .st-name .pip{background:var(--green);box-shadow:0 0 8px var(--green)}
+.state.s-done .st-name .pip{background:var(--brand);box-shadow:0 0 8px var(--brand)}
+.state.s-fail .st-name .pip{background:var(--red);box-shadow:0 0 8px var(--red)}
+.state p{font-size:12.5px;color:var(--text-mute);margin:0 0 8px}
+.state p:last-child{margin-bottom:0}
+
 /* mobile */
 @media(max-width:980px){
   .grid-layout{grid-template-columns:1fr}
@@ -267,6 +324,8 @@ td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px
   main{padding:0 0 60px}
   .roadmap,.week{grid-template-columns:1fr}
   .hero{padding:80px 0 60px}
+  .stage .st-grid{grid-template-columns:1fr}
+  .fstep{min-width:96px}
 }
 </style>
 </head>
@@ -282,6 +341,8 @@ td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px
         <li><a href="#principles">设计目标与原则</a></li>
         <li><a href="#why">为什么是方案 C</a></li>
         <li><a href="#arch">整体架构</a></li>
+        <li><a href="#flow">端到端业务流</a></li>
+        <li><a href="#ix">交互设计</a></li>
         <li><a href="#modules">核心模块设计</a>
           <ul class="sub">
             <li><a href="#mod-understand">问题理解</a></li>
@@ -302,7 +363,7 @@ td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px
       </ul>
     </nav>
     <div class="toc-meta">
-      版本 <b>v1.0</b><br>
+      版本 <b>v1.1</b><br>
       部署 <b>Win11 + WSL2</b><br>
       执行层 <b>OpenCode</b><br>
       编排 <b>LangGraph</b>
@@ -454,9 +515,184 @@ td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px
       </div>
     </section>
 
-    <!-- 4 MODULES -->
-    <section id="modules">
+    <!-- 4 端到端业务流 -->
+    <section id="flow">
       <div class="sec-head"><span class="sec-num">04</span></div>
+      <h2>端到端业务流</h2>
+      <p class="sec-sub">// End-to-End Business Flow · 从链接到 PR</p>
+      <p>用户只需粘贴一个问题单链接，系统自动完成 <em>拉取详情 → 理解问题 → 对接代码 → 定位根因 → 生成方案 → 执行修复 → 验证 → 交付审核</em> 全流程。下方按 8 个阶段拆解每个阶段的<strong>输入、核心动作、输出与人机交互点</strong>。</p>
+
+      <div class="flow reveal">
+        <div class="fstep"><div class="fnode c-amber">S1</div><div class="flab">接入</div><div class="fname">问题单接入</div></div>
+        <div class="fstep"><div class="fnode c-amber">S2</div><div class="flab">理解</div><div class="fname">问题理解</div></div>
+        <div class="fstep"><div class="fnode c-violet">S3</div><div class="flab">对接</div><div class="fname">代码对接</div></div>
+        <div class="fstep"><div class="fnode c-violet">S4</div><div class="flab">定位</div><div class="fname">根因定位</div></div>
+        <div class="fstep"><div class="fnode c-green">S5</div><div class="flab">方案</div><div class="fname">修复方案</div></div>
+        <div class="fstep"><div class="fnode c-green">S6</div><div class="flab">执行</div><div class="fname">补丁执行</div></div>
+        <div class="fstep"><div class="fnode c-brand">S7</div><div class="flab">验证</div><div class="fname">验证护栏</div></div>
+        <div class="fstep"><div class="fnode c-brand">S8</div><div class="flab">交付</div><div class="fname">审核交付</div></div>
+      </div>
+      <p class="sec-sub" style="margin-top:0">色彩分阶段语义 · 琥珀＝接入理解 · 紫罗兰＝代码定位 · 绿＝修复执行 · 靛蓝＝验证交付</p>
+
+      <div class="stage c-amber">
+        <div class="st-head"><span class="st-id">S1</span><h4>问题单接入</h4></div>
+        <div class="st-grid">
+          <div class="st-cell"><div class="st-cl">输入</div><div class="st-cv">问题单链接（Jira / GitHub Issue / 内部工单 URL）</div></div>
+          <div class="st-cell"><div class="st-cl">核心动作</div><div class="st-cv">解析链接类型 → 调用对应连接器拉取标题、描述、日志、堆栈、复现步骤、评论、关联 PR 与提交 → 结构化为标准化 IssueProfile</div></div>
+          <div class="st-cell"><div class="st-cl">输出</div><div class="st-cv">标准化 IssueProfile（类型、严重度、信号、复现提示、疑似区域）</div></div>
+        </div>
+        <div class="st-ix"><div class="st-cl">交互点</div><div class="st-cv">链接无法访问 / 权限不足时回退人工补全；多来源信息冲突时让用户确认优先来源。</div></div>
+      </div>
+
+      <div class="stage c-amber">
+        <div class="st-head"><span class="st-id">S2</span><h4>问题理解</h4></div>
+        <div class="st-grid">
+          <div class="st-cell"><div class="st-cl">输入</div><div class="st-cv">标准化 IssueProfile</div></div>
+          <div class="st-cell"><div class="st-cl">核心动作</div><div class="st-cv">分类（Bug / Feature / 配置 / 文档 / 性能）→ 信号提取（堆栈帧、错误码、关键词）→ 严重度评估 → 复现可行性判定</div></div>
+          <div class="st-cell"><div class="st-cl">输出</div><div class="st-cv">分类标签 + 复现策略（自动复现 / 假设驱动）</div></div>
+        </div>
+        <div class="st-ix"><div class="st-cl">交互点</div><div class="st-cv">类型歧义时弹出澄清选项；高严重度（crash / data loss / security）强制标注待复核。</div></div>
+      </div>
+
+      <div class="stage c-violet">
+        <div class="st-head"><span class="st-id">S3</span><h4>代码对接</h4></div>
+        <div class="st-grid">
+          <div class="st-cell"><div class="st-cl">输入</div><div class="st-cv">仓库地址 + IssueProfile + 目标分支</div></div>
+          <div class="st-cell"><div class="st-cl">核心动作</div><div class="st-cv">检出代码 → 构建 Repo Map → 向量索引（符号级）+ BM25 索引 → 关联 git 历史信号（最近改动文件）</div></div>
+          <div class="st-cell"><div class="st-cl">输出</div><div class="st-cv">可检索的代码快照 + 索引就绪 + Repo Map</div></div>
+        </div>
+        <div class="st-ix"><div class="st-cl">交互点</div><div class="st-cv">克隆大型仓库时展示进度；权限与分支保护校验；索引失败自动重试并提示。</div></div>
+      </div>
+
+      <div class="stage c-violet">
+        <div class="st-head"><span class="st-id">S4</span><h4>根因定位</h4></div>
+        <div class="st-grid">
+          <div class="st-cell"><div class="st-cl">输入</div><div class="st-cv">代码快照 + 信号（堆栈 / 错误码 / 关键词）</div></div>
+          <div class="st-cell"><div class="st-cl">核心动作</div><div class="st-cv">文件级检索（向量 + BM25 + RRF）→ 符号级导航（AST + LSP + 调用图）→ 行级精修（LLM + 证据）→ 输出定位证据</div></div>
+          <div class="st-cell"><div class="st-cl">输出</div><div class="st-cv">定位结论（文件:函数:行号）+ 推理依据 + 置信度</div></div>
+        </div>
+        <div class="st-ix"><div class="st-cl">交互点</div><div class="st-cv">置信度 &lt; 阈值 → 触发扩展检索或转人工确认；展示 Top-N 候选供人选择与修正。</div></div>
+      </div>
+
+      <div class="stage c-green">
+        <div class="st-head"><span class="st-id">S5</span><h4>修复方案</h4></div>
+        <div class="st-grid">
+          <div class="st-cell"><div class="st-cl">输入</div><div class="st-cv">定位证据 + IssueProfile</div></div>
+          <div class="st-cell"><div class="st-cl">核心动作</div><div class="st-cv">生成修复假设 → 组装 PatchPolicy（文件白名单、改动上限、禁用模式）→ 组装 FixRequest 交付执行层</div></div>
+          <div class="st-cell"><div class="st-cl">输出</div><div class="st-cv">修复假设 + 补丁约束 + FixRequest</div></div>
+        </div>
+        <div class="st-ix"><div class="st-cl">交互点</div><div class="st-cv">高风险变更（配置 / 安全 / 数据迁移）需人工确认方案；展示"改什么、为什么改、风险评估"。</div></div>
+      </div>
+
+      <div class="stage c-green">
+        <div class="st-head"><span class="st-id">S6</span><h4>补丁执行</h4></div>
+        <div class="st-grid">
+          <div class="st-cell"><div class="st-cl">输入</div><div class="st-cv">FixRequest</div></div>
+          <div class="st-cell"><div class="st-cl">核心动作</div><div class="st-cv">FixExecutor 调用 OpenCode headless 生成 diff → DiffAuditor 独立审计（文件白名单 + 禁用模式 + 改动上限）</div></div>
+          <div class="st-cell"><div class="st-cl">输出</div><div class="st-cv">通过审计的 diff + 变更文件清单 + 执行日志 + 快照引用</div></div>
+        </div>
+        <div class="st-ix"><div class="st-cl">交互点</div><div class="st-cv">审计失败直接拒绝并反馈迭代；展示 diff 预览；保留 Git 快照可一键回滚。</div></div>
+      </div>
+
+      <div class="stage c-brand">
+        <div class="st-head"><span class="st-id">S7</span><h4>验证护栏</h4></div>
+        <div class="st-grid">
+          <div class="st-cell"><div class="st-cl">输入</div><div class="st-cv">审计通过的 diff</div></div>
+          <div class="st-cell"><div class="st-cl">核心动作</div><div class="st-cv">编译门 → 测试门（复现用例 FAIL→PASS + 无回归 + 覆盖率不降）→ 静态门（lint / typecheck + 安全扫描）</div></div>
+          <div class="st-cell"><div class="st-cl">输出</div><div class="st-cv">验证报告（通过 / 失败证据）</div></div>
+        </div>
+        <div class="st-ix"><div class="st-cl">交互点</div><div class="st-cv">失败 → 收集证据反馈 FixExecutor 迭代（≤3 轮）；超限转人工；实时展示各门通过状态。</div></div>
+      </div>
+
+      <div class="stage c-brand">
+        <div class="st-head"><span class="st-id">S8</span><h4>审核交付</h4></div>
+        <div class="st-grid">
+          <div class="st-cell"><div class="st-cl">输入</div><div class="st-cv">验证报告 + diff + 定位证据</div></div>
+          <div class="st-cell"><div class="st-cl">核心动作</div><div class="st-cv">生成 PR（含根因说明、修复思路、测试证据、风险标注）→ 风险分级（低 / 中 / 高）→ 路由审核</div></div>
+          <div class="st-cell"><div class="st-cl">输出</div><div class="st-cv">可合并的 PR + 审核包</div></div>
+        </div>
+        <div class="st-ix"><div class="st-cl">交互点</div><div class="st-cv">低风险自动提交待合并；中高风险强制人工审核；提供一键回滚与知识沉淀。</div></div>
+      </div>
+
+      <div class="callout cyan">
+        <span class="cl-label">状态机驱动</span>
+        端到端状态机：<strong>RECEIVED → UNDERSTOOD → REPRODUCED → LOCALIZED → PATCHED → VERIFIED → NEEDS_REVIEW → MERGED</strong>。任一阶段失败回退而非一路到底，迭代超过 K=3 轮自动转 NEEDS_REVIEW 人工兜底。
+      </div>
+    </section>
+
+    <!-- 5 交互设计 -->
+    <section id="ix">
+      <div class="sec-head"><span class="sec-num">05</span></div>
+      <h2>交互设计</h2>
+      <p class="sec-sub">// Interaction Design · 人机协作 · 全程可观测</p>
+      <p>长任务异步化 + 关键节点人在回路 + 全程可观测 + 一键回滚。先明确<strong>"哪些自动、哪些需确认、哪些必须人工"</strong>，避免黑盒与失控。</p>
+
+      <h3><span class="dot"></span>人机协作边界</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>协作模式</th><th>适用阶段</th><th>人工参与</th><th>典型场景</th></tr></thead>
+          <tbody>
+            <tr><td><span class="tag green">全自动</span></td><td>S1 / S3 / S6 / S7</td><td>无</td><td>链接拉取、索引构建、补丁生成、跑门验证</td></tr>
+            <tr><td><span class="tag cyan">半自动确认</span></td><td>S2 / S4</td><td>关键节点确认</td><td>类型歧义澄清、低置信度定位确认</td></tr>
+            <tr><td><span class="tag amber">人工审核</span></td><td>S5 / S8</td><td>审核后放行</td><td>高风险方案、配置 / 安全变更、PR 合并</td></tr>
+            <tr><td><span class="tag violet">人工兜底</span></td><td>S4 / S7</td><td>失败接手</td><td>定位反复失败、验证超 K 轮</td></tr>
+            <tr><td><span class="tag red">禁止自动</span></td><td>全局</td><td>不可绕过</td><td>删测试、改密钥、绕过门、命中禁用 diff 模式</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3><span class="dot"></span>关键交互触点</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>触点</th><th>触发时机</th><th>用户动作</th><th>系统响应</th></tr></thead>
+          <tbody>
+            <tr><td>链接输入</td><td>启动</td><td>粘贴问题单链接</td><td>校验 → 拉取详情 → 进入运行态</td></tr>
+            <tr><td>定位确认</td><td>S4 置信度不足</td><td>选择 / 修正 Top-N 候选</td><td>锁定定位 → 进入 S5</td></tr>
+            <tr><td>方案确认</td><td>S5 高风险</td><td>确认 / 修改修复假设</td><td>下发 FixRequest → S6</td></tr>
+            <tr><td>补丁审核</td><td>S6 完成后</td><td>查看 diff 预览</td><td>审计通过 → S7</td></tr>
+            <tr><td>验证失败</td><td>S7 门失败</td><td>查看证据 / 选择迭代或中止</td><td>反馈迭代或回滚</td></tr>
+            <tr><td>完成交付</td><td>S8</td><td>审核 PR / 合并</td><td>沉淀知识库 / 关闭工单</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3><span class="dot"></span>界面状态设计</h3>
+      <div class="states">
+        <div class="state s-input">
+          <div class="st-name"><span class="pip"></span>输入态</div>
+          <p>问题单链接输入框 + 历史记录 + 示例链接；空状态引导粘贴链接即开始。</p>
+        </div>
+        <div class="state s-run">
+          <div class="st-name"><span class="pip"></span>运行态</div>
+          <p>实时进度时间线（8 阶段高亮当前位置）+ 当前子任务 + 耗时 / 迭代轮次。</p>
+        </div>
+        <div class="state s-confirm">
+          <div class="st-name"><span class="pip"></span>定位确认态</div>
+          <p>Top-N 候选列表（文件:函数:行号 + 置信度 + 证据预览）+ 选择 / 修正操作。</p>
+        </div>
+        <div class="state s-review">
+          <div class="st-name"><span class="pip"></span>补丁审核态</div>
+          <p>diff 预览（文件树 + 语法高亮 +/-）+ 变更统计 + 通过 / 拒绝 / 回滚。</p>
+        </div>
+        <div class="state s-done">
+          <div class="st-name"><span class="pip"></span>完成态</div>
+          <p>PR 卡片（标题 / 链接 / 风险标签）+ 根因与修复摘要 + 合并按钮。</p>
+        </div>
+        <div class="state s-fail">
+          <div class="st-name"><span class="pip"></span>失败兜底态</div>
+          <p>失败阶段定位 + 失败证据 trace + 重试 / 转人工 / 中止选项。</p>
+        </div>
+      </div>
+
+      <div class="callout violet">
+        <span class="cl-label">异步通知</span>
+        所有长任务（定位 / 补丁 / 验证）异步执行，状态变更与关键节点（需确认 / 失败 / 完成）通过 IM / 邮件推送，用户可离开页面、收到通知后回来接手。全程保留可观测 trace 与 Git 快照，支持任意节点回滚。
+      </div>
+    </section>
+
+    <!-- 6 MODULES -->
+    <section id="modules">
+      <div class="sec-head"><span class="sec-num">06</span></div>
       <h2>核心模块设计</h2>
       <p class="sec-sub">// Core Modules</p>
 
@@ -468,20 +704,20 @@ td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px
         <div class="card"><h4>严重度评估</h4><p>影响面（crash / data loss / security）× 复现频率</p></div>
         <div class="card"><h4>复现可行性</h4><p>决定走"自动复现"还是"假设驱动"</p></div>
       </div>
-      <div class="code">
-        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>IssueProfile · 输出 schema</span><span class="lang">json</span></div>
-<pre><span class="p">{</span>
-  <span class="t">"issue_id"</span>: <span class="s">"ISS-1234"</span>,
-  <span class="t">"type"</span>: <span class="s">"bug"</span>, <span class="t">"subtype"</span>: <span class="s">"concurrency"</span>, <span class="t">"severity"</span>: <span class="s">"P1"</span>,
-  <span class="t">"signals"</span>: <span class="p">{</span>
-    <span class="t">"stack_frames"</span>: [<span class="s">"com.app.Service.handle(:88)"</span>, <span class="s">"com.app.Pool.acquire(:42)"</span>],
-    <span class="t">"error_codes"</span>: [<span class="s">"DEADLOCK_DETECTED"</span>],
-    <span class="t">"keywords"</span>: [<span class="s">"连接池"</span>, <span class="s">"超时"</span>, <span class="s">"并发"</span>]
-  <span class="p">}</span>,
-  <span class="t">"reproducible"</span>: <span class="k">true</span>,
-  <span class="t">"repro_hints"</span>: <span class="s">"高并发下连续调用 acquire()，约 50 QPS 触发"</span>,
-  <span class="t">"suspected_areas"</span>: [<span class="p">{</span><span class="t">"path"</span>: <span class="s">"src/.../Pool.java"</span>, <span class="t">"reason"</span>: <span class="s">"堆栈顶层"</span>, <span class="t">"confidence"</span>: <span class="n">0.85</span><span class="p">}</span>]
-<span class="p">}</span></pre>
+      <h4>IssueProfile · 输出字段</h4>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>issue_id</td><td>string</td><td>问题单唯一标识</td></tr>
+            <tr><td>type / subtype</td><td>enum</td><td>分类树，如 bug / concurrency</td></tr>
+            <tr><td>severity</td><td>P0–P3</td><td>严重度评级</td></tr>
+            <tr><td>signals</td><td>object</td><td>堆栈帧、错误码、关键词</td></tr>
+            <tr><td>reproducible</td><td>bool</td><td>是否可自动复现</td></tr>
+            <tr><td>repro_hints</td><td>string</td><td>复现条件提示</td></tr>
+            <tr><td>suspected_areas</td><td>list</td><td>疑似区域（路径 + 理由 + 置信度）</td></tr>
+          </tbody>
+        </table>
       </div>
 
       <h3 id="mod-locate"><span class="dot"></span>根因定位（核心差异化）</h3>
@@ -503,88 +739,97 @@ td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px
 
       <h3 id="mod-orchestrate"><span class="dot"></span>方案编排</h3>
       <p>基于定位证据组装修复指令与约束，交付 FixExecutor。修复假设先行，再写代码。</p>
-      <div class="code">
-        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>PatchPolicy · 补丁策略约束</span><span class="lang">json</span></div>
-<pre><span class="p">{</span>
-  <span class="t">"max_files"</span>: <span class="n">5</span>,
-  <span class="t">"max_changed_lines"</span>: <span class="n">300</span>,
-  <span class="t">"allow_dependency_change"</span>: <span class="k">false</span>,
-  <span class="t">"allow_test_deletion"</span>: <span class="k">false</span>,
-  <span class="t">"allow_config_change"</span>: <span class="s">"review_only"</span>,
-  <span class="t">"file_whitelist"</span>: [<span class="s">"src/main/com/app/Pool.java"</span>, <span class="s">"src/main/com/app/Service.java"</span>],
-  <span class="t">"forbidden_diff_patterns"</span>: [
-    <span class="s">"@pytest.mark.skip"</span>, <span class="s">"pytest.skip("</span>, <span class="s">"|| true"</span>,
-    <span class="s">"continue-on-error: true"</span>, <span class="s">"except: pass"</span>, <span class="s">"except Exception: pass"</span>
-  ]
-<span class="p">}</span></pre>
+      <h4>PatchPolicy · 补丁策略约束</h4>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>约束项</th><th>取值</th><th>作用</th></tr></thead>
+          <tbody>
+            <tr><td>max_files</td><td>5</td><td>单次补丁最多改动文件数</td></tr>
+            <tr><td>max_changed_lines</td><td>300</td><td>变更行数上限，防大范围重写</td></tr>
+            <tr><td>allow_dependency_change</td><td>false</td><td>禁止改依赖锁文件</td></tr>
+            <tr><td>allow_test_deletion</td><td>false</td><td>禁止删测试</td></tr>
+            <tr><td>allow_config_change</td><td>review_only</td><td>配置改动仅审核、不自动合</td></tr>
+            <tr><td>file_whitelist</td><td>定位文件集</td><td>diff 只允许落在定位指向的文件</td></tr>
+            <tr><td>forbidden_diff_patterns</td><td>禁用模式</td><td>命中即硬阻断（skip / || true / except:pass 等）</td></tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
-    <!-- 5 FIXEXEC -->
+    <!-- 7 FIXEXEC -->
     <section id="fixexec">
-      <div class="sec-head"><span class="sec-num">05</span></div>
+      <div class="sec-head"><span class="sec-num">07</span></div>
       <h2>FixExecutor 执行抽象层</h2>
       <p class="sec-sub">// Abstraction Layer · 复用但不锁定</p>
       <p>隔离编排层与执行层。编排层只依赖 <code>FixExecutor</code> 接口，不感知底层是 OpenCode 还是自研执行器。这样执行层可切换、可并跑，迁移成本被控制在接口层内。</p>
 
       <h4>接口契约</h4>
-      <div class="code">
-        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>fix_executor.py · Protocol 契约</span><span class="lang">python</span></div>
-<pre><span class="k">from</span> typing <span class="k">import</span> Protocol
-<span class="k">from</span> pydantic <span class="k">import</span> BaseModel
+      <p>编排层与执行层之间仅通过 <code>FixRequest</code> / <code>FixResult</code> 两个数据结构与四个方法通信，执行层具体实现（OpenCode 或自研执行器）对编排层不可见。</p>
 
+      <h4>FixRequest · 执行入参</h4>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>字段</th><th>含义</th><th>来源阶段</th></tr></thead>
+          <tbody>
+            <tr><td>issue_profile</td><td>问题单结构化画像</td><td>S2 问题理解</td></tr>
+            <tr><td>localization</td><td>分层定位证据（文件/符号/行）</td><td>S4 根因定位</td></tr>
+            <tr><td>fix_hypothesis</td><td>修复假设与思路</td><td>S5 修复方案</td></tr>
+            <tr><td>patch_policy</td><td>补丁约束策略</td><td>S5 修复方案</td></tr>
+            <tr><td>repo_path</td><td>仓库本地检出路径</td><td>S3 代码对接</td></tr>
+            <tr><td>session_id</td><td>会话标识，迭代时复用实例</td><td>S6 补丁执行</td></tr>
+            <tr><td>feedback</td><td>上轮失败反馈，用于迭代修正</td><td>S7 验证护栏</td></tr>
+          </tbody>
+        </table>
+      </div>
 
-<span class="k">class</span> <span class="t">FixRequest</span>(BaseModel):
-    issue_profile: dict
-    localization: dict
-    fix_hypothesis: str
-    patch_policy: dict
-    repo_path: str
-    session_id: str | <span class="k">None</span> = <span class="k">None</span>
-    feedback: str | <span class="k">None</span> = <span class="k">None</span>
+      <h4>FixResult · 执行产物</h4>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>字段</th><th>含义</th><th>下游消费者</th></tr></thead>
+          <tbody>
+            <tr><td>success</td><td>本次执行是否成功产出补丁</td><td>编排层流转判定</td></tr>
+            <tr><td>session_id</td><td>回传会话标识，供迭代复用</td><td>S6 迭代</td></tr>
+            <tr><td>diff</td><td>统一 diff 文本</td><td>DiffAuditor / 审核人</td></tr>
+            <tr><td>changed_files</td><td>变更文件清单</td><td>DiffAuditor 越界检查</td></tr>
+            <tr><td>tool_calls</td><td>工具调用轨迹（可观测）</td><td>审核 / 追溯</td></tr>
+            <tr><td>snapshot_ref</td><td>Git 快照引用，用于回滚</td><td>S7 失败回退</td></tr>
+            <tr><td>executor_log</td><td>执行器内部日志</td><td>可观测 / 排障</td></tr>
+            <tr><td>error</td><td>失败原因（成功时为空）</td><td>反馈迭代</td></tr>
+          </tbody>
+        </table>
+      </div>
 
-
-<span class="k">class</span> <span class="t">FixResult</span>(BaseModel):
-    success: bool
-    session_id: str
-    diff: str
-    changed_files: list[str]
-    tool_calls: list[dict]
-    snapshot_ref: str
-    executor_log: str
-    error: str | <span class="k">None</span> = <span class="k">None</span>
-
-
-<span class="k">class</span> <span class="t">FixExecutor</span>(Protocol):
-    <span class="k">def</span> <span class="f">execute</span>(self, request: FixRequest) -> FixResult: ...
-    <span class="k">def</span> <span class="f">iterate</span>(self, request: FixRequest, feedback: str) -> FixResult: ...
-    <span class="k">def</span> <span class="f">rollback</span>(self, session_id: str, snapshot_ref: str) -> bool: ...
-    <span class="k">def</span> <span class="f">health_check</span>(self) -> bool: ...</pre>
+      <h4>FixExecutor · 四个方法</h4>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>方法</th><th>职责</th><th>触发时机</th></tr></thead>
+          <tbody>
+            <tr><td>execute</td><td>首次生成补丁，返回 FixResult</td><td>S5 方案确认后</td></tr>
+            <tr><td>iterate</td><td>携带失败 feedback 再次修正</td><td>S7 验证不通过</td></tr>
+            <tr><td>rollback</td><td>按快照引用回退仓库状态</td><td>验证失败 / 用户取消</td></tr>
+            <tr><td>health_check</td><td>探活执行后端是否就绪</td><td>每次调用前 + 启动自检</td></tr>
+          </tbody>
+        </table>
       </div>
 
       <h4>DiffAuditor · 执行后独立审计</h4>
-      <p>在 FixExecutor 返回后、验证护栏前，对 diff 做独立审计。审计失败 → 直接拒绝，不进入验证阶段，反馈给 FixExecutor 迭代。</p>
-      <div class="code">
-        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>diff_auditor.py</span><span class="lang">python</span></div>
-<pre><span class="k">class</span> <span class="t">DiffAuditor</span>:
-    <span class="k">def</span> <span class="f">audit</span>(self, diff: str, policy: PatchPolicy) -> AuditReport:
-        violations = []
-        <span class="k">for</span> pattern <span class="k">in</span> policy.forbidden_diff_patterns:
-            <span class="k">if</span> pattern <span class="k">in</span> diff:
-                violations.append(<span class="s">f"禁用模式命中: {pattern}"</span>)
-        changed = parse_changed_files(diff)
-        <span class="k">for</span> f <span class="k">in</span> changed:
-            <span class="k">if</span> f <span class="k">not in</span> policy.file_whitelist:
-                violations.append(<span class="s">f"越界修改: {f}"</span>)
-        <span class="k">if</span> len(changed) > policy.max_files:
-            violations.append(<span class="s">f"文件数超限: {len(changed)} > {policy.max_files}"</span>)
-        <span class="k">return</span> AuditReport(passed=<span class="k">len</span>(violations) == <span class="n">0</span>, violations=violations)</pre>
+      <p>在 FixExecutor 返回后、验证护栏前，对 diff 做独立审计。审计失败 → 直接拒绝，不进入验证阶段，反馈给 FixExecutor 迭代。审计按以下规则逐条检查，任一命中即记为违规：</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>审计规则</th><th>检查逻辑</th><th>违规即拒原因</th></tr></thead>
+          <tbody>
+            <tr><td>禁用模式扫描</td><td>逐条比对 PatchPolicy.forbidden_diff_patterns 是否出现在 diff 中</td><td>疑似绕过验证（skip / 注释断言 / except:pass）</td></tr>
+            <tr><td>文件白名单校验</td><td>解析 diff 涉及的变更文件，逐一核对是否在 file_whitelist 内</td><td>越界修改了定位证据之外的文件</td></tr>
+            <tr><td>文件数上限</td><td>变更文件数与 PatchPolicy.max_files 比较</td><td>改动范围失控，违反最小变更原则</td></tr>
+          </tbody>
+        </table>
       </div>
+      <p>审计产出 <code>AuditReport</code>（passed 布尔 + violations 清单）。passed=false 时编排层跳过验证阶段，直接带着 violations 进入 iterate 回路。</p>
     </section>
 
-    <!-- 6 OPENCODE -->
+    <!-- 8 OPENCODE -->
     <section id="opencode">
-      <div class="sec-head"><span class="sec-num">06</span></div>
+      <div class="sec-head"><span class="sec-num">08</span></div>
       <h2>OpenCode 集成实现</h2>
       <p class="sec-sub">// Integration · 三通道 + 自定义 Agent</p>
 
@@ -608,73 +853,54 @@ td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px
         <div class="card"><div class="c-num">通道 2</div><h4>opencode serve</h4><p>常驻后端，多轮迭代修复。--attach + --session 复用实例，消除冷启动。</p></div>
         <div class="card"><div class="c-num">通道 3</div><h4>MCP Server 桥接</h4><p>自研代码智能层反向注入，让 Build Agent 主动检索定位证据。</p></div>
       </div>
-      <div class="code">
-        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>三通道命令示例</span><span class="lang">bash</span></div>
-<pre><span class="c"># 通道 1：单次补丁生成</span>
-opencode run --model anthropic/claude-sonnet-4 \
-  --agent issue-fixer --format json \
-  <span class="s">"{修复指令 + 定位证据 + PatchPolicy}"</span>
-
-<span class="c"># 通道 2：常驻后端 + 多轮迭代</span>
-opencode serve --port 4096
-opencode run --attach http://localhost:4096 \
-  --session {session_id} --format json \
-  <span class="s">"上轮验证失败: {test_output}. 请修正补丁。"</span>
-
-<span class="c"># 通道 3：注入自研代码智能 MCP</span>
-opencode mcp add code-intelligence \
-  --command <span class="s">"node"</span> --args <span class="s">"mcp-code-intel-server.js"</span></pre>
+      <h4>三通道调用时序</h4>
+      <p>三条通道并非互斥，而是按阶段组合：补丁生成走通道 1 冷启动一次产出，验证失败迭代走通道 2 复用会话消除冷启动，通道 3 始终为 Build Agent 提供反查能力。各通道的调用模式如下：</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>通道</th><th>调用模式</th><th>输入</th><th>输出</th><th>会话管理</th></tr></thead>
+          <tbody>
+            <tr><td>通道 1 · run</td><td>单次子进程调用</td><td>修复指令 + 定位证据 + PatchPolicy</td><td>结构化 JSON（diff / changed_files）</td><td>一次性，无状态</td></tr>
+            <tr><td>通道 2 · serve</td><td>常驻后端 + 多轮 attach</td><td>上轮失败反馈（测试输出 / diff 审计结果）</td><td>结构化 JSON（修正后 diff）</td><td>session_id 复用实例</td></tr>
+            <tr><td>通道 3 · MCP</td><td>注册自研代码智能 Server</td><td>Build Agent 主动发起的检索请求</td><td>定位证据 / 依赖图 / 调用链</td><td>由编排层注入，常驻</td></tr>
+          </tbody>
+        </table>
       </div>
 
-      <h4>OpenCodeExecutor 实现骨架</h4>
-      <div class="code">
-        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>opencode_executor.py · 默认 FixExecutor 实现</span><span class="lang">python</span></div>
-<pre><span class="k">import</span> subprocess, json
-
-<span class="k">class</span> <span class="t">OpenCodeExecutor</span>:
-    <span class="k">def</span> <span class="f">__init__</span>(self, serve_url=<span class="s">"http://localhost:4096"</span>, model=<span class="s">"anthropic/claude-sonnet-4"</span>):
-        self.serve_url, self.model = serve_url, model
-        self._ensure_serve()
-
-    <span class="k">def</span> <span class="f">_ensure_serve</span>(self):
-        <span class="k">if not</span> self._probe_serve():
-            subprocess.Popen([<span class="s">"opencode"</span>, <span class="s">"serve"</span>, <span class="s">"--port"</span>, <span class="s">"4096"</span>],
-                             stdout=subprocess.DEVNULL)
-
-    <span class="k">def</span> <span class="f">execute</span>(self, request: FixRequest) -> FixResult:
-        prompt = self._build_prompt(request)
-        cmd = [<span class="s">"opencode"</span>, <span class="s">"run"</span>, <span class="s">"--attach"</span>, self.serve_url,
-               <span class="s">"--model"</span>, self.model, <span class="s">"--agent"</span>, <span class="s">"issue-fixer"</span>,
-               <span class="s">"--format"</span>, <span class="s">"json"</span>]
-        <span class="k">if</span> request.session_id:
-            cmd += [<span class="s">"--session"</span>, request.session_id]
-        cmd += [prompt]
-        proc = subprocess.run(cmd, capture_output=<span class="k">True</span>, text=<span class="k">True</span>,
-                              cwd=request.repo_path, timeout=<span class="n">600</span>)
-        <span class="k">return</span> self._parse(proc.stdout, request)
-
-    <span class="k">def</span> <span class="f">iterate</span>(self, request, feedback): ...
-    <span class="k">def</span> <span class="f">rollback</span>(self, session_id, snapshot_ref): ...
-    <span class="k">def</span> <span class="f">_build_prompt</span>(self, request): ...
-    <span class="k">def</span> <span class="f">_parse</span>(self, stdout, request) -> FixResult: ...</pre>
+      <h4>OpenCodeExecutor · 默认实现职责</h4>
+      <p>OpenCodeExecutor 是 <code>FixExecutor</code> 的默认实现，负责把编排层的语义请求翻译成 OpenCode 的通道调用，并把 OpenCode 的结构化输出回填为 FixResult。其内部职责拆解如下：</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>内部职责</th><th>做的事</th><th>对接通道</th></tr></thead>
+          <tbody>
+            <tr><td>后端探活</td><td>探测常驻 serve 是否就绪，未就绪则拉起</td><td>通道 2</td></tr>
+            <tr><td>提示构造</td><td>把 FixRequest（画像/定位证据/假设/约束）拼装为修复指令</td><td>—</td></tr>
+            <tr><td>调用编排</td><td>按 attach + session + agent + format 组装调用，设定超时</td><td>通道 1 / 2</td></tr>
+            <tr><td>会话复用</td><td>首次建会话，迭代时带 session_id 复用同一实例</td><td>通道 2</td></tr>
+            <tr><td>结果解析</td><td>解析 OpenCode JSON 输出，回填 diff / changed_files / 快照引用</td><td>—</td></tr>
+            <tr><td>迭代与回滚</td><td>iterate 携带 feedback 重跑；rollback 按快照回退工作区</td><td>通道 2</td></tr>
+          </tbody>
+        </table>
       </div>
 
       <h4>自定义 issue-fixer Agent</h4>
-      <div class="code">
-        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>opencode.json · issue-fixer agent 配置</span><span class="lang">json</span></div>
-<pre><span class="p">{</span>
-  <span class="t">"agent"</span>: <span class="s">"issue-fixer"</span>,
-  <span class="t">"model"</span>: <span class="s">"anthropic/claude-sonnet-4"</span>,
-  <span class="t">"system_prompt"</span>: <span class="s">"你是问题修复 Agent。规则:1.只修改定位证据指向的文件 2.禁止 @pytest.mark.skip / || true 3.禁止注释测试断言 4.禁止 except:pass 5.修改后说明根因和思路 6.最多改 max_files 个文件"</span>,
-  <span class="t">"tools"</span>: [<span class="s">"read"</span>, <span class="s">"write"</span>, <span class="s">"edit"</span>, <span class="s">"bash"</span>, <span class="s">"lsp"</span>, <span class="s">"grep"</span>],
-  <span class="t">"lsp"</span>: <span class="k">true</span>
-<span class="p">}</span></pre>
+      <p>通过 OpenCode 的 Agent 配置能力注册一个专属的 <code>issue-fixer</code> Build Agent，把补丁纪律固化进系统提示与工具集，避免每次调用重复约束。其配置项如下：</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>配置项</th><th>取值</th><th>作用</th></tr></thead>
+          <tbody>
+            <tr><td>agent</td><td>issue-fixer</td><td>专属修复 Agent 标识</td></tr>
+            <tr><td>model</td><td>claude-sonnet-4</td><td>主力修复模型</td></tr>
+            <tr><td>system_prompt 规则</td><td>仅改定位证据指向的文件 / 禁止 skip 与注释断言 / 禁止 except:pass / 修改后说明根因 / 最多改 max_files 个文件</td><td>把补丁纪律固化，杜绝绕过验证</td></tr>
+            <tr><td>tools</td><td>read / write / edit / bash / lsp / grep</td><td>读写编辑 + 终端 + 语义导航 + 检索</td></tr>
+            <tr><td>lsp</td><td>启用</td><td>实时诊断反馈，支撑符号级修改</td></tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
-    <!-- 7 INTEL -->
+    <!-- 9 INTEL -->
     <section id="intel">
-      <div class="sec-head"><span class="sec-num">07</span></div>
+      <div class="sec-head"><span class="sec-num">09</span></div>
       <h2>代码智能层</h2>
       <p class="sec-sub">// Code Intelligence</p>
       <div class="tbl-wrap">
@@ -696,9 +922,9 @@ opencode mcp add code-intelligence \
       </div>
     </section>
 
-    <!-- 8 GATES -->
+    <!-- 10 GATES -->
     <section id="gates">
-      <div class="sec-head"><span class="sec-num">08</span></div>
+      <div class="sec-head"><span class="sec-num">10</span></div>
       <h2>验证护栏</h2>
       <p class="sec-sub">// Triple Gates · 防幻觉最后防线</p>
       <div class="cards">
@@ -712,9 +938,9 @@ opencode mcp add code-intelligence \
       </div>
     </section>
 
-    <!-- 9 DEPLOY -->
+    <!-- 11 DEPLOY -->
     <section id="deploy">
-      <div class="sec-head"><span class="sec-num">09</span></div>
+      <div class="sec-head"><span class="sec-num">11</span></div>
       <h2>Win11 部署方案</h2>
       <p class="sec-sub">// Deployment · Win11 + WSL2</p>
       <div class="tbl-wrap">
@@ -730,13 +956,19 @@ opencode mcp add code-intelligence \
           </tbody>
         </table>
       </div>
-      <div class="code">
-        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>环境初始化</span><span class="lang">bash</span></div>
-<pre>scoop install opencode          <span class="c"># 1. 安装 opencode</span>
-opencode auth login            <span class="c"># 2. 公司订阅认证</span>
-export OPENCODE_EXPERIMENTAL_LSP_TOOL=<span class="n">1</span>  <span class="c"># 3. 启用 LSP</span>
-opencode serve --port 4096     <span class="c"># 4. 常驻后端</span>
-opencode run --format json <span class="s">"ping"</span>  <span class="c"># 5. 验证</span></pre>
+      <h4>环境初始化步骤</h4>
+      <p>首次部署按以下顺序一次性初始化，日常运行只需常驻 serve + 验证连通：</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>步骤</th><th>动作</th><th>目的</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>安装 opencode CLI</td><td>获取执行层命令行</td></tr>
+            <tr><td>2</td><td>公司订阅认证登录</td><td>接入内部模型订阅</td></tr>
+            <tr><td>3</td><td>启用实验性 LSP 工具开关</td><td>开启语义导航与实时诊断</td></tr>
+            <tr><td>4</td><td>拉起常驻 serve 后端</td><td>消除迭代冷启动</td></tr>
+            <tr><td>5</td><td>发一次 ping 验证连通</td><td>确认整链路可用</td></tr>
+          </tbody>
+        </table>
       </div>
       <div class="callout amber">
         <span class="cl-label">文件系统注意</span>
@@ -744,9 +976,9 @@ opencode run --format json <span class="s">"ping"</span>  <span class="c"># 5. �
       </div>
     </section>
 
-    <!-- 10 ROADMAP -->
+    <!-- 12 ROADMAP -->
     <section id="roadmap">
-      <div class="sec-head"><span class="sec-num">10</span></div>
+      <div class="sec-head"><span class="sec-num">12</span></div>
       <h2>演进路线</h2>
       <p class="sec-sub">// Evolution · 三阶段</p>
       <div class="roadmap">
@@ -792,9 +1024,9 @@ opencode run --format json <span class="s">"ping"</span>  <span class="c"># 5. �
       </div>
     </section>
 
-    <!-- 11 PHASE1 WEEKLY -->
+    <!-- 13 PHASE1 WEEKLY -->
     <section id="phase1">
-      <div class="sec-head"><span class="sec-num">11</span></div>
+      <div class="sec-head"><span class="sec-num">13</span></div>
       <h2>Phase 1 周粒度任务拆解</h2>
       <p class="sec-sub">// Weekly Breakdown · 含验收标准</p>
       <div class="week">
@@ -829,9 +1061,9 @@ opencode run --format json <span class="s">"ping"</span>  <span class="c"># 5. �
       </div>
     </section>
 
-    <!-- 12 METRICS -->
+    <!-- 14 METRICS -->
     <section id="metrics">
-      <div class="sec-head"><span class="sec-num">12</span></div>
+      <div class="sec-head"><span class="sec-num">14</span></div>
       <h2>评估与度量</h2>
       <p class="sec-sub">// Evaluation &amp; Metrics</p>
       <h3><span class="dot"></span>在线指标目标</h3>
@@ -849,9 +1081,9 @@ opencode run --format json <span class="s">"ping"</span>  <span class="c"># 5. �
       </div>
     </section>
 
-    <!-- 13 RISK -->
+    <!-- 15 RISK -->
     <section id="risk">
-      <div class="sec-head"><span class="sec-num">13</span></div>
+      <div class="sec-head"><span class="sec-num">15</span></div>
       <h2>风险与对策</h2>
       <p class="sec-sub">// Risk &amp; Mitigation</p>
       <div class="tbl-wrap">
@@ -871,9 +1103,9 @@ opencode run --format json <span class="s">"ping"</span>  <span class="c"># 5. �
       </div>
     </section>
 
-    <!-- 14 STACK -->
+    <!-- 16 STACK -->
     <section id="stack">
-      <div class="sec-head"><span class="sec-num">14</span></div>
+      <div class="sec-head"><span class="sec-num">16</span></div>
       <h2>技术选型总表</h2>
       <p class="sec-sub">// Tech Stack</p>
       <div class="tbl-wrap">
@@ -902,7 +1134,7 @@ opencode run --format json <span class="s">"ping"</span>  <span class="c"># 5. �
       </div>
 
       <div style="text-align:center;margin-top:48px;padding-top:28px;border-top:1px solid var(--border)">
-        <p style="font-family:var(--mono);font-size:12px;color:var(--text-dim);letter-spacing:.1em">AutoBugFix · v1.0 · 方案 C 完整设计文档 · END</p>
+        <p style="font-family:var(--mono);font-size:12px;color:var(--text-dim);letter-spacing:.1em">AutoBugFix · v1.1 · 方案 C 完整设计文档 · END</p>
       </div>
     </section>
   </main>
