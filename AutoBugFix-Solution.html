@@ -353,6 +353,7 @@ td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px
         <li><a href="#fixexec">FixExecutor 抽象层</a></li>
         <li><a href="#opencode">OpenCode 集成</a></li>
         <li><a href="#intel">代码智能层</a></li>
+        <li><a href="#kb">问题知识库</a></li>
         <li><a href="#gates">验证护栏</a></li>
         <li><a href="#deploy">Win11 部署</a></li>
         <li><a href="#roadmap">演进路线</a></li>
@@ -363,7 +364,7 @@ td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px
       </ul>
     </nav>
     <div class="toc-meta">
-      版本 <b>v1.1</b><br>
+      版本 <b>v1.2</b><br>
       部署 <b>Win11 + WSL2</b><br>
       执行层 <b>OpenCode</b><br>
       编排 <b>LangGraph</b>
@@ -922,9 +923,135 @@ td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px
       </div>
     </section>
 
-    <!-- 10 GATES -->
-    <section id="gates">
+    <!-- 10 KNOWLEDGE BASE -->
+    <section id="kb">
       <div class="sec-head"><span class="sec-num">10</span></div>
+      <h2>问题知识库</h2>
+      <p class="sec-sub">// Issue Knowledge Base · 输入增强与经验复用</p>
+
+      <div class="callout red">
+        <span class="cl-label">核心难点</span>
+        问题单初始输入往往残缺——描述含糊、无复现步骤、无日志、代码仓未关联；而历史已解决问题单中沉淀了大量"症状→根因→修复"的可复用经验。<strong>输入不完整</strong>与<strong>经验未复用</strong>是 Agent 能力的关键分水岭。本节借鉴 OM-RAG、KnowledgeForge、Lingxi、Nemotron-CORTEXA 等业界最佳实践，给出"渐进式输入获取 + 结构化知识库 + 混合检索 + 闭环运营"的完整方案。
+      </div>
+
+      <h3><span class="dot"></span>10.1 输入渐进式获取</h3>
+      <p class="muted">业界实践（JoyCode-CSR、SWE-Fixer、AutoCodeRover）表明：不依赖一次性喂入完整上下文，而是<strong>多轮主动补全 + 知识增强</strong>逐步逼近完整 IssueContext。</p>
+
+      <div class="stage c-amber">
+        <div class="st-head"><span class="st-id">第 1 轮</span><h4>种子输入 · 问题单原文</h4></div>
+        <div class="st-grid">
+          <div class="st-cell"><div class="st-cl">获取内容</div><div class="st-cv">标题 / 描述正文 / 附件截图 / 优先级标签 / 关联模块</div></div>
+          <div class="st-cell"><div class="st-cl">抽取信号</div><div class="st-cv">关键词、错误码、异常类名、堆栈关键字、受影响功能模块</div></div>
+          <div class="st-cell"><div class="st-cl">产物</div><div class="st-cv">结构化 IssueSeed（症状向量雏形）</div></div>
+        </div>
+        <div class="st-ix"><div class="st-cl">交互</div>若关键字段缺失（如无复现步骤），标记为"待补全"，进入第 2 轮。</div>
+      </div>
+
+      <div class="stage">
+        <div class="st-head"><span class="st-id">第 2 轮</span><h4>主动补全 · Agent 探查</h4></div>
+        <div class="st-grid">
+          <div class="st-cell"><div class="st-cl">代码仓探查</div><div class="st-cv">基于关键词 BM25/Embedding 搜索相关文件 → 拉取 Repo Map 局部视图</div></div>
+          <div class="st-cell"><div class="st-cl">日志/trace 补全</div><div class="st-cv">从日志平台按错误码/时间窗拉取堆栈 trace；无可复现则请求运行时采集</div></div>
+          <div class="st-cell"><div class="st-cl">关联信息</div><div class="st-cv">向问题单系统补查关联工单、近期变更记录、同模块历史告警</div></div>
+        </div>
+        <div class="st-ix"><div class="st-cl">交互</div>若仍信息不足，生成<strong>澄清问题清单</strong>回问提单人（结构化卡片，一键确认/补充），而非盲目猜测。</div>
+      </div>
+
+      <div class="stage c-violet">
+        <div class="st-head"><span class="st-id">第 3 轮</span><h4>知识增强 · 历史召回</h4></div>
+        <div class="st-grid">
+          <div class="st-cell"><div class="st-cl">向量召回</div><div class="st-cv">用当前症状向量召回 Top-K 历史相似问题</div></div>
+          <div class="st-cell"><div class="st-cl">假设注入</div><div class="st-cv">将历史根因结论与修复路径作为候选上下文注入 issue context</div></div>
+          <div class="st-cell"><div class="st-cl">产物</div><div class="st-cv">完整 IssueContext（症状 + 代码 + 日志 + 历史经验）</div></div>
+        </div>
+        <div class="st-ix"><div class="st-cl">关键</div>第 3 轮是输入完整度的"跃迁点"——历史经验补全了当下缺失的因果链。</div>
+      </div>
+
+      <h3><span class="dot"></span>10.2 知识库结构化建模</h3>
+      <p class="muted">OM-RAG 的核心洞察：将已解决问题索引为<strong>结构化三元组</strong>而非无结构文本块，诊断准确率达 0.931，较 chunk 检索提升 +186%。</p>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>知识字段</th><th>含义</th><th>来源 / 产出阶段</th></tr></thead>
+          <tbody>
+            <tr><td><span class="tag cyan">症状 Symptom</span></td><td>错误现象、报错码、影响范围、复现条件</td><td>问题单原文抽取 · S1–S2</td></tr>
+            <tr><td><span class="tag amber">根因 RootCause</span></td><td>缺陷定位结论、责任模块、缺陷类型分类</td><td>S4 根因定位产出</td></tr>
+            <tr><td><span class="tag green">修复 Resolution</span></td><td>修改文件清单、diff 摘要、验证用例、修复策略标签</td><td>S6 补丁执行 + S7 验证沉淀</td></tr>
+            <tr><td><span class="tag violet">程序性知识</span></td><td>可迁移的定位步骤、修复套路、易踩坑（Lingxi 层次化抽象）</td><td>LLM 从历史修复中抽象提炼</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout violet">
+        <span class="cl-label">Lingxi 层次化抽象</span>
+        单条修复经验 → 抽象为 <strong>"问题类型 → 定位策略 → 修复模板"</strong> 的过程性知识，可跨问题复用。低频具体经验向上归并为高频通用策略，使知识库兼具<strong>具体可检索</strong>与<strong>抽象可迁移</strong>两层。
+      </div>
+
+      <h3><span class="dot"></span>10.3 混合检索机制</h3>
+      <p class="muted">Nemotron-CORTEXA 训练任务感知代码嵌入模型，召回率比 BM25 高 31.28%、比 Agentless 高 6.4%。单一通道不足，采用<strong>三通道融合</strong>。</p>
+
+      <div class="cards">
+        <div class="card">
+          <div class="c-num">通道 A</div>
+          <h4>向量语义召回</h4>
+          <p>症状 + 根因文本 embedding（bge-m3 / 自训练 code-aware 模型）→ Qdrant ANN 召回 Top-K。擅长"描述不同但本质相似"的跨表述匹配。</p>
+        </div>
+        <div class="card">
+          <div class="c-num">通道 B</div>
+          <h4>图谱多跳推理</h4>
+          <p>Tree-sitter AST + 缺陷三元组构建知识图谱（KuzuDB），社区检测（Leiden）聚类同模块缺陷链，图遍历定位"同一调用链历史缺陷"。擅长根因关联与跨文件传播。</p>
+        </div>
+        <div class="card">
+          <div class="c-num">通道 C</div>
+          <h4>关键词精确匹配</h4>
+          <p>错误码、函数名、异常类 BM25（Tantivy）精确匹配。擅长确定性信号锚定，作为前两通道的兜底与去噪基准。</p>
+        </div>
+      </div>
+
+      <div class="callout cyan">
+        <span class="cl-label">融合策略</span>
+        三通道结果按 <strong>RRF（Reciprocal Rank Fusion）</strong> 加权合并 → Cross-Encoder 精排 → 取 Top-K 注入上下文。向量覆盖语义相似、图谱覆盖因果关联、关键词保证精确锚定，三者互补。
+      </div>
+
+      <h3><span class="dot"></span>10.4 知识库闭环运营</h3>
+      <p class="muted">借鉴 KnowledgeForge（AWS）闭环生命周期：从已关闭问题单自动生成知识条目，经策展入库，复用反哺修复，成功修复再回写沉淀——形成<strong>越用越准</strong>的飞轮。</p>
+
+      <div class="flow">
+        <div class="fstep"><div class="fnode">①</div><div class="flab">GENERATE</div><div class="fname">聚类已关闭工单 → LLM 草拟知识条目 + 根因分析</div></div>
+        <div class="fstep"><div class="fnode c-amber">②</div><div class="flab">CURATE</div><div class="fname">分类 / 去重 / 质量评分 / 人工或 LLM 改进入库</div></div>
+        <div class="fstep"><div class="fnode c-violet">③</div><div class="flab">REUSE</div><div class="fname">Agent 在 S2/S4/S5 召回并注入修复上下文</div></div>
+        <div class="fstep"><div class="fnode c-green">④</div><div class="flab">SINK</div><div class="fname">每次成功修复自动回写新三元组，飞轮闭环</div></div>
+      </div>
+
+      <div class="callout amber">
+        <span class="cl-label">质量门</span>
+        入库前必须通过：<strong>根因可追溯</strong>（链接到代码 commit）、<strong>修复已验证</strong>（通过三重门）、<strong>无重复</strong>（与现有条目相似度低于阈值）。低质量条目标记降权，避免污染召回。
+      </div>
+
+      <h3><span class="dot"></span>10.5 与业务流的集成点</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>业务流阶段</th><th>知识库动作</th><th>收益</th></tr></thead>
+          <tbody>
+            <tr><td>S1 问题单接入</td><td>种子输入抽取关键词 → 建立症状向量雏形</td><td>为召回预热</td></tr>
+            <tr><td>S2 问题理解</td><td>召回 Top-K 相似历史问题 → 生成根因假设候选</td><td>缩短理解路径</td></tr>
+            <tr><td>S4 根因定位</td><td>图谱召回同模块历史缺陷链 → 缩小定位范围</td><td>提升定位准确率</td></tr>
+            <tr><td>S5 修复方案</td><td>召回可迁移修复模板（程序性知识）→ 生成方案</td><td>方案有据可依</td></tr>
+            <tr><td>S7 验证护栏</td><td>召回历史验证用例 → 补充回归测试</td><td>防回归</td></tr>
+            <tr><td>S8 审核交付</td><td>修复成功 → 回写新三元组（闭环第 ④ 步）</td><td>知识库持续增值</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout violet">
+        <span class="cl-label">落地节奏</span>
+        <strong>Phase 1</strong>：仅向量召回 + 手动录入高质量历史问题单（冷启动种子）；<strong>Phase 2</strong>：补全图谱检索 + 自动回写闭环；<strong>Phase 3</strong>：训练任务感知 code embedding 模型 + 程序性知识抽象。与演进路线对齐，避免一次性过度建设。
+      </div>
+    </section>
+
+    <!-- 11 GATES -->
+    <section id="gates">
+      <div class="sec-head"><span class="sec-num">11</span></div>
       <h2>验证护栏</h2>
       <p class="sec-sub">// Triple Gates · 防幻觉最后防线</p>
       <div class="cards">
@@ -938,9 +1065,9 @@ td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px
       </div>
     </section>
 
-    <!-- 11 DEPLOY -->
+    <!-- 12 DEPLOY -->
     <section id="deploy">
-      <div class="sec-head"><span class="sec-num">11</span></div>
+      <div class="sec-head"><span class="sec-num">12</span></div>
       <h2>Win11 部署方案</h2>
       <p class="sec-sub">// Deployment · Win11 + WSL2</p>
       <div class="tbl-wrap">
@@ -976,9 +1103,9 @@ td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px
       </div>
     </section>
 
-    <!-- 12 ROADMAP -->
+    <!-- 13 ROADMAP -->
     <section id="roadmap">
-      <div class="sec-head"><span class="sec-num">12</span></div>
+      <div class="sec-head"><span class="sec-num">13</span></div>
       <h2>演进路线</h2>
       <p class="sec-sub">// Evolution · 三阶段</p>
       <div class="roadmap">
@@ -1024,9 +1151,9 @@ td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px
       </div>
     </section>
 
-    <!-- 13 PHASE1 WEEKLY -->
+    <!-- 14 PHASE1 WEEKLY -->
     <section id="phase1">
-      <div class="sec-head"><span class="sec-num">13</span></div>
+      <div class="sec-head"><span class="sec-num">14</span></div>
       <h2>Phase 1 周粒度任务拆解</h2>
       <p class="sec-sub">// Weekly Breakdown · 含验收标准</p>
       <div class="week">
@@ -1061,9 +1188,9 @@ td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px
       </div>
     </section>
 
-    <!-- 14 METRICS -->
+    <!-- 15 METRICS -->
     <section id="metrics">
-      <div class="sec-head"><span class="sec-num">14</span></div>
+      <div class="sec-head"><span class="sec-num">15</span></div>
       <h2>评估与度量</h2>
       <p class="sec-sub">// Evaluation &amp; Metrics</p>
       <h3><span class="dot"></span>在线指标目标</h3>
@@ -1081,9 +1208,9 @@ td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px
       </div>
     </section>
 
-    <!-- 15 RISK -->
+    <!-- 16 RISK -->
     <section id="risk">
-      <div class="sec-head"><span class="sec-num">15</span></div>
+      <div class="sec-head"><span class="sec-num">16</span></div>
       <h2>风险与对策</h2>
       <p class="sec-sub">// Risk &amp; Mitigation</p>
       <div class="tbl-wrap">
@@ -1103,9 +1230,9 @@ td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px
       </div>
     </section>
 
-    <!-- 16 STACK -->
+    <!-- 17 STACK -->
     <section id="stack">
-      <div class="sec-head"><span class="sec-num">16</span></div>
+      <div class="sec-head"><span class="sec-num">17</span></div>
       <h2>技术选型总表</h2>
       <p class="sec-sub">// Tech Stack</p>
       <div class="tbl-wrap">
@@ -1134,7 +1261,7 @@ td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px
       </div>
 
       <div style="text-align:center;margin-top:48px;padding-top:28px;border-top:1px solid var(--border)">
-        <p style="font-family:var(--mono);font-size:12px;color:var(--text-dim);letter-spacing:.1em">AutoBugFix · v1.1 · 方案 C 完整设计文档 · END</p>
+        <p style="font-family:var(--mono);font-size:12px;color:var(--text-dim);letter-spacing:.1em">AutoBugFix · v1.2 · 方案 C 完整设计文档 · END</p>
       </div>
     </section>
   </main>
