@@ -1,0 +1,11 @@
+{
+  "bug_id": "BUG-2025-0001",
+  "title": "下单接口偶发 500",
+  "symptom": "POST /order/create 偶发 500，日志报 NullPointerException",
+  "error_type": "NullPointerException",
+  "error_stack": "at com.example.order.OrderService.create(OrderService.java:42)\n  at com.example.order.OrderController.create(OrderController.java:18)",
+  "suspect_service": "order-service",
+  "components": ["order-service", "payment-client", "inventory-service"],
+  "runtime_mode": "online_full",
+  "expected_root_cause": "OrderService 未校验 payment-client 返回空指针"
+}

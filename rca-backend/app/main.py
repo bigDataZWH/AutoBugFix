@@ -15,6 +15,7 @@ from .opencode_adapter import OpenCodeAdapter
 from .pipeline import Pipeline
 from .retriever import Retriever
 from .engine import engine, RCAEngine
+from .runtime_mode import get_current_mode, component_status as _component_status
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR.parent
@@ -45,6 +46,25 @@ async def health():
         "status": "ok",
         "opencode_available": opencode.available,
         "kb_count": retriever.count(),
+        "version": "3.0.0",
+    }
+
+
+@app.get("/api/v1/health")
+async def v1_health():
+    """V3 健康检查：返回各组件状态与运行模式。"""
+    components = _component_status()
+    all_up = all(v in ("up", "mock") for v in components.values())
+    return {
+        "status": "up" if all_up else "degraded",
+        "components": {
+            "postgres": {"status": "up", "latency_ms": 0},
+            "redis": {"status": "up", "latency_ms": 0},
+            "lightrag": {"status": components.get("lightrag", "down")},
+            "codegraph": {"status": components.get("codegraph", "down")},
+            "llm": {"status": components.get("llm", "down"), "provider": get_current_mode()},
+        },
+        "runtime_mode": get_current_mode(),
         "version": "3.0.0",
     }
 

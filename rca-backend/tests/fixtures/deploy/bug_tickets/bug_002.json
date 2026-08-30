@@ -1,0 +1,11 @@
+{
+  "bug_id": "BUG-2025-0002",
+  "title": "库存超卖",
+  "symptom": "高并发下单后库存为负数",
+  "error_type": "ConcurrencyError",
+  "error_stack": "at com.example.inventory.InventoryService.deduct(InventoryService.java:78)",
+  "suspect_service": "inventory-service",
+  "components": ["inventory-service", "order-service"],
+  "runtime_mode": "mock_demo",
+  "expected_root_cause": "Redis 全量锁粒度过粗 + 缺少兜底校验"
+}

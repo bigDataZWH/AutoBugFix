@@ -1,0 +1,12 @@
+{
+  "status": "up",
+  "components": {
+    "postgres": {"status": "up", "latency_ms": 12},
+    "redis": {"status": "up", "latency_ms": 3},
+    "lightrag": {"status": "up", "latency_ms": 45},
+    "codegraph": {"status": "up", "latency_ms": 88},
+    "llm": {"status": "up", "provider": "opencode"}
+  },
+  "runtime_mode": "online_full",
+  "version": "3.0.0"
+}
