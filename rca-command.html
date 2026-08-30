@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RCA Command · 问题单智能根因分析平台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg-0:#070b14;
+  --bg-1:#0d1320;
+  --bg-2:#131b2c;
+  --bg-3:#1a2538;
+  --border:#26324a;
+  --border-soft:#1e2840;
+  --txt-0:#e8eef7;
+  --txt-1:#a6b3c8;
+  --txt-2:#6b7891;
+  --cyan:#22d3ee;
+  --cyan-dim:#0e7490;
+  --amber:#fbbf24;
+  --amber-dim:#92400e;
+  --green:#34d399;
+  --green-dim:#065f46;
+  --red:#f87171;
+  --violet:#a78bfa;
+  --grid-line:rgba(34,211,238,.06);
+  --glow-cyan:0 0 24px rgba(34,211,238,.35);
+  --glow-amber:0 0 24px rgba(251,191,36,.3);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:'IBM Plex Sans',sans-serif;
+  background:var(--bg-0);
+  color:var(--txt-0);
+  font-size:14px;
+  line-height:1.5;
+  overflow-x:hidden;
+  background-image:
+    linear-gradient(var(--grid-line) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-line) 1px,transparent 1px),
+    radial-gradient(ellipse at 20% 0%,rgba(34,211,238,.08),transparent 50%),
+    radial-gradient(ellipse at 90% 10%,rgba(167,139,250,.06),transparent 45%);
+  background-size:32px 32px,32px 32px,100% 100%,100% 100%;
+}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0 1px,transparent 1px 3px);
+}
+.mono{font-family:'JetBrains Mono',monospace}
+.display{font-family:'Chakra Petch',sans-serif;letter-spacing:.02em}
+
+/* ===== HEADER ===== */
+header{
+  position:sticky;top:0;z-index:50;
+  display:flex;align-items:center;gap:24px;
+  padding:14px 28px;
+  background:rgba(7,11,20,.85);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+}
+.brand{display:flex;align-items:center;gap:14px}
+.brand-mark{
+  width:38px;height:38px;position:relative;
+  background:linear-gradient(135deg,var(--cyan),var(--violet));
+  clip-path:polygon(20% 0,100% 0,80% 100%,0 100%);
+  display:flex;align-items:center;justify-content:center;
+}
+.brand-mark::after{
+  content:'';position:absolute;inset:3px;
+  background:var(--bg-0);
+  clip-path:polygon(20% 0,100% 0,80% 100%,0 100%);
+}
+.brand-mark span{
+  position:relative;z-index:2;font-family:'Chakra Petch';font-weight:700;
+  font-size:18px;color:var(--cyan);
+  text-shadow:0 0 8px rgba(34,211,238,.6);
+}
+.brand-text h1{
+  font-family:'Chakra Petch';font-weight:600;font-size:17px;letter-spacing:.04em;
+}
+.brand-text h1 b{color:var(--cyan)}
+.brand-text p{font-size:11px;color:var(--txt-2);letter-spacing:.12em;text-transform:uppercase}
+.header-nav{display:flex;gap:4px;margin-left:16px}
+.header-nav a{
+  padding:7px 14px;font-size:13px;color:var(--txt-1);
+  border:1px solid transparent;border-radius:4px;text-decoration:none;
+  transition:all .2s;
+}
+.header-nav a:hover{color:var(--txt-0);background:var(--bg-2)}
+.header-nav a.active{color:var(--cyan);border-color:var(--cyan-dim);background:rgba(34,211,238,.08)}
+.header-spacer{flex:1}
+.status-cluster{display:flex;align-items:center;gap:20px}
+.status-pill{
+  display:flex;align-items:center;gap:8px;
+  font-size:11px;color:var(--txt-1);letter-spacing:.06em;text-transform:uppercase;
+}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+.dot.pulse{animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.kb-meter{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--txt-2);text-transform:uppercase;letter-spacing:.1em}
+.kb-meter b{color:var(--txt-0);font-family:'JetBrains Mono';font-size:13px}
+.user-chip{
+  display:flex;align-items:center;gap:10px;padding:6px 12px 6px 6px;
+  background:var(--bg-2);border:1px solid var(--border);border-radius:30px;
+}
+.avatar{
+  width:26px;height:26px;border-radius:50%;
+  background:linear-gradient(135deg,var(--amber),var(--red));
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Chakra Petch';font-weight:600;font-size:12px;color:#1a1206;
+}
+
+/* ===== LAYOUT ===== */
+main{position:relative;z-index:2;max-width:1680px;margin:0 auto;padding:24px 28px 60px}
+.layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
+
+/* ===== INPUT CONSOLE ===== */
+.console{
+  background:linear-gradient(180deg,var(--bg-1),var(--bg-2));
+  border:1px solid var(--border);
+  border-radius:10px;
+  overflow:hidden;
+  position:relative;
+}
+.console::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+  opacity:.5;
+}
+.console-head{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 20px;border-bottom:1px solid var(--border-soft);
+  background:rgba(0,0,0,.2);
+}
+.console-head .tag{
+  font-family:'JetBrains Mono';font-size:10px;color:var(--cyan);
+  padding:2px 8px;background:rgba(34,211,238,.1);border:1px solid var(--cyan-dim);
+  border-radius:3px;letter-spacing:.1em;
+}
+.console-head h2{font-family:'Chakra Petch';font-size:15px;font-weight:600;letter-spacing:.03em}
+.console-head .sub{font-size:11px;color:var(--txt-2);margin-left:auto;font-family:'JetBrains Mono'}
+.console-body{padding:22px 24px}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.field{display:flex;flex-direction:column;gap:7px}
+.field.full{grid-column:1/-1}
+.field label{
+  font-size:11px;color:var(--txt-1);text-transform:uppercase;letter-spacing:.1em;
+  display:flex;align-items:center;gap:6px;font-weight:500;
+}
+.field label .req{color:var(--amber)}
+.field label .ico{color:var(--cyan);font-family:'JetBrains Mono'}
+.input-wrap{position:relative}
+.input-wrap input,.input-wrap select,.input-wrap textarea{
+  width:100%;background:var(--bg-0);border:1px solid var(--border);
+  color:var(--txt-0);font-family:'IBM Plex Sans';font-size:13px;
+  padding:11px 13px;border-radius:6px;outline:none;transition:all .2s;
+}
+.input-wrap textarea{min-height:74px;resize:vertical;font-family:'JetBrains Mono';font-size:12px}
+.input-wrap input:focus,.input-wrap select:focus,.input-wrap textarea:focus{
+  border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.12);
+}
+.input-wrap .prefix{
+  position:absolute;left:11px;top:50%;transform:translateY(-50%);
+  color:var(--txt-2);font-family:'JetBrains Mono';font-size:12px;pointer-events:none;
+}
+.input-wrap.with-prefix input{padding-left:32px}
+.select-chev{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--txt-2);pointer-events:none}
+.console-foot{
+  display:flex;align-items:center;gap:14px;
+  padding:16px 24px;border-top:1px solid var(--border-soft);background:rgba(0,0,0,.15);
+}
+.btn{
+  font-family:'Chakra Petch';font-weight:600;font-size:13px;letter-spacing:.06em;
+  padding:11px 22px;border-radius:6px;border:1px solid;cursor:pointer;
+  display:inline-flex;align-items:center;gap:9px;transition:all .2s;text-transform:uppercase;
+}
+.btn-primary{
+  background:linear-gradient(135deg,var(--cyan-dim),#0891b2);
+  border-color:var(--cyan);color:#021016;
+  box-shadow:0 4px 16px rgba(34,211,238,.25);
+}
+.btn-primary:hover{box-shadow:0 6px 24px rgba(34,211,238,.4);transform:translateY(-1px)}
+.btn-primary:active{transform:translateY(0)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-ghost{background:transparent;border-color:var(--border);color:var(--txt-1)}
+.btn-ghost:hover{border-color:var(--txt-2);color:var(--txt-0)}
+.console-foot .hint{font-size:11px;color:var(--txt-2);font-family:'JetBrains Mono';margin-left:auto;display:flex;align-items:center;gap:6px}
+
+/* ===== PIPELINE ===== */
+.pipeline{
+  margin-top:20px;background:var(--bg-1);border:1px solid var(--border);
+  border-radius:10px;overflow:hidden;
+}
+.pipeline-head{display:flex;align-items:center;gap:10px;padding:13px 20px;border-bottom:1px solid var(--border-soft);background:rgba(0,0,0,.2)}
+.pipeline-head h2{font-family:'Chakra Petch';font-size:14px;font-weight:600;letter-spacing:.03em}
+.pipeline-head .live{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:10px;color:var(--txt-2);font-family:'JetBrains Mono';text-transform:uppercase;letter-spacing:.1em}
+.stages{
+  display:grid;grid-template-columns:repeat(6,1fr);
+  padding:26px 20px;gap:8px;position:relative;
+}
+.stage{
+  position:relative;text-align:center;
+}
+.stage:not(:last-child)::after{
+  content:'';position:absolute;top:18px;left:60%;right:-40%;height:2px;
+  background:var(--border);z-index:0;
+}
+.stage:not(:last-child).done::after{background:var(--green)}
+.stage:not(:last-child).active::after{background:linear-gradient(90deg,var(--cyan),var(--border))}
+.node{
+  width:38px;height:38px;margin:0 auto 12px;border-radius:50%;
+  background:var(--bg-2);border:2px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;z-index:2;transition:all .4s;
+  font-family:'JetBrains Mono';font-size:13px;font-weight:700;color:var(--txt-2);
+}
+.stage.done .node{border-color:var(--green);color:var(--green);background:rgba(52,211,153,.08)}
+.stage.done .node::after{content:'✓';position:absolute;font-size:15px}
+.stage.done .node span{display:none}
+.stage.active .node{
+  border-color:var(--cyan);color:var(--cyan);
+  box-shadow:var(--glow-cyan);
+  animation:nspin 1.2s linear infinite;
+}
+@keyframes nspin{0%{box-shadow:0 0 0 0 rgba(34,211,238,.4)}100%{box-shadow:0 0 0 12px rgba(34,211,238,0)}}
+.stage-label{font-size:11px;color:var(--txt-1);font-weight:500;line-height:1.3}
+.stage.active .stage-label{color:var(--cyan)}
+.stage-done-label{font-size:9px;color:var(--txt-2);font-family:'JetBrains Mono';margin-top:3px;text-transform:uppercase;letter-spacing:.08em}
+.stage.active .stage-done-label{color:var(--cyan);opacity:.7}
+
+/* ===== RESULTS ===== */
+.results{
+  margin-top:20px;background:var(--bg-1);border:1px solid var(--border);
+  border-radius:10px;overflow:hidden;display:none;
+}
+.results.show{display:block;animation:fadeUp .5s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.results-head{display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--border-soft);background:rgba(0,0,0,.2)}
+.results-head .confidence{
+  display:flex;align-items:center;gap:8px;font-size:11px;font-family:'JetBrains Mono';
+  padding:4px 10px;border-radius:4px;border:1px solid var(--green-dim);background:rgba(52,211,153,.08);color:var(--green)
+}
+.results-head .meta{font-size:11px;color:var(--txt-2);font-family:'JetBrains Mono';margin-left:auto}
+.tabs{display:flex;border-bottom:1px solid var(--border-soft);background:var(--bg-2);overflow-x:auto}
+.tab{
+  padding:13px 20px;font-family:'Chakra Petch';font-size:13px;font-weight:500;
+  color:var(--txt-1);cursor:pointer;border-bottom:2px solid transparent;
+  display:flex;align-items:center;gap:8px;white-space:nowrap;transition:all .2s;
+  letter-spacing:.03em;
+}
+.tab:hover{color:var(--txt-0)}
+.tab.active{color:var(--cyan);border-bottom-color:var(--cyan)}
+.tab .badge{
+  font-family:'JetBrains Mono';font-size:10px;padding:1px 6px;border-radius:10px;
+  background:var(--bg-3);color:var(--txt-1);
+}
+.tab.active .badge{background:var(--cyan-dim);color:var(--cyan)}
+.tab-panels{padding:24px}
+.tab-panel{display:none}
+.tab-panel.active{display:block;animation:fadeUp .4s ease}
+
+/* Root cause */
+.rc-summary{
+  display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start;
+  padding:18px;background:var(--bg-2);border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:8px;margin-bottom:20px;
+}
+.rc-summary .ico{
+  width:42px;height:42px;border-radius:8px;background:rgba(251,191,36,.1);
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+}
+.rc-summary h3{font-family:'Chakra Petch';font-size:15px;margin-bottom:6px}
+.rc-summary p{font-size:13px;color:var(--txt-1);line-height:1.6}
+.rc-summary .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.chip{font-family:'JetBrains Mono';font-size:10px;padding:3px 8px;border-radius:3px;background:var(--bg-3);border:1px solid var(--border);color:var(--txt-1)}
+.chip.amber{color:var(--amber);border-color:var(--amber-dim);background:rgba(251,191,36,.08)}
+.chip.cyan{color:var(--cyan);border-color:var(--cyan-dim);background:rgba(34,211,238,.08)}
+.chip.violet{color:var(--violet);border-color:#6d28d9;background:rgba(167,139,250,.08)}
+
+.section-title{display:flex;align-items:center;gap:10px;margin:22px 0 12px;font-family:'Chakra Petch';font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--txt-1)}
+.section-title::before{content:'';width:3px;height:14px;background:var(--cyan);border-radius:2px}
+.section-title .count{font-family:'JetBrains Mono';font-size:11px;color:var(--txt-2);font-weight:400;margin-left:auto;text-transform:none}
+
+.call-stack{font-family:'JetBrains Mono';font-size:12px;background:var(--bg-0);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.stack-line{display:flex;gap:0;padding:9px 14px;border-bottom:1px solid var(--border-soft);align-items:center}
+.stack-line:last-child{border-bottom:none}
+.stack-line .ln{color:var(--txt-2);width:30px;flex-shrink:0}
+.stack-line .fn{color:var(--cyan)}
+.stack-line .file{color:var(--txt-1);margin-left:auto;font-size:11px}
+.stack-line.culprit{background:rgba(248,113,113,.08);border-left:3px solid var(--red);padding-left:11px}
+.stack-line.culprit .fn{color:var(--red)}
+.stack-line.culprit::after{content:'⚠ CULPRIT';color:var(--red);font-size:9px;margin-left:12px;padding:2px 6px;background:rgba(248,113,113,.12);border-radius:3px}
+
+/* KB matches */
+.kb-card{
+  background:var(--bg-2);border:1px solid var(--border);border-radius:8px;
+  padding:16px;margin-bottom:14px;transition:all .2s;position:relative;
+}
+.kb-card:hover{border-color:var(--cyan-dim);transform:translateX(3px)}
+.kb-card::before{content:'';position:absolute;left:0;top:14px;bottom:14px;width:3px;background:var(--violet);border-radius:2px}
+.kb-card-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-left:10px}
+.kb-sim{
+  font-family:'JetBrains Mono';font-size:11px;font-weight:700;
+  padding:3px 8px;border-radius:4px;color:var(--green);
+  background:rgba(52,211,153,.12);border:1px solid var(--green-dim);
+}
+.kb-sim.med{color:var(--amber);background:rgba(251,191,36,.1);border-color:var(--amber-dim)}
+.kb-card h4{font-size:13px;font-weight:600;flex:1}
+.kb-card .tid{font-family:'JetBrains Mono';font-size:10px;color:var(--txt-2)}
+.kb-card-body{padding-left:10px;font-size:12px;color:var(--txt-1);line-height:1.6}
+.kb-card-body .label{color:var(--cyan);font-family:'JetBrains Mono';font-size:10px;text-transform:uppercase;letter-spacing:.08em;margin-top:8px;display:block}
+.kb-card-body code{font-family:'JetBrains Mono';font-size:11px;color:var(--amber);background:rgba(251,191,36,.08);padding:1px 5px;border-radius:3px}
+
+/* best practices */
+.bp-item{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--border-soft)}
+.bp-item:last-child{border-bottom:none}
+.bp-num{font-family:'Chakra Petch';font-size:22px;font-weight:700;color:var(--cyan);opacity:.5;flex-shrink:0;width:34px}
+.bp-content h4{font-size:13px;font-weight:600;margin-bottom:5px}
+.bp-content p{font-size:12px;color:var(--txt-1);line-height:1.6}
+.bp-content .src{font-family:'JetBrains Mono';font-size:10px;color:var(--txt-2);margin-top:6px}
+
+/* design solution */
+.solution-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+.sol-block{background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:16px}
+.sol-block h4{font-family:'Chakra Petch';font-size:13px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.sol-block h4 .ic{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px}
+.sol-block.before h4 .ic{background:rgba(248,113,113,.15);color:var(--red)}
+.sol-block.after h4 .ic{background:rgba(52,211,153,.15);color:var(--green)}
+.code-block{font-family:'JetBrains Mono';font-size:11.5px;background:var(--bg-0);border:1px solid var(--border-soft);border-radius:6px;padding:12px;overflow-x:auto;line-height:1.7;color:var(--txt-1)}
+.code-block .kw{color:var(--violet)}
+.code-block .fn{color:var(--cyan)}
+.code-block .str{color:var(--green)}
+.code-block .com{color:var(--txt-2);font-style:italic}
+.code-block .num{color:var(--amber)}
+.code-block .del{background:rgba(248,113,113,.12);display:block;margin:0 -12px;padding:0 12px}
+.code-block .add{background:rgba(52,211,153,.1);display:block;margin:0 -12px;padding:0 12px}
+.steps{list-style:none;counter-reset:step}
+.steps li{counter-increment:step;padding:10px 0 10px 38px;position:relative;font-size:13px;color:var(--txt-1);border-bottom:1px solid var(--border-soft)}
+.steps li:last-child{border-bottom:none}
+.steps li::before{
+  content:counter(step);position:absolute;left:0;top:8px;
+  width:24px;height:24px;border-radius:50%;background:var(--cyan-dim);
+  color:var(--cyan);font-family:'Chakra Petch';font-weight:600;font-size:12px;
+  display:flex;align-items:center;justify-content:center;
+}
+.steps li b{color:var(--txt-0)}
+.verify-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.verify-card{background:var(--bg-2);border:1px solid var(--border);border-radius:6px;padding:12px;text-align:center}
+.verify-card .v-ic{font-size:18px;margin-bottom:6px}
+.verify-card .v-t{font-size:11px;color:var(--txt-2);text-transform:uppercase;letter-spacing:.06em}
+.verify-card .v-v{font-family:'JetBrains Mono';font-size:14px;color:var(--green);margin-top:4px}
+
+/* ===== SIDEBAR ===== */
+.sidebar{display:flex;flex-direction:column;gap:20px;position:sticky;top:80px}
+.side-card{background:var(--bg-1);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.side-head{display:flex;align-items:center;gap:8px;padding:13px 16px;border-bottom:1px solid var(--border-soft);background:rgba(0,0,0,.2)}
+.side-head h3{font-family:'Chakra Petch';font-size:13px;font-weight:600;letter-spacing:.03em}
+.side-head .ic{color:var(--cyan);font-family:'JetBrains Mono';font-size:14px}
+.side-head .more{margin-left:auto;font-size:10px;color:var(--txt-2);font-family:'JetBrains Mono'}
+.side-body{padding:14px 16px}
+
+.kb-stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.kb-stat{padding:12px;background:var(--bg-2);border:1px solid var(--border-soft);border-radius:6px}
+.kb-stat .num{font-family:'Chakra Petch';font-size:22px;font-weight:700;color:var(--cyan)}
+.kb-stat .num.amber{color:var(--amber)}
+.kb-stat .num.green{color:var(--green)}
+.kb-stat .lbl{font-size:10px;color:var(--txt-2);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+.kb-dist{margin-top:14px}
+.kb-dist .row{display:flex;align-items:center;gap:8px;font-size:11px;margin-bottom:7px}
+.kb-dist .row .name{width:70px;color:var(--txt-1)}
+.kb-dist .row .bar{flex:1;height:6px;background:var(--bg-3);border-radius:3px;overflow:hidden}
+.kb-dist .row .bar i{display:block;height:100%;border-radius:3px;background:var(--cyan)}
+.kb-dist .row .val{font-family:'JetBrains Mono';font-size:10px;color:var(--txt-2);width:32px;text-align:right}
+
+.history-item{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--border-soft);cursor:pointer;transition:all .2s}
+.history-item:last-child{border-bottom:none}
+.history-item:hover{padding-left:4px}
+.h-status{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.h-status.resolved{background:var(--green);box-shadow:0 0 6px var(--green)}
+.h-status.analyzing{background:var(--amber);box-shadow:0 0 6px var(--amber)}
+.h-status.open{background:var(--red)}
+.h-info{flex:1;min-width:0}
+.h-info .t{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h-info .m{font-size:10px;color:var(--txt-2);font-family:'JetBrains Mono';margin-top:2px}
+
+.flow-mini{font-family:'JetBrains Mono';font-size:10px;color:var(--txt-1);line-height:1.8}
+.flow-mini .step{display:flex;gap:8px;align-items:flex-start}
+.flow-mini .step .n{color:var(--cyan);flex-shrink:0}
+.flow-mini .step .arr{color:var(--txt-2)}
+.flow-mini .note{color:var(--txt-2);font-size:9px;margin-top:8px;padding:8px;background:var(--bg-2);border-radius:4px;border-left:2px solid var(--violet)}
+
+/* footer */
+.foot{margin-top:32px;padding-top:20px;border-top:1px solid var(--border-soft);display:flex;align-items:center;gap:16px;font-size:11px;color:var(--txt-2);font-family:'JetBrains Mono'}
+.foot .sep{color:var(--border)}
+
+/* toast */
+.toast{
+  position:fixed;bottom:24px;right:24px;z-index:100;
+  background:var(--bg-2);border:1px solid var(--cyan-dim);border-left:3px solid var(--cyan);
+  padding:13px 18px;border-radius:6px;font-size:12px;
+  box-shadow:0 8px 30px rgba(0,0,0,.5);
+  display:flex;align-items:center;gap:10px;
+  transform:translateX(120%);transition:transform .4s cubic-bezier(.4,0,.2,1);
+}
+.toast.show{transform:none}
+.toast .ti{color:var(--cyan);font-size:16px}
+
+/* responsive */
+@media(max-width:1200px){
+  .layout{grid-template-columns:1fr}
+  .sidebar{position:static;flex-direction:row;flex-wrap:wrap}
+  .side-card{flex:1;min-width:280px}
+}
+@media(max-width:760px){
+  .field-grid{grid-template-columns:1fr}
+  .stages{grid-template-columns:repeat(3,1fr);gap:24px 8px}
+  .solution-grid{grid-template-columns:1fr}
+  .verify-grid{grid-template-columns:1fr}
+  .header-nav{display:none}
+  main{padding:16px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark"><span>R</span></div>
+    <div class="brand-text">
+      <h1>RCA<b>·</b>Command</h1>
+      <p>Root Cause Analysis Platform</p>
+    </div>
+  </div>
+  <nav class="header-nav">
+    <a href="#" class="active">分析台</a>
+    <a href="#">知识库</a>
+    <a href="#">问题单看板</a>
+    <a href="#">最佳实践</a>
+    <a href="#">设置</a>
+  </nav>
+  <div class="header-spacer"></div>
+  <div class="status-cluster">
+    <div class="status-pill"><span class="dot pulse"></span>opencode 在线</div>
+    <div class="status-pill"><span class="dot pulse" style="background:var(--violet);box-shadow:0 0 8px var(--violet)"></span>RAG 引擎就绪</div>
+    <div class="kb-meter">知识库条目 <b>12,847</b></div>
+    <div class="user-chip">
+      <div class="avatar">HW</div>
+      <span style="font-size:12px">华为微服务团队</span>
+    </div>
+  </div>
+</header>
+
+<main>
+<div class="layout">
+<div>
+
+  <!-- ===== INPUT CONSOLE ===== -->
+  <section class="console">
+    <div class="console-head">
+      <span class="tag">INPUT // 01</span>
+      <h2>问题单根因分析请求</h2>
+      <span class="sub">opencode + RAG pipeline v2.4</span>
+    </div>
+    <div class="console-body">
+      <div class="field-grid">
+        <div class="field full">
+          <label><span class="ico">①</span>问题单链接 <span class="req">*</span></label>
+          <div class="input-wrap with-prefix">
+            <span class="prefix">🔗</span>
+            <input type="text" id="ticketUrl" placeholder="https://issues.huawei.com/ticket/MSP-2026-0817" value="https://issues.huawei.com/ticket/MSP-2026-0817">
+          </div>
+        </div>
+        <div class="field">
+          <label><span class="ico">②</span>代码仓库 <span class="req">*</span></label>
+          <div class="input-wrap with-prefix">
+            <span class="prefix">git://</span>
+            <input type="text" id="repoUrl" placeholder="microservice-order-center" value="microservice-order-center">
+          </div>
+        </div>
+        <div class="field">
+          <label><span class="ico">③</span>分支 / Tag <span class="req">*</span></label>
+          <div class="input-wrap">
+            <select id="branch">
+              <option>release/2026.08</option>
+              <option>master</option>
+              <option>hotfix/order-timeout</option>
+              <option>dev</option>
+            </select>
+            <span class="select-chev">▾</span>
+          </div>
+        </div>
+        <div class="field">
+          <label><span class="ico">④</span>微服务模块</label>
+          <div class="input-wrap">
+            <select id="module">
+              <option>order-service (订单中心)</option>
+              <option>payment-service (支付)</option>
+              <option>inventory-service (库存)</option>
+              <option>user-service (用户)</option>
+            </select>
+            <span class="select-chev">▾</span>
+          </div>
+        </div>
+        <div class="field">
+          <label><span class="ico">⑤</span>分析深度</label>
+          <div class="input-wrap">
+            <select id="depth">
+              <option>深度根因 (含调用链追溯)</option>
+              <option>快速定位</option>
+              <option>仅知识库匹配</option>
+            </select>
+            <span class="select-chev">▾</span>
+          </div>
+        </div>
+        <div class="field full">
+          <label><span class="ico">⑥</span>问题描述 / 复现步骤 (可选，无链接时必填)</label>
+          <div class="input-wrap">
+            <textarea id="desc" placeholder="例如：高并发场景下订单创建接口偶发超时，p99 延迟从 200ms 飙升至 3500ms，伴随 Hystrix 熔断告警...">高并发场景下订单创建接口偶发超时，p99 延迟从 200ms 飙升至 3500ms，伴随 Hystrix 熔断告警，重试后数据一致性异常。</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="console-foot">
+      <button class="btn btn-primary" id="runBtn">
+        <span>▶</span> 启动根因分析
+      </button>
+      <button class="btn btn-ghost" id="resetBtn">重置</button>
+      <span class="hint">⌘ + Enter 快速启动 · 预计耗时 45-90s</span>
+    </div>
+  </section>
+
+  <!-- ===== PIPELINE ===== -->
+  <section class="pipeline">
+    <div class="pipeline-head">
+      <span class="tag" style="font-family:'JetBrains Mono';font-size:10px;color:var(--cyan);padding:2px 8px;background:rgba(34,211,238,.1);border:1px solid var(--cyan-dim);border-radius:3px">PIPELINE // 02</span>
+      <h2>分析流水线</h2>
+      <span class="live" id="liveStatus">● 待命</span>
+    </div>
+    <div class="stages" id="stages">
+      <div class="stage" data-i="0"><div class="node"><span>1</span></div><div class="stage-label">拉取问题单</div><div class="stage-done-label">fetch ticket</div></div>
+      <div class="stage" data-i="1"><div class="node"><span>2</span></div><div class="stage-label">克隆代码仓</div><div class="stage-done-label">clone repo</div></div>
+      <div class="stage" data-i="2"><div class="node"><span>3</span></div><div class="stage-label">opencode 静态分析</div><div class="stage-done-label">static scan</div></div>
+      <div class="stage" data-i="3"><div class="node"><span>4</span></div><div class="stage-label">调用链追溯</div><div class="stage-done-label">trace</div></div>
+      <div class="stage" data-i="4"><div class="node"><span>5</span></div><div class="stage-label">RAG 知识匹配</div><div class="stage-done-label">rag match</div></div>
+      <div class="stage" data-i="5"><div class="node"><span>6</span></div><div class="stage-label">方案生成</div><div class="stage-done-label">solution</div></div>
+    </div>
+  </section>
+
+  <!-- ===== RESULTS ===== -->
+  <section class="results" id="results">
+    <div class="results-head">
+      <span class="tag" style="font-family:'JetBrains Mono';font-size:10px;color:var(--cyan);padding:2px 8px;background:rgba(34,211,238,.1);border:1px solid var(--cyan-dim);border-radius:3px">OUTPUT // 03</span>
+      <h2 style="font-family:'Chakra Petch';font-size:15px">分析报告 · MSP-2026-0817</h2>
+      <span class="confidence">置信度 94.2%</span>
+      <span class="meta">耗时 62s · 分析路径 4 条 · 匹配条目 7</span>
+    </div>
+    <div class="tabs">
+      <div class="tab active" data-tab="rca">根因分析 <span class="badge">RCA</span></div>
+      <div class="tab" data-tab="kb">知识库匹配 <span class="badge">7</span></div>
+      <div class="tab" data-tab="bp">业界最佳实践 <span class="badge">5</span></div>
+      <div class="tab" data-tab="sol">设计方案 <span class="badge">FIX</span></div>
+    </div>
+    <div class="tab-panels">
+
+      <!-- RCA -->
+      <div class="tab-panel active" data-panel="rca">
+        <div class="rc-summary">
+          <div class="ico">⚠</div>
+          <div>
+            <h3>根因：分布式锁粒度过粗 + Redis 连接池耗尽导致雪崩</h3>
+            <p>在高并发订单创建场景下，<code class="mono" style="color:var(--amber)">OrderLockService.acquire()</code> 使用单一 Redis 分布式锁保护整个 SKU 维度的库存扣减，锁等待队列在 QPS＞800 时迅速堆积；同时 <code class="mono" style="color:var(--amber)">JedisPool</code> 配置 maxActive=8 过小，锁等待线程长期占用连接，触发连接池耗尽，最终 Hystrix 熔断。重试逻辑未做幂等校验，导致部分订单重复扣减库存。</p>
+            <div class="tags">
+              <span class="chip amber">并发缺陷</span>
+              <span class="chip amber">资源耗尽</span>
+              <span class="chip violet">分布式锁</span>
+              <span class="chip cyan">幂等性缺失</span>
+              <span class="chip">P0 · 线上故障</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">调用链追溯 <span class="count">定位至 OrderLockService.java:127</span></div>
+        <div class="call-stack">
+          <div class="stack-line"><span class="ln">→</span><span class="fn">OrderController.createOrder</span><span class="file">OrderController.java:64</span></div>
+          <div class="stack-line"><span class="ln">→</span><span class="fn">OrderService.submit</span><span class="file">OrderService.java:92</span></div>
+          <div class="stack-line"><span class="ln">→</span><span class="fn">InventoryService.deduct</span><span class="file">InventoryService.java:48</span></div>
+          <div class="stack-line culprit"><span class="ln">→</span><span class="fn">OrderLockService.acquire</span><span class="file">OrderLockService.java:127</span></div>
+          <div class="stack-line"><span class="ln">→</span><span class="fn">JedisPool.getResource</span><span class="file">JedisPool.java:210 [BLOCKED]</span></div>
+        </div>
+
+        <div class="section-title">根因要素分解</div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
+          <div class="kb-card" style="margin:0">
+            <div class="kb-card-head"><h4>直接原因</h4></div>
+            <div class="kb-card-body">Redis 连接池 maxActive=8 无法支撑锁等待线程堆积，连接获取阻塞 &gt;3s。</div>
+          </div>
+          <div class="kb-card" style="margin:0">
+            <div class="kb-card-head"><h4>根本原因</h4></div>
+            <div class="kb-card-body">分布式锁粒度按 SKU 全局加锁，未按 <code>userId+skuId</code> 分段，高并发下成为瓶颈。</div>
+          </div>
+          <div class="kb-card" style="margin:0">
+            <div class="kb-card-head"><h4>触发条件</h4></div>
+            <div class="kb-card-body">QPS ＞ 800 + 大促秒杀场景，库存热点 SKU 集中访问。</div>
+          </div>
+          <div class="kb-card" style="margin:0">
+            <div class="kb-card-head"><h4>衍生问题</h4></div>
+            <div class="kb-card-body">重试未做幂等，超时后重试导致库存重复扣减，数据不一致。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KB -->
+      <div class="tab-panel" data-panel="kb">
+        <p style="font-size:12px;color:var(--txt-2);margin-bottom:16px">RAG 引擎从 <b style="color:var(--txt-0)">12,847</b> 条历史问题单中检索到 <b style="color:var(--cyan)">7</b> 条高相似度记录，含根因、验证方案、修复代码。</p>
+
+        <div class="kb-card">
+          <div class="kb-card-head">
+            <span class="kb-sim">96.4%</span>
+            <h4>大促期间订单接口超时熔断，库存重复扣减</h4>
+            <span class="tid">MSP-2025-1108</span>
+          </div>
+          <div class="kb-card-body">
+            <b style="color:var(--txt-0)">根因：</b>分布式锁粒度过粗 + 连接池配置不当，与本次问题高度一致。
+            <span class="label">验证方案</span>
+            压测 1000 QPS 持续 5min，监控连接池使用率与锁等待时长；幂等 token 校验。
+            <span class="label">修复代码</span>
+            <code>OrderLockService</code> 改为分段锁 + <code>JedisPool maxActive=64</code> + 幂等拦截器
+          </div>
+        </div>
+
+        <div class="kb-card">
+          <div class="kb-card-head">
+            <span class="kb-sim">91.2%</span>
+            <h4>Redis 连接池耗尽导致服务雪崩</h4>
+            <span class="tid">MSP-2025-0932</span>
+          </div>
+          <div class="kb-card-body">
+            <b style="color:var(--txt-0)">根因：</b>长事务持有 Redis 连接，池配置 maxActive=10 过小。
+            <span class="label">经验沉淀</span>
+            建议连接池 maxActive ≥ 64，并配置 maxWait + 超时降级；引入连接泄漏检测。
+          </div>
+        </div>
+
+        <div class="kb-card">
+          <div class="kb-card-head">
+            <span class="kb-sim">87.5%</span>
+            <h4>幂等性缺失导致重复扣款</h4>
+            <span class="tid">MSP-2024-2210</span>
+          </div>
+          <div class="kb-card-body">
+            <b style="color:var(--txt-0)">根因：</b>重试未携带幂等 token，下游未做去重。
+            <span class="label">修复模式</span>
+            前端生成 requestId，服务端 Redis SETNX 去重窗口 30s。
+          </div>
+        </div>
+
+        <div class="kb-card">
+          <div class="kb-card-head">
+            <span class="kb-sim med">78.3%</span>
+            <h4>Hystrix 熔断配置不合理误熔断</h4>
+            <span class="tid">MSP-2025-0751</span>
+          </div>
+          <div class="kb-card-body">
+            <b style="color:var(--txt-0)">根因：</b>熔断阈值 QPS 与实际峰值不匹配。
+            <span class="label">经验沉淀</span>
+            按服务容量动态调整熔断参数，结合压测基线设定。
+          </div>
+        </div>
+      </div>
+
+      <!-- BP -->
+      <div class="tab-panel" data-panel="bp">
+        <p style="font-size:12px;color:var(--txt-2);margin-bottom:8px">结合业界开源实践与华为内部技术规范，推荐以下最佳实践。</p>
+
+        <div class="bp-item">
+          <div class="bp-num">01</div>
+          <div class="bp-content">
+            <h4>分布式锁分段（Striped Lock）</h4>
+            <p>将单一粗粒度锁拆分为 N 个分段锁（如按 hash(skuId) % 64），将锁竞争分散，QPS 承载能力提升 10-20 倍。参考 Java Striped&lt;Lock&gt; 与 Redis Redlock 分段实现。</p>
+            <div class="src">src: Java Concurrency in Practice §13 / Redis 官方文档</div>
+          </div>
+        </div>
+        <div class="bp-item">
+          <div class="bp-num">02</div>
+          <div class="bp-content">
+            <h4>连接池容量公式</h4>
+            <p>maxActive = (峰值 QPS × 平均 RT(s)) × 1.3 冗余系数。本次场景：800 × 0.05 × 1.3 ≈ 52，建议取 64。</p>
+            <div class="src">src: HikariCP Pool Sizing Wiki</div>
+          </div>
+        </div>
+        <div class="bp-item">
+          <div class="bp-num">03</div>
+          <div class="bp-content">
+            <h4>幂等性三件套</h4>
+            <p>前端 requestId + 服务端 SETNX 去重 + 数据库唯一索引，三层防护保证最终一致。</p>
+            <div class="src">src: 阿里《微服务设计模式》/ 华为分布式规范 DOC-2024-117</div>
+          </div>
+        </div>
+        <div class="bp-item">
+          <div class="bp-num">04</div>
+          <div class="bp-content">
+            <h4>熔断器自适应配置</h4>
+            <p>基于实时 QPS 与 RT 动态调整熔断阈值，避免静态配置导致的误熔断或熔断失效。推荐 Sentinel 流控规则。</p>
+            <div class="src">src: Sentinel 官方文档 / Netflix Hystrix Wiki</div>
+          </div>
+        </div>
+        <div class="bp-item">
+          <div class="bp-num">05</div>
+          <div class="bp-content">
+            <h4>压测基线 + 容量规划</h4>
+            <p>上线前以 1.5 倍预期峰值压测，建立 p99/错误率/资源水位基线，作为熔断与扩容依据。</p>
+            <div class="src">src: 华为性能测试规范 PERF-2023-08</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Solution -->
+      <div class="tab-panel" data-panel="sol">
+        <div class="section-title">修复方案 · 代码对比</div>
+        <div class="solution-grid">
+          <div class="sol-block before">
+            <h4><span class="ic">✕</span>修复前 (OrderLockService.java:127)</h4>
+            <div class="code-block">
+<span class="kw">public</span> <span class="kw">boolean</span> <span class="fn">acquire</span>(String skuId) {
+  <span class="com">// 粗粒度全局锁</span>
+<span class="del">  String key = <span class="str">"lock:sku:"</span> + skuId;</span>
+<span class="del">  <span class="kw">return</span> jedis.setnx(key, <span class="str">"1"</span>) == 1;</span>
+}
+            </div>
+          </div>
+          <div class="sol-block after">
+            <h4><span class="ic">✓</span>修复后 (分段锁 + 超时)</h4>
+            <div class="code-block">
+<span class="kw">public</span> <span class="kw">boolean</span> <span class="fn">acquire</span>(String skuId) {
+  <span class="com">// 分段锁，分散竞争</span>
+<span class="add">  <span class="kw">int</span> seg = Math.abs(skuId.hashCode()) % <span class="num">64</span>;</span>
+<span class="add">  String key = <span class="str">"lock:sku:"</span> + seg + <span class="str">":"</span> + skuId;</span>
+<span class="add">  <span class="kw">return</span> jedis.setnx(key, <span class="str">"1"</span>, <span class="str">"NX"</span>, <span class="str">"PX"</span>, <span class="num">3000</span>) != <span class="kw">null</span>;</span>
+}
+            </div>
+          </div>
+        </div>
+
+        <div class="solution-grid">
+          <div class="sol-block before">
+            <h4><span class="ic">✕</span>连接池配置 (application.yml)</h4>
+            <div class="code-block">
+<span class="com"># 连接池过小</span>
+<span class="del">jedis:</span>
+<span class="del">  pool:</span>
+<span class="del">    max-active: <span class="num">8</span></span>
+<span class="del">    max-wait: <span class="num">3000</span>ms</span>
+            </div>
+          </div>
+          <div class="sol-block after">
+            <h4><span class="ic">✓</span>优化配置</h4>
+            <div class="code-block">
+<span class="com"># 按容量公式调整</span>
+<span class="add">jedis:</span>
+<span class="add">  pool:</span>
+<span class="add">    max-active: <span class="num">64</span></span>
+<span class="add">    max-wait: <span class="num">500</span>ms</span>
+<span class="add">    timeout: <span class="num">1000</span>ms</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">实施步骤</div>
+        <ol class="steps">
+          <li><b>紧急止血</b>：动态调整 JedisPool maxActive 至 64，重启受影响实例，恢复服务可用性。</li>
+          <li><b>代码修复</b>：OrderLockService 改为分段锁，提交 hotfix 分支并 Code Review。</li>
+          <li><b>幂等加固</b>：新增 IdempotentInterceptor，前端透传 requestId，Redis SETNX 去重。</li>
+          <li><b>压测验证</b>：1000 QPS 持续 10min，验证 p99 &lt; 500ms，无重复扣减。</li>
+          <li><b>灰度发布</b>：按 10% → 50% → 100% 灰度，监控错误率与延迟。</li>
+          <li><b>经验沉淀</b>：将本次问题单（根因+验证+代码）回写知识库，供后续复用。</li>
+        </ol>
+
+        <div class="section-title">验证结果预期</div>
+        <div class="verify-grid">
+          <div class="verify-card"><div class="v-ic">⚡</div><div class="v-t">P99 延迟</div><div class="v-v">120ms ↓</div></div>
+          <div class="verify-card"><div class="v-ic">🔀</div><div class="v-t">最大 QPS</div><div class="v-v">1500 ↑</div></div>
+          <div class="verify-card"><div class="v-ic">✓</div><div class="v-t">数据一致</div><div class="v-v">100%</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</div>
+
+<!-- ===== SIDEBAR ===== -->
+<aside class="sidebar">
+
+  <div class="side-card">
+    <div class="side-head">
+      <span class="ic">📊</span>
+      <h3>知识库概览</h3>
+      <span class="more">实时</span>
+    </div>
+    <div class="side-body">
+      <div class="kb-stats">
+        <div class="kb-stat"><div class="num">12,847</div><div class="lbl">问题单总数</div></div>
+        <div class="kb-stat"><div class="num green">11,204</div><div class="lbl">已闭环</div></div>
+        <div class="kb-stat"><div class="num amber">1,643</div><div class="lbl">待验证</div></div>
+        <div class="kb-stat"><div class="num">94.2%</div><div class="lbl">平均命中率</div></div>
+      </div>
+      <div class="kb-dist">
+        <div class="row"><span class="name">订单中心</span><span class="bar"><i style="width:82%"></i></span><span class="val">3.2k</span></div>
+        <div class="row"><span class="name">支付</span><span class="bar"><i style="width:64%;background:var(--amber)"></i></span><span class="val">2.5k</span></div>
+        <div class="row"><span class="name">库存</span><span class="bar"><i style="width:48%;background:var(--violet)"></i></span><span class="val">1.9k</span></div>
+        <div class="row"><span class="name">用户</span><span class="bar"><i style="width:35%;background:var(--green)"></i></span><span class="val">1.4k</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="side-card">
+    <div class="side-head">
+      <span class="ic">🗂</span>
+      <h3>最近分析</h3>
+      <span class="more">查看全部</span>
+    </div>
+    <div class="side-body" style="padding-top:4px;padding-bottom:4px">
+      <div class="history-item">
+        <div class="h-status resolved"></div>
+        <div class="h-info"><div class="t">订单超时熔断</div><div class="m">MSP-2026-0817 · 2min前</div></div>
+      </div>
+      <div class="history-item">
+        <div class="h-status resolved"></div>
+        <div class="h-info"><div class="t">支付回调失败</div><div class="m">MSP-2026-0802 · 1h前</div></div>
+      </div>
+      <div class="history-item">
+        <div class="h-status analyzing"></div>
+        <div class="h-info"><div class="t">库存扣减不一致</div><div class="m">MSP-2026-0795 · 进行中</div></div>
+      </div>
+      <div class="history-item">
+        <div class="h-status resolved"></div>
+        <div class="h-info"><div class="t">网关 502 异常</div><div class="m">MSP-2026-0788 · 3h前</div></div>
+      </div>
+      <div class="history-item">
+        <div class="h-status open"></div>
+        <div class="h-info"><div class="t">用户登录态丢失</div><div class="m">MSP-2026-0779 · 5h前</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="side-card">
+    <div class="side-head">
+      <span class="ic">⚙</span>
+      <h3>分析引擎</h3>
+    </div>
+    <div class="side-body">
+      <div class="flow-mini">
+        <div class="step"><span class="n">▸</span> <span>opencode 静态扫描 (AST + 数据流)</span></div>
+        <div class="step"><span class="arr">  ↳</span> <span>调用链构建 + 热点定位</span></div>
+        <div class="step"><span class="n">▸</span> <span>RAG 向量检索 (bge-m3)</span></div>
+        <div class="step"><span class="arr">  ↳</span> <span>历史问题单 Top-K 召回</span></div>
+        <div class="step"><span class="n">▸</span> <span>LLM 根因推理 + 方案合成</span></div>
+        <div class="step"><span class="arr">  ↳</span> <span>业界实践增强 (Web 检索)</span></div>
+        <div class="note">知识库持续自学习：每次问题单闭环后自动回写根因、验证、代码，形成飞轮。</div>
+      </div>
+    </div>
+  </div>
+
+</aside>
+</div>
+
+<div class="foot">
+  <span>RCA·Command v2.4.0</span>
+  <span class="sep">|</span>
+  <span>opencode engine: 0.9.3</span>
+  <span class="sep">|</span>
+  <span>RAG: bge-m3 + qwen2.5-72b</span>
+  <span class="sep">|</span>
+  <span>© Huawei Microservice Team</span>
+</div>
+</main>
+
+<div class="toast" id="toast"><span class="ti">◆</span><span id="toastMsg">分析启动中...</span></div>
+
+<script>
+const runBtn=document.getElementById('runBtn');
+const resetBtn=document.getElementById('resetBtn');
+const stages=document.querySelectorAll('.stage');
+const results=document.getElementById('results');
+const liveStatus=document.getElementById('liveStatus');
+const toast=document.getElementById('toast');
+const toastMsg=document.getElementById('toastMsg');
+
+const stageNames=['拉取问题单','克隆代码仓','opencode 静态分析','调用链追溯','RAG 知识匹配','方案生成'];
+const stageLogs=[
+  '正在拉取问题单 MSP-2026-0817 ...',
+  '克隆 microservice-order-center @ release/2026.08 ...',
+  'opencode 执行 AST 分析 + 数据流追踪 ...',
+  '构建调用链，定位异常堆栈 ...',
+  'RAG 向量检索 12,847 条历史记录 ...',
+  'LLM 合成根因报告 + 修复方案 ...'
+];
+
+function showToast(msg){
+  toastMsg.textContent=msg;
+  toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'),2600);
+}
+
+let running=false;
+async function runAnalysis(){
+  if(running)return;
+  const ticket=document.getElementById('ticketUrl').value.trim();
+  const repo=document.getElementById('repoUrl').value.trim();
+  if(!ticket||!repo){showToast('请填写问题单链接与代码仓库');return;}
+  running=true;
+  runBtn.disabled=true;
+  runBtn.innerHTML='<span style="display:inline-block;animation:nspin 1s linear infinite">◐</span> 分析中...';
+  results.classList.remove('show');
+  stages.forEach(s=>{s.classList.remove('done','active')});
+  liveStatus.innerHTML='<span class="dot pulse" style="background:var(--amber);box-shadow:0 0 8px var(--amber)"></span> 分析中';
+  liveStatus.style.color='var(--amber)';
+
+  for(let i=0;i<stages.length;i++){
+    stages[i].classList.add('active');
+    showToast(stageLogs[i]);
+    await new Promise(r=>setTimeout(r,1100));
+    stages[i].classList.remove('active');
+    stages[i].classList.add('done');
+  }
+  liveStatus.innerHTML='<span class="dot pulse"></span> 完成';
+  liveStatus.style.color='var(--green)';
+  results.classList.add('show');
+  results.scrollIntoView({behavior:'smooth',block:'start'});
+  showToast('✓ 分析完成，置信度 94.2%');
+  running=false;
+  runBtn.disabled=false;
+  runBtn.innerHTML='<span>▶</span> 重新分析';
+}
+
+runBtn.addEventListener('click',runAnalysis);
+resetBtn.addEventListener('click',()=>{
+  results.classList.remove('show');
+  stages.forEach(s=>s.classList.remove('done','active'));
+  liveStatus.innerHTML='● 待命';
+  liveStatus.style.color='var(--txt-2)';
+  runBtn.innerHTML='<span>▶</span> 启动根因分析';
+});
+
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();runAnalysis();}
+});
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelector(`.tab-panel[data-panel="${tab.dataset.tab}"]`).classList.add('active');
+  });
+});
+
+document.querySelectorAll('.history-item').forEach(h=>{
+  h.addEventListener('click',()=>showToast('加载历史分析记录...'));
+});
+</script>
+</body>
+</html>
