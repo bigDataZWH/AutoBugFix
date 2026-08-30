@@ -1,0 +1,11 @@
+services:
+  autobugfix:
+    build: .
+    container_name: autobugfix
+    ports:
+      - "8000:8000"
+    env_file:
+      - backend/.env
+    volumes:
+      - ./backend/data:/app/data
+    restart: unless-stopped

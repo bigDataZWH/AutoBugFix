@@ -1,0 +1,14 @@
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+pydantic==2.10.4
+pydantic-settings==2.7.0
+openai==1.58.1
+httpx==0.28.1
+chromadb==0.5.23
+python-multipart==0.0.20
+tenacity==9.0.0
+
+# ---- 可选（按需安装，用于离线/联网增强）----
+# pip install sentence-transformers   # 离线本地向量(默认走 API 向量,无需安装)
+# pip install ddgs                     # 免费联网搜索"业界最佳实践"(DuckDuckGo)
+# pip install tavily-python            # 备选联网搜索(需 TAVILY_API_KEY)
