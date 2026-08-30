@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoBugFix · Phase 1 设计 — 根因定位 + 问题知识库（OpenCode 驱动）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=JetBrains+Mono:wght@400;500;700&family=Spline+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0e17;
+  --bg-grid:rgba(34,211,238,.04);
+  --surface:#10172a;
+  --surface-2:#161f38;
+  --surface-3:#1d2848;
+  --border:#233056;
+  --border-bright:#324373;
+  --text:#e9eef8;
+  --text-mute:#8a99bf;
+  --text-dim:#5d6b94;
+  --cyan:#22d3ee;
+  --cyan-dim:#0e7490;
+  --amber:#fbbf24;
+  --amber-dim:#92600a;
+  --violet:#a78bfa;
+  --violet-dim:#5b21b6;
+  --green:#34d399;
+  --red:#f87171;
+  --brand:#6366f1;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --disp:'Bricolage Grotesque',sans-serif;
+  --body:'Spline Sans',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--body);
+  font-size:15px;
+  line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+  background-image:
+    linear-gradient(var(--bg-grid) 1px,transparent 1px),
+    linear-gradient(90deg,var(--bg-grid) 1px,transparent 1px);
+  background-size:48px 48px;
+  background-position:center top;
+}
+::selection{background:var(--cyan);color:var(--bg)}
+
+/* layout */
+.wrap{max-width:1320px;margin:0 auto;padding:0 32px}
+.grid-layout{display:grid;grid-template-columns:248px 1fr;gap:0;align-items:start}
+
+/* sidebar */
+aside.toc{
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+  padding:28px 20px 28px 0;border-right:1px solid var(--border);
+  font-family:var(--mono);font-size:12.5px;
+}
+aside.toc::-webkit-scrollbar{width:4px}
+aside.toc::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.toc-brand{font-family:var(--disp);font-weight:800;font-size:18px;letter-spacing:-.02em;color:var(--text);margin-bottom:6px;line-height:1.1}
+.toc-brand span{color:var(--cyan)}
+.toc-tag{font-size:10px;color:var(--text-dim);letter-spacing:.18em;text-transform:uppercase;margin-bottom:24px}
+.toc nav ul{list-style:none}
+.toc nav li{margin-bottom:2px}
+.toc nav a{
+  display:block;padding:6px 12px;border-radius:6px;color:var(--text-mute);
+  text-decoration:none;border-left:2px solid transparent;transition:.2s;line-height:1.4;
+}
+.toc nav a:hover{color:var(--text);background:var(--surface)}
+.toc nav a.active{color:var(--cyan);border-left-color:var(--cyan);background:rgba(34,211,238,.06)}
+.toc nav .sub a{padding-left:26px;font-size:11.5px;color:var(--text-dim)}
+.toc nav .sub a:hover{color:var(--text-mute)}
+.toc-meta{margin-top:24px;padding-top:18px;border-top:1px solid var(--border);font-size:10.5px;color:var(--text-dim);line-height:1.6}
+.toc-meta b{color:var(--amber);font-weight:500}
+
+/* main */
+main{padding:0 0 80px 48px;min-width:0}
+section{padding:56px 0 8px;border-bottom:1px solid var(--border)}
+section:last-child{border-bottom:none}
+.sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:6px}
+.sec-num{
+  font-family:var(--mono);font-size:13px;font-weight:500;color:var(--cyan);
+  background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.25);
+  padding:2px 8px;border-radius:5px;flex-shrink:0;
+}
+h2{font-family:var(--disp);font-weight:700;font-size:30px;letter-spacing:-.025em;line-height:1.15;color:var(--text)}
+.sec-sub{font-family:var(--mono);font-size:12px;color:var(--text-dim);margin:4px 0 22px;letter-spacing:.04em}
+h3{font-family:var(--disp);font-weight:600;font-size:21px;letter-spacing:-.02em;margin:34px 0 14px;color:var(--text);display:flex;align-items:center;gap:10px}
+h3 .dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);flex-shrink:0;box-shadow:0 0 12px var(--cyan)}
+h4{font-family:var(--mono);font-weight:500;font-size:14px;color:var(--amber);margin:24px 0 10px;letter-spacing:.03em;text-transform:uppercase}
+p{margin:0 0 14px;color:var(--text)}
+p .muted{color:var(--text-mute)}
+strong{color:var(--text);font-weight:600}
+em{color:var(--cyan);font-style:normal;font-weight:500}
+a.il{color:var(--cyan);text-decoration:none;border-bottom:1px solid rgba(34,211,238,.3)}
+a.il:hover{border-color:var(--cyan)}
+ul{margin:0 0 16px;padding-left:22px}
+li{margin-bottom:6px}
+li::marker{color:var(--cyan)}
+
+/* hero */
+.hero{padding:120px 0 90px;border-bottom:1px solid var(--border);position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-200px;right:-200px;width:680px;height:680px;background:radial-gradient(circle,rgba(34,211,238,.10),transparent 60%);pointer-events:none}
+.hero::after{content:'';position:absolute;bottom:-160px;left:-160px;width:520px;height:520px;background:radial-gradient(circle,rgba(167,139,250,.08),transparent 60%);pointer-events:none}
+.hero-kicker{font-family:var(--mono);font-size:12px;color:var(--cyan);letter-spacing:.3em;text-transform:uppercase;margin-bottom:22px;display:flex;align-items:center;gap:12px;position:relative}
+.hero-kicker::before{content:'';width:40px;height:1px;background:var(--cyan)}
+.hero h1{font-family:var(--disp);font-weight:700;font-size:clamp(38px,5.5vw,62px);line-height:1.04;letter-spacing:-.035em;margin-bottom:24px;position:relative}
+.hero h1 .accent{color:var(--cyan)}
+.hero h1 .stroke{-webkit-text-stroke:1.5px var(--amber);color:transparent;font-style:italic}
+.hero-lead{font-size:19px;color:var(--text-mute);max-width:720px;margin-bottom:36px;line-height:1.55;position:relative}
+.hero-badges{display:flex;flex-wrap:wrap;gap:10px;position:relative}
+.badge{font-family:var(--mono);font-size:11.5px;padding:7px 14px;border-radius:30px;border:1px solid var(--border);background:var(--surface);color:var(--text-mute);letter-spacing:.02em;display:inline-flex;align-items:center;gap:7px}
+.badge .pip{width:6px;height:6px;border-radius:50%}
+.badge.cyan .pip{background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+.badge.amber .pip{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+.badge.violet .pip{background:var(--violet);box-shadow:0 0 8px var(--violet)}
+.badge.green .pip{background:var(--green)}
+
+/* callout */
+.callout{margin:22px 0;padding:20px 24px;border-radius:12px;border-left:3px solid;background:var(--surface);font-size:14px}
+.callout.cyan{border-color:var(--cyan);background:linear-gradient(90deg,rgba(34,211,238,.07),transparent)}
+.callout.amber{border-color:var(--amber);background:linear-gradient(90deg,rgba(251,191,36,.07),transparent)}
+.callout.violet{border-color:var(--violet);background:linear-gradient(90deg,rgba(167,139,250,.07),transparent)}
+.callout.red{border-color:var(--red);background:linear-gradient(90deg,rgba(248,113,113,.07),transparent)}
+.callout .cl-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;margin-bottom:6px;display:block}
+.callout.cyan .cl-label{color:var(--cyan)}
+.callout.amber .cl-label{color:var(--amber)}
+.callout.violet .cl-label{color:var(--violet)}
+.callout.red .cl-label{color:var(--red)}
+
+/* tables */
+.tbl-wrap{margin:22px 0;overflow-x:auto;border-radius:12px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:520px}
+thead{background:var(--surface-2)}
+th{text-align:left;padding:13px 16px;font-family:var(--mono);font-weight:500;font-size:11.5px;color:var(--text-mute);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)}
+td{padding:12px 16px;border-bottom:1px solid var(--border);vertical-align:top;color:var(--text)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--surface)}
+td .tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:5px}
+.tag.cyan{color:var(--cyan);background:rgba(34,211,238,.1)}
+.tag.amber{color:var(--amber);background:rgba(251,191,36,.1)}
+.tag.violet{color:var(--violet);background:rgba(167,139,250,.1)}
+.tag.green{color:var(--green);background:rgba(52,211,153,.1)}
+.tag.red{color:var(--red);background:rgba(248,113,113,.1)}
+.tag.dim{color:var(--text-dim);background:var(--surface-2)}
+
+/* module cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin:22px 0}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;transition:.25s}
+.card:hover{border-color:var(--border-bright);transform:translateY(-2px)}
+.card .c-num{font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-bottom:8px}
+.card h4{margin:0 0 6px;text-transform:none;font-family:var(--disp);font-size:16px;color:var(--text)}
+.card p{font-size:13px;color:var(--text-mute);margin:0}
+
+/* architecture svg */
+.arch{margin:24px 0;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;overflow-x:auto}
+.arch svg{width:100%;height:auto;min-width:680px;display:block}
+
+/* business flow stepper */
+.flow{display:flex;align-items:flex-start;gap:0;margin:22px 0 6px;overflow-x:auto;padding:14px 4px 18px}
+.fstep{flex:1;min-width:118px;position:relative;text-align:center;padding:0 5px}
+.fstep .fnode{width:46px;height:46px;border-radius:50%;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:600;font-size:13px;color:var(--text);background:var(--surface-3);border:2px solid var(--cyan);position:relative;z-index:2;box-shadow:0 0 0 4px var(--bg)}
+.fstep .fnode.c-amber{border-color:var(--amber);color:var(--amber)}
+.fstep .fnode.c-violet{border-color:var(--violet);color:var(--violet)}
+.fstep .fnode.c-green{border-color:var(--green);color:var(--green)}
+.fstep .fnode.c-brand{border-color:var(--brand);color:var(--brand)}
+.fstep .flab{font-family:var(--mono);font-size:10.5px;color:var(--text-dim);letter-spacing:.05em;line-height:1.3}
+.fstep .fname{font-size:12.5px;color:var(--text);font-weight:500;margin-top:3px;line-height:1.3}
+.fstep:not(:last-child)::after{content:'';position:absolute;top:23px;left:calc(50% + 25px);width:calc(100% - 50px);height:2px;background:var(--border-bright);z-index:1}
+
+/* stage detail cards */
+.stage{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--cyan);border-radius:12px;padding:22px 24px;margin:14px 0}
+.stage.c-amber{border-left-color:var(--amber)}
+.stage.c-violet{border-left-color:var(--violet)}
+.stage.c-green{border-left-color:var(--green)}
+.stage.c-brand{border-left-color:var(--brand)}
+.stage .st-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.stage .st-head .st-id{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--cyan);background:rgba(34,211,238,.1);padding:3px 10px;border-radius:6px}
+.stage.c-amber .st-head .st-id{color:var(--amber);background:rgba(251,191,36,.1)}
+.stage.c-violet .st-head .st-id{color:var(--violet);background:rgba(167,139,250,.1)}
+.stage.c-green .st-head .st-id{color:var(--green);background:rgba(52,211,153,.1)}
+.stage.c-brand .st-head .st-id{color:var(--brand);background:rgba(99,102,241,.12)}
+.stage .st-head h4{margin:0;text-transform:none;font-family:var(--disp);font-size:17px;color:var(--text)}
+.stage .st-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:10px}
+.stage .st-cell{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+.stage .st-cl{font-family:var(--mono);font-size:10.5px;color:var(--text-dim);letter-spacing:.12em;text-transform:uppercase;margin-bottom:5px}
+.stage .st-cv{font-size:13px;color:var(--text);line-height:1.55}
+.stage .st-ix{margin-top:10px;padding:12px 14px;border-radius:8px;background:rgba(167,139,250,.06);border:1px dashed var(--violet-dim)}
+.stage .st-ix .st-cl{color:var(--violet)}
+
+/* UI state rail */
+.states{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:14px;margin:22px 0}
+.state{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;border-top:3px solid var(--cyan)}
+.state.s-run{border-top-color:var(--amber)}
+.state.s-confirm{border-top-color:var(--violet)}
+.state.s-review{border-top-color:var(--green)}
+.state.s-done{border-top-color:var(--brand)}
+.state.s-fail{border-top-color:var(--red)}
+.state .st-name{font-family:var(--disp);font-weight:600;font-size:15px;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.state .st-name .pip{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+.state.s-run .st-name .pip{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+.state.s-confirm .st-name .pip{background:var(--violet);box-shadow:0 0 8px var(--violet)}
+.state.s-review .st-name .pip{background:var(--green);box-shadow:0 0 8px var(--green)}
+.state.s-done .st-name .pip{background:var(--brand);box-shadow:0 0 8px var(--brand)}
+.state.s-fail .st-name .pip{background:var(--red);box-shadow:0 0 8px var(--red)}
+.state p{font-size:12.5px;color:var(--text-mute);margin:0 0 8px}
+.state p:last-child{margin-bottom:0}
+
+/* weekly */
+.week{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:22px 0}
+.wk{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px}
+.wk .wk-h{font-family:var(--mono);font-size:12px;color:var(--cyan);margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.wk .wk-item{margin-bottom:12px;font-size:12.5px}
+.wk .wk-item b{color:var(--text);font-weight:500;display:block;margin-bottom:2px}
+.wk .wk-item span{color:var(--green);font-family:var(--mono);font-size:11px}
+.wk .wk-item span::before{content:'✓ '}
+
+/* metrics */
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:22px 0}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center}
+.metric .m-val{font-family:var(--disp);font-weight:700;font-size:30px;color:var(--cyan);line-height:1}
+.metric .m-lab{font-size:11.5px;color:var(--text-mute);margin-top:8px;font-family:var(--mono)}
+
+/* reveal anim */
+.reveal{opacity:0;transform:translateY(20px);animation:rv .7s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes rv{to{opacity:1;transform:none}}
+.d1{animation-delay:.05s}.d2{animation-delay:.12s}.d3{animation-delay:.19s}.d4{animation-delay:.26s}.d5{animation-delay:.33s}
+
+/* mobile */
+@media(max-width:980px){
+  .grid-layout{grid-template-columns:1fr}
+  aside.toc{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border);padding:20px}
+  main{padding:0 0 60px}
+  .week{grid-template-columns:1fr}
+  .hero{padding:80px 0 60px}
+  .stage .st-grid{grid-template-columns:1fr}
+  .fstep{min-width:96px}
+}
+</style>
+</head>
+<body>
+<div class="grid-layout">
+  <!-- SIDEBAR -->
+  <aside class="toc">
+    <div class="toc-brand">Auto<span>Bug</span>Fix</div>
+    <div class="toc-tag">Phase 1 · 详细设计</div>
+    <nav id="tocnav">
+      <ul>
+        <li><a href="#hero">概览</a></li>
+        <li><a href="#scope">目标与边界</a></li>
+        <li><a href="#arch">整体架构</a></li>
+        <li><a href="#kb">问题知识库设计</a>
+          <ul class="sub">
+            <li><a href="#kb-model">知识模型</a></li>
+            <li><a href="#kb-ingest">入库流程</a></li>
+            <li><a href="#kb-query">查询流程</a></li>
+            <li><a href="#kb-store">存储方案</a></li>
+          </ul>
+        </li>
+        <li><a href="#locate">根因定位设计</a>
+          <ul class="sub">
+            <li><a href="#loc-input">输入获取</a></li>
+            <li><a href="#loc-pipeline">定位流水线</a></li>
+            <li><a href="#loc-strategy">定位策略</a></li>
+            <li><a href="#loc-output">输出规范</a></li>
+          </ul>
+        </li>
+        <li><a href="#opencode">OpenCode 集成</a></li>
+        <li><a href="#flow">端到端业务流</a></li>
+        <li><a href="#ix">交互设计</a></li>
+        <li><a href="#weekly">任务拆解</a></li>
+        <li><a href="#metrics">评估指标</a></li>
+        <li><a href="#stack">技术选型</a></li>
+      </ul>
+    </nav>
+    <div class="toc-meta">
+      版本 <b>v1.0</b><br>
+      阶段 <b>Phase 1</b><br>
+      执行层 <b>OpenCode</b><br>
+      编排 <b>LangGraph</b>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+    <!-- HERO -->
+    <section id="hero" class="hero">
+      <div class="wrap">
+        <div class="hero-kicker reveal">Phase 1 · 根因定位 + 问题知识库</div>
+        <h1 class="reveal d1">用 <span class="accent">OpenCode</span> 驱动<br><span class="stroke">问题知识库</span>与根因定位</h1>
+        <p class="hero-lead reveal d2">第一阶段聚焦"看懂问题、找到根因"。知识库不另起炉灶——直接以 OpenCode 为入库与查询引擎，沉淀历史"症状→根因→修复"经验；根因定位在知识召回引导下，由 OpenCode 完成代码 trace 与证据收集。轻量、可落地、越用越准。</p>
+        <div class="hero-badges reveal d3">
+          <span class="badge cyan"><span class="pip"></span>知识库 OpenCode 驱动</span>
+          <span class="badge amber"><span class="pip"></span>Markdown 文件存储</span>
+          <span class="badge violet"><span class="pip"></span>根因定位</span>
+          <span class="badge green"><span class="pip"></span>6 周交付</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 1 SCOPE -->
+    <section id="scope">
+      <div class="wrap">
+        <div class="sec-head"><span class="sec-num">01</span></div>
+        <h2>Phase 1 目标与边界</h2>
+        <p class="sec-sub">// Scope · 做必要的，延后复杂的</p>
+        <p>Phase 1 的目标是打通<strong>"问题单接入 → 知识召回 → 根因定位 → 结论输出"</strong>最小闭环，并在此过程中建立可复用的问题知识库。自动补丁执行、三重验证护栏等留待 Phase 2，避免一次性铺得过宽。</p>
+
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>维度</th><th>Phase 1 在范围内</th><th>延后到 Phase 2+</th></tr></thead>
+            <tbody>
+              <tr><td><span class="tag cyan">知识库</span></td><td>OpenCode 辅助入库 + 查询；Markdown 文件存储；冷启动种子录入</td><td>向量库、图谱检索、自训练 embedding 模型</td></tr>
+              <tr><td><span class="tag amber">根因定位</span></td><td>知识引导 + 代码 trace；输出根因结论与证据</td><td>自动补丁生成与执行</td></tr>
+              <tr><td><span class="tag violet">执行层</span></td><td>OpenCode headless 调用入库/查询/定位三类任务</td><td>FixExecutor 抽象层完整封装</td></tr>
+              <tr><td><span class="tag green">验证</span></td><td>根因结论人工确认</td><td>编译/测试/静态三重门自动验证</td></tr>
+              <tr><td><span class="tag dim">交付</span></td><td>根因定位报告 + 可检索知识库</td><td>可合并的自动补丁 PR</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout cyan">
+          <span class="cl-label">设计原则</span>
+          <strong>最小可用优先</strong>：用 OpenCode 的 LLM + 文件搜索能力替代独立向量库基础设施，以最低成本验证"知识库 + 根因定位"核心价值，再决定后续是否升级到向量/图谱检索。
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 ARCH -->
+    <section id="arch">
+      <div class="wrap">
+        <div class="sec-head"><span class="sec-num">02</span></div>
+        <h2>整体架构</h2>
+        <p class="sec-sub">// Architecture · OpenCode 三重职责</p>
+        <p>核心思路：OpenCode 同时承担<strong>知识入库、知识查询、根因定位</strong>三项职责。LangGraph 编排层负责任务调度与状态流转；知识库以 Markdown 文件存储，OpenCode 可直接读写与搜索。</p>
+
+        <div class="arch">
+          <svg viewBox="0 0 920 480" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace">
+            <defs>
+              <marker id="ar" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#324373"/></marker>
+              <marker id="ar-c" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#22d3ee"/></marker>
+            </defs>
+
+            <!-- Orchestrator -->
+            <rect x="260" y="20" width="400" height="70" rx="12" fill="#161f38" stroke="#6366f1" stroke-width="1.5"/>
+            <text x="460" y="48" text-anchor="middle" fill="#e9eef8" font-size="15" font-weight="600" font-family="Bricolage Grotesque">LangGraph 编排层</text>
+            <text x="460" y="70" text-anchor="middle" fill="#8a99bf" font-size="11">问题单接入 → 知识查询 → 根因定位 → 报告输出</text>
+
+            <!-- Three tasks -->
+            <rect x="60" y="150" width="220" height="80" rx="10" fill="#10172a" stroke="#22d3ee" stroke-width="1.5"/>
+            <text x="170" y="180" text-anchor="middle" fill="#22d3ee" font-size="13" font-weight="600">① 入库任务</text>
+            <text x="170" y="200" text-anchor="middle" fill="#8a99bf" font-size="11">OpenCode Headless</text>
+            <text x="170" y="216" text-anchor="middle" fill="#5d6b94" font-size="10">分析已修复单 → 抽取三元组</text>
+
+            <rect x="350" y="150" width="220" height="80" rx="10" fill="#10172a" stroke="#fbbf24" stroke-width="1.5"/>
+            <text x="460" y="180" text-anchor="middle" fill="#fbbf24" font-size="13" font-weight="600">② 查询任务</text>
+            <text x="460" y="200" text-anchor="middle" fill="#8a99bf" font-size="11">OpenCode Headless</text>
+            <text x="460" y="216" text-anchor="middle" fill="#5d6b94" font-size="10">检索相似历史 → 注入上下文</text>
+
+            <rect x="640" y="150" width="220" height="80" rx="10" fill="#10172a" stroke="#a78bfa" stroke-width="1.5"/>
+            <text x="750" y="180" text-anchor="middle" fill="#a78bfa" font-size="13" font-weight="600">③ 定位任务</text>
+            <text x="750" y="200" text-anchor="middle" fill="#8a99bf" font-size="11">OpenCode Headless</text>
+            <text x="750" y="216" text-anchor="middle" fill="#5d6b94" font-size="10">代码 trace → 根因证据</text>
+
+            <!-- lines from orchestrator -->
+            <path d="M330 90 L170 150" stroke="#324373" stroke-width="1.5" fill="none" marker-end="url(#ar)"/>
+            <path d="M460 90 L460 150" stroke="#324373" stroke-width="1.5" fill="none" marker-end="url(#ar)"/>
+            <path d="M590 90 L750 150" stroke="#324373" stroke-width="1.5" fill="none" marker-end="url(#ar)"/>
+
+            <!-- Knowledge store -->
+            <rect x="170" y="290" width="460" height="100" rx="12" fill="#0c1322" stroke="#34d399" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <text x="400" y="318" text-anchor="middle" fill="#34d399" font-size="14" font-weight="600" font-family="Bricolage Grotesque">问题知识库（Markdown 文件）</text>
+            <text x="400" y="340" text-anchor="middle" fill="#8a99bf" font-size="11">症状 · 根因 · 修复 · 程序性知识</text>
+            <text x="400" y="358" text-anchor="middle" fill="#5d6b94" font-size="10">按模块分类目录 · Git 版本管理 · 人机可读可编辑</text>
+            <text x="400" y="376" text-anchor="middle" fill="#5d6b94" font-size="10">_index.md 自动索引（可选 SQLite FTS5 增强）</text>
+
+            <!-- Repo -->
+            <rect x="690" y="290" width="170" height="100" rx="12" fill="#0c1322" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <text x="775" y="318" text-anchor="middle" fill="#6366f1" font-size="13" font-weight="600" font-family="Bricolage Grotesque">代码仓 Repo</text>
+            <text x="775" y="340" text-anchor="middle" fill="#8a99bf" font-size="11">grep / 文件读取</text>
+            <text x="775" y="358" text-anchor="middle" fill="#5d6b94" font-size="10">调用链 trace</text>
+            <text x="775" y="376" text-anchor="middle" fill="#5d6b94" font-size="10">符号定位</text>
+
+            <!-- lines to KB and repo -->
+            <path d="M170 230 L280 290" stroke="#22d3ee" stroke-width="1.5" fill="none" marker-end="url(#ar-c)" opacity=".7"/>
+            <path d="M460 230 L400 290" stroke="#fbbf24" stroke-width="1.5" fill="none" marker-end="url(#ar)" opacity=".7"/>
+            <path d="M750 230 L600 290" stroke="#a78bfa" stroke-width="1.5" fill="none" marker-end="url(#ar)" opacity=".7"/>
+            <path d="M790 230 L775 290" stroke="#a78bfa" stroke-width="1.5" fill="none" marker-end="url(#ar-c)" opacity=".7"/>
+
+            <!-- legend -->
+            <text x="60" y="450" fill="#5d6b94" font-size="10">入库：OpenCode 写入知识库</text>
+            <text x="60" y="468" fill="#5d6b94" font-size="10">查询/定位：OpenCode 同时读知识库 + 代码仓</text>
+          </svg>
+        </div>
+
+        <div class="callout violet">
+          <span class="cl-label">为何用 OpenCode 做知识库</span>
+          OpenCode 已具备<strong>文件读写、grep 搜索、LLM 推理</strong>能力，天然适合"读知识库 → 语义匹配 → 返回相关案例"。Phase 1 无需引入独立向量库，<strong>省去 embedding 模型 + 向量数据库 + 检索服务</strong>三件套的建设与运维成本，最快验证知识复用价值。
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 KNOWLEDGE BASE -->
+    <section id="kb">
+      <div class="wrap">
+        <div class="sec-head"><span class="sec-num">03</span></div>
+        <h2>问题知识库设计</h2>
+        <p class="sec-sub">// Issue Knowledge Base · OpenCode 驱动入库与查询</p>
+
+        <h3 id="kb-model"><span class="dot"></span>3.1 知识模型</h3>
+        <p class="muted">借鉴 OM-RAG 结构化三元组思路，每条历史问题沉淀为<strong>症状 → 根因 → 修复</strong>三元组，外加一层可迁移的程序性知识。</p>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>知识字段</th><th>含义</th><th>关键字段</th></tr></thead>
+            <tbody>
+              <tr><td><span class="tag cyan">症状 Symptom</span></td><td>错误现象、报错码、影响范围、复现条件</td><td>title · error_code · module · repro_steps</td></tr>
+              <tr><td><span class="tag amber">根因 RootCause</span></td><td>缺陷定位结论、责任模块、缺陷类型</td><td>conclusion · root_files · bug_type · confidence</td></tr>
+              <tr><td><span class="tag green">修复 Resolution</span></td><td>修改文件、diff 摘要、修复策略、验证用例</td><td>fix_files · fix_summary · strategy · test_case</td></tr>
+              <tr><td><span class="tag violet">程序性知识</span></td><td>可迁移的定位步骤与修复套路</td><td>pattern · pitfalls · transferable_steps</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="kb-ingest"><span class="dot"></span>3.2 入库流程（OpenCode 辅助）</h3>
+        <p class="muted">输入一条<strong>已修复完成的问题单</strong>（含根因与修改代码），由 OpenCode 分析抽取并写入知识库。</p>
+
+        <div class="stage c-green">
+          <div class="st-head"><span class="st-id">步骤 1</span><h4>输入采集</h4></div>
+          <div class="st-grid">
+            <div class="st-cell"><div class="st-cl">问题单数据</div><div class="st-cv">标题、描述、报错日志、关联模块、优先级</div></div>
+            <div class="st-cell"><div class="st-cl">修复信息</div><div class="st-cv">根因结论、修改文件清单、diff、验证用例、fix commit</div></div>
+            <div class="st-cell"><div class="st-cl">代码上下文</div><div class="st-cv">代码仓路径、修复涉及文件、调用链</div></div>
+          </div>
+        </div>
+
+        <div class="stage">
+          <div class="st-head"><span class="st-id">步骤 2</span><h4>OpenCode 抽取与结构化</h4></div>
+          <div class="st-grid">
+            <div class="st-cell"><div class="st-cl">调用方式</div><div class="st-cv">编排层以入库 Prompt 调用 <code>opencode run</code> headless，挂载代码仓</div></div>
+            <div class="st-cell"><div class="st-cl">OpenCode 动作</div><div class="st-cv">读问题单 → 读修复 diff → 读相关代码 → LLM 抽取三元组 + 程序性知识</div></div>
+            <div class="st-cell"><div class="st-cl">产出</div><div class="st-cv">结构化知识条目草稿（含字段填充与置信度）</div></div>
+          </div>
+          <div class="st-ix"><div class="st-cl">Prompt 要点</div>明确要求 OpenCode 输出固定 frontmatter + 分节正文，并标注 evidence（代码位置），避免凭空生成。</div>
+        </div>
+
+        <div class="stage c-amber">
+          <div class="st-head"><span class="st-id">步骤 3</span><h4>质量校验与去重</h4></div>
+          <div class="st-grid">
+            <div class="st-cell"><div class="st-cl">去重</div><div class="st-cv">OpenCode 扫描知识库现有条目，与草稿比对相似度，标记疑似重复</div></div>
+            <div class="st-cell"><div class="st-cl">完整性校验</div><div class="st-cv">根因可追溯到 commit、修复文件非空、关键字段齐全</div></div>
+            <div class="st-cell"><div class="st-cl">人工确认</div><div class="st-cv">Phase 1 入库需人工 review 后落盘，保证种子质量</div></div>
+          </div>
+        </div>
+
+        <div class="stage c-violet">
+          <div class="st-head"><span class="st-id">步骤 4</span><h4>落盘与索引</h4></div>
+          <div class="st-grid">
+            <div class="st-cell"><div class="st-cl">写入</div><div class="st-cv">按模块分类写入 <code>knowledge-base/&lt;module&gt;/&lt;ID&gt;.md</code></div></div>
+            <div class="st-cell"><div class="st-cl">索引更新</div><div class="st-cv">OpenCode 追加/重建 <code>_index.md</code>（模块、关键词、根因类型摘要）</div></div>
+            <div class="st-cell"><div class="st-cl">版本管理</div><div class="st-cv">知识库纳入 Git，每次入库即一次可 review 的提交</div></div>
+          </div>
+        </div>
+
+        <div class="callout cyan">
+          <span class="cl-label">入库节奏</span>
+          <strong>批量冷启动</strong>：Phase 1 初期批量导入历史已修复高质量问题单（OpenCode 逐条抽取）作为种子；<strong>增量沉淀</strong>：Phase 2 补丁修复成功后自动触发入库，形成飞轮。本阶段以批量冷启动为主。
+        </div>
+
+        <h3 id="kb-query"><span class="dot"></span>3.3 查询流程（OpenCode 辅助）</h3>
+        <p class="muted">输入一条<strong>新问题单</strong>，由 OpenCode 检索知识库并返回最相关的历史案例。</p>
+
+        <div class="stage">
+          <div class="st-head"><span class="st-id">查询 1</span><h4>关键词锚定</h4></div>
+          <div class="st-grid">
+            <div class="st-cell"><div class="st-cl">输入</div><div class="st-cv">新问题单的症状关键词、错误码、异常类名、模块</div></div>
+            <div class="st-cell"><div class="st-cl">OpenCode 动作</div><div class="st-cv">用 ripgrep/grep 在知识库目录中精确匹配错误码与关键词</div></div>
+            <div class="st-cell"><div class="st-cl">产出</div><div class="st-cv">候选条目集合（精确匹配池）</div></div>
+          </div>
+        </div>
+
+        <div class="stage c-violet">
+          <div class="st-head"><span class="st-id">查询 2</span><h4>语义匹配与排序</h4></div>
+          <div class="st-grid">
+            <div class="st-cell"><div class="st-cl">读取候选</div><div class="st-cv">OpenCode 读取候选条目全文 + 索引摘要</div></div>
+            <div class="st-cell"><div class="st-cl">LLM 判定</div><div class="st-cv">对每个候选，LLM 判定与新问题的语义相似度并打分排序</div></div>
+            <div class="st-cell"><div class="st-cl">产出</div><div class="st-cv">Top-K 相似案例（含根因、修复策略、可迁移步骤）</div></div>
+          </div>
+          <div class="st-ix"><div class="st-cl">关键</div>OpenCode 的 LLM 在此替代 embedding 模型做语义判断；当候选过多时先读 <code>_index.md</code> 粗筛再读全文精排，控制 token 消耗。</div>
+        </div>
+
+        <div class="callout amber">
+          <span class="cl-label">检索增强点</span>
+          查询结果直接注入根因定位任务的上下文——历史根因作为<strong>候选假设</strong>、历史修复路径作为<strong>定位方向</strong>。这是输入完整度的"跃迁点"，补全新问题单缺失的因果链。
+        </div>
+
+        <h3 id="kb-store"><span class="dot"></span>3.4 存储方案</h3>
+        <p class="muted">选择<strong>Markdown 文件 + YAML frontmatter</strong>，因 OpenCode 可直接读写、人可 review、Git 可版本管理，零额外基础设施。</p>
+
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>层级</th><th>方案</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td><span class="tag green">主存储</span></td><td>Markdown + frontmatter</td><td>每个条目一个 .md 文件，frontmatter 存结构化字段，正文存症状/根因/修复</td></tr>
+              <tr><td><span class="tag cyan">索引</span></td><td>_index.md（自动生成）</td><td>按模块聚合的摘要索引：ID、关键词、根因类型，供 OpenCode 粗筛</td></tr>
+              <tr><td><span class="tag amber">增强（可选）</span></td><td>SQLite FTS5</td><td>条目增多后补全文检索索引，入库时同步写入；Phase 1 可选</td></tr>
+              <tr><td><span class="tag violet">版本管理</span></td><td>Git</td><td>知识库即代码仓库，入库/修改均有可追溯提交</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout violet">
+          <span class="cl-label">目录结构</span>
+          <code>knowledge-base/</code> 下按模块分目录（如 <code>module-auth/</code>、<code>module-payment/</code>），每模块内 <code>&lt;MODULE&gt;-&lt;NNN&gt;.md</code> 命名；根目录 <code>_index.md</code> 汇总。OpenCode 检索时先按模块缩小范围，再精确 + 语义匹配。
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 ROOT CAUSE LOCALIZATION -->
+    <section id="locate">
+      <div class="wrap">
+        <div class="sec-head"><span class="sec-num">04</span></div>
+        <h2>根因定位设计</h2>
+        <p class="sec-sub">// Root Cause Localization · 知识引导 + 代码 trace</p>
+
+        <h3 id="loc-input"><span class="dot"></span>4.1 输入渐进式获取</h3>
+        <p class="muted">初始输入不完整是常态。采用<strong>三轮渐进</strong>逼近完整 IssueContext。</p>
+        <div class="flow">
+          <div class="fstep"><div class="fnode">S1</div><div class="flab">ROUND 1</div><div class="fname">种子输入 · 问题单原文抽取关键词与错误码</div></div>
+          <div class="fstep"><div class="fnode c-amber">S2</div><div class="flab">ROUND 2</div><div class="fname">主动补全 · OpenCode 探查代码仓 + 拉取日志</div></div>
+          <div class="fstep"><div class="fnode c-violet">S3</div><div class="flab">ROUND 3</div><div class="fname">知识增强 · 召回历史相似问题注入假设</div></div>
+          <div class="fstep"><div class="fnode c-green">CTX</div><div class="flab">OUTPUT</div><div class="fname">完整 IssueContext 交付定位</div></div>
+        </div>
+        <div class="callout amber">
+          <span class="cl-label">信息不足时</span>
+          若第 2 轮后仍信息不足，生成<strong>澄清问题清单</strong>回问提单人（结构化卡片，一键确认/补充），而非盲目猜测根因。
+        </div>
+
+        <h3 id="loc-pipeline"><span class="dot"></span>4.2 定位流水线</h3>
+        <p class="muted">由 OpenCode 执行，编排层调度，分阶段产出可追溯的根因结论。</p>
+        <div class="flow">
+          <div class="fstep"><div class="fnode">L1</div><div class="flab">LOCALIZE</div><div class="fname">缩小范围 · 锚定可疑文件/模块</div></div>
+          <div class="fstep"><div class="fnode c-amber">L2</div><div class="flab">TRACE</div><div class="fname">代码 trace · 沿调用链追根因</div></div>
+          <div class="fstep"><div class="fnode c-violet">L3</div><div class="flab">VERIFY</div><div class="fname">证据收集 · 代码片段佐证假设</div></div>
+          <div class="fstep"><div class="fnode c-green">L4</div><div class="flab">REPORT</div><div class="fname">结论输出 · 根因 + 证据 + 置信度</div></div>
+        </div>
+
+        <h3 id="loc-strategy"><span class="dot"></span>4.3 定位策略</h3>
+        <div class="cards">
+          <div class="card">
+            <div class="c-num">策略 A</div>
+            <h4>知识引导假设</h4>
+            <p>优先用查询召回的历史根因作为候选假设。若新问题与历史案例高度相似，直接验证历史根因是否复现，大幅缩短定位路径。</p>
+          </div>
+          <div class="card">
+            <div class="c-num">策略 B</div>
+            <h4>代码 trace 溯源</h4>
+            <p>从报错点/异常栈出发，OpenCode 沿调用链回溯：grep 引用 → 读函数实现 → 定位缺陷代码。结合 Tree-sitter 符号定位提升精度。</p>
+          </div>
+          <div class="card">
+            <div class="c-num">策略 C</div>
+            <h4>证据闭环验证</h4>
+            <p>每个根因假设必须有代码证据支撑（具体文件 + 行 + 片段）。无证据的假设降权或丢弃，防止 LLM 幻觉。</p>
+          </div>
+        </div>
+
+        <h3 id="loc-output"><span class="dot"></span>4.4 输出规范</h3>
+        <p class="muted">根因定位报告是 Phase 1 的核心交付物，结构固定、可追溯。</p>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>报告字段</th><th>内容</th></tr></thead>
+            <tbody>
+              <tr><td><span class="tag cyan">根因结论</span></td><td>一句话根因 + 缺陷类型分类（逻辑错误/资源泄漏/并发/配置 等）</td></tr>
+              <tr><td><span class="tag amber">责任位置</span></td><td>文件路径 + 行号区间 + 责任函数/模块</td></tr>
+              <tr><td><span class="tag green">代码证据</span></td><td>佐证根因的代码片段 + 调用链 trace</td></tr>
+              <tr><td><span class="tag violet">参考案例</span></td><td>知识库召回的 Top-K 相似历史问题 ID + 复用说明</td></tr>
+              <tr><td><span class="tag dim">置信度</span></td><td>高/中/低 + 置信理由 + 待确认疑点</td></tr>
+              <tr><td><span class="tag dim">下一步建议</span></td><td>建议修复方向（为 Phase 2 补丁生成铺路）</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout red">
+          <span class="cl-label">防幻觉</span>
+          Phase 1 不自动改代码，但根因结论仍需<strong>人工确认</strong>。置信度为"低"或证据不足时，报告标注 NEEDS_REVIEW 并回问提单人补充信息。
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 OPENCODE INTEGRATION -->
+    <section id="opencode">
+      <div class="wrap">
+        <div class="sec-head"><span class="sec-num">05</span></div>
+        <h2>OpenCode 集成</h2>
+        <p class="sec-sub">// OpenCode · 三类 Headless 任务调用</p>
+        <p>编排层通过 <code>opencode run</code> headless 模式调用 OpenCode，按任务类型传入不同 Prompt 与工作目录。三类任务共享同一 OpenCode 实例与代码仓挂载。</p>
+
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>任务</th><th>触发时机</th><th>工作目录</th><th>OpenCode 职责</th></tr></thead>
+            <tbody>
+              <tr><td><span class="tag green">入库</span></td><td>批量冷启动 / 修复完成后</td><td>代码仓（只读修复 diff）</td><td>读问题单 + diff → 抽取三元组 → 写 .md → 更新索引</td></tr>
+              <tr><td><span class="tag amber">查询</span></td><td>新问题接入后、定位前</td><td>知识库目录</td><td>grep 关键词 → 读候选 → LLM 语义排序 → 返回 Top-K</td></tr>
+              <tr><td><span class="tag violet">定位</span></td><td>知识召回后</td><td>代码仓 + 注入历史知识</td><td>代码 trace → 证据收集 → 输出根因报告</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>OpenCode 能力</th><th>用于</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td>文件读写</td><td>入库 / 查询</td><td>写入知识条目、读取候选、更新索引</td></tr>
+              <tr><td>grep / ripgrep</td><td>查询 / 定位</td><td>知识库关键词匹配、代码符号搜索</td></tr>
+              <tr><td>LLM 推理</td><td>入库 / 查询 / 定位</td><td>三元组抽取、语义排序、根因推断</td></tr>
+              <tr><td>代码仓导航</td><td>定位</td><td>读函数实现、追调用链、符号定位</td></tr>
+              <tr><td>headless CLI</td><td>全部</td><td>编排层程序化调用，传入结构化 Prompt</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout cyan">
+          <span class="cl-label">Prompt 设计原则</span>
+          三类任务各自维护<strong>结构化 Prompt 模板</strong>：明确输入字段、要求输出格式（固定 frontmatter / JSON）、强制标注 evidence、限定动作范围（入库只写知识库、定位只读不写代码），降低越界与幻觉。
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 BUSINESS FLOW -->
+    <section id="flow">
+      <div class="wrap">
+        <div class="sec-head"><span class="sec-num">06</span></div>
+        <h2>端到端业务流</h2>
+        <p class="sec-sub">// Phase 1 Flow · 从问题单到根因报告</p>
+        <div class="flow">
+          <div class="fstep"><div class="fnode">S1</div><div class="flab">INTAKE</div><div class="fname">问题单接入 · 拉取详情</div></div>
+          <div class="fstep"><div class="fnode c-amber">S2</div><div class="flab">UNDERSTAND</div><div class="fname">问题理解 · 关键词抽取</div></div>
+          <div class="fstep"><div class="fnode c-violet">S3</div><div class="flab">KB QUERY</div><div class="fname">知识召回 · 注入历史假设</div></div>
+          <div class="fstep"><div class="fnode c-brand">S4</div><div class="flab">LOCATE</div><div class="fname">根因定位 · 代码 trace</div></div>
+          <div class="fstep"><div class="fnode c-green">S5</div><div class="flab">REPORT</div><div class="fname">报告输出 · 人工确认</div></div>
+        </div>
+
+        <div class="stage">
+          <div class="st-head"><span class="st-id">S1</span><h4>问题单接入</h4></div>
+          <div class="st-grid">
+            <div class="st-cell"><div class="st-cl">输入</div><div class="st-cv">问题单链接 / ID</div></div>
+            <div class="st-cell"><div class="st-cl">动作</div><div class="st-cv">编排层拉取问题单详情、附件、关联模块</div></div>
+            <div class="st-cell"><div class="st-cl">输出</div><div class="st-cv">原始 IssueRecord</div></div>
+          </div>
+        </div>
+        <div class="stage c-amber">
+          <div class="st-head"><span class="st-id">S2</span><h4>问题理解</h4></div>
+          <div class="st-grid">
+            <div class="st-cell"><div class="st-cl">动作</div><div class="st-cv">抽取关键词、错误码、异常类、模块；信息不足则回问提单人</div></div>
+            <div class="st-cell"><div class="st-cl">输出</div><div class="st-cv">结构化 IssueSeed（症状向量雏形）</div></div>
+            <div class="st-cell"><div class="st-cl">交互</div><div class="st-cv">可选澄清问题卡片（一键补充）</div></div>
+          </div>
+        </div>
+        <div class="stage c-violet">
+          <div class="st-head"><span class="st-id">S3</span><h4>知识召回</h4></div>
+          <div class="st-grid">
+            <div class="st-cell"><div class="st-cl">动作</div><div class="st-cv">调用 OpenCode 查询任务：关键词锚定 + 语义排序</div></div>
+            <div class="st-cell"><div class="st-cl">输出</div><div class="st-cv">Top-K 相似历史案例（根因 + 修复 + 可迁移步骤）</div></div>
+            <div class="st-cell"><div class="st-cl">用途</div><div class="st-cv">作为定位的候选假设与方向引导</div></div>
+          </div>
+        </div>
+        <div class="stage c-brand">
+          <div class="st-head"><span class="st-id">S4</span><h4>根因定位</h4></div>
+          <div class="st-grid">
+            <div class="st-cell"><div class="st-cl">动作</div><div class="st-cv">调用 OpenCode 定位任务：缩小范围 → 代码 trace → 证据收集</div></div>
+            <div class="st-cell"><div class="st-cl">输入</div><div class="st-cv">IssueContext + 召回历史知识</div></div>
+            <div class="st-cell"><div class="st-cl">输出</div><div class="st-cv">根因结论 + 代码证据 + 置信度</div></div>
+          </div>
+        </div>
+        <div class="stage c-green">
+          <div class="st-head"><span class="st-id">S5</span><h4>报告输出</h4></div>
+          <div class="st-grid">
+            <div class="st-cell"><div class="st-cl">动作</div><div class="st-cv">编排层组装结构化根因报告</div></div>
+            <div class="st-cell"><div class="st-cl">交互</div><div class="st-cv">人工确认 / 补充信息 / 标记待修复</div></div>
+            <div class="st-cell"><div class="st-cl">衔接</div><div class="st-cv">确认后的问题进入 Phase 2 待修复队列</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 INTERACTION -->
+    <section id="ix">
+      <div class="wrap">
+        <div class="sec-head"><span class="sec-num">07</span></div>
+        <h2>交互设计</h2>
+        <p class="sec-sub">// Interaction · Phase 1 关键状态</p>
+        <div class="states">
+          <div class="state s-run">
+            <div class="st-name"><span class="pip"></span>理解中</div>
+            <p>Agent 正在抽取关键词、拉取日志、探查代码仓。</p>
+            <p>进度可见，可中途补充信息。</p>
+          </div>
+          <div class="state s-confirm">
+            <div class="st-name"><span class="pip"></span>待澄清</div>
+            <p>信息不足，展示澄清问题卡片。</p>
+            <p>提单人一键确认或补充复现步骤。</p>
+          </div>
+          <div class="state s-review">
+            <div class="st-name"><span class="pip"></span>已召回</div>
+            <p>展示 Top-K 相似历史案例。</p>
+            <p>提单人可标记相关/不相关，辅助定位。</p>
+          </div>
+          <div class="state s-done">
+            <div class="st-name"><span class="pip"></span>根因已出</div>
+            <p>展示根因报告（结论+证据+置信度）。</p>
+            <p>人工确认，标记待修复进入 Phase 2。</p>
+          </div>
+          <div class="state s-fail">
+            <div class="st-name"><span class="pip"></span>需人工</div>
+            <p>定位置信度低或证据不足。</p>
+            <p>标注 NEEDS_REVIEW，回问补充信息。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 WEEKLY -->
+    <section id="weekly">
+      <div class="wrap">
+        <div class="sec-head"><span class="sec-num">08</span></div>
+        <h2>任务拆解</h2>
+        <p class="sec-sub">// Weekly Breakdown · 6 周交付</p>
+        <div class="week">
+          <div class="wk">
+            <div class="wk-h">W1 · 基础设施</div>
+            <div class="wk-item"><b>LangGraph 骨架</b><span>状态机 + 任务调度</span></div>
+            <div class="wk-item"><b>OpenCode headless 调通</b><span>CLI 调用 + 代码仓挂载</span></div>
+            <div class="wk-item"><b>知识库目录结构</b><span>目录规范 + 模板</span></div>
+          </div>
+          <div class="wk">
+            <div class="wk-h">W2 · 知识入库</div>
+            <div class="wk-item"><b>入库 Prompt 模板</b><span>三元组抽取 + frontmatter</span></div>
+            <div class="wk-item"><b>条目生成 + 质量校验</b><span>去重 + 完整性检查</span></div>
+            <div class="wk-item"><b>索引自动生成</b><span>_index.md 维护</span></div>
+          </div>
+          <div class="wk">
+            <div class="wk-h">W3 · 知识查询</div>
+            <div class="wk-item"><b>查询 Prompt 模板</b><span>关键词锚定 + 语义排序</span></div>
+            <div class="wk-item"><b>候选粗筛 + 精排</b><span>索引粗筛 → 全文精排</span></div>
+            <div class="wk-item"><b>Top-K 返回封装</b><span>结构化输出</span></div>
+          </div>
+          <div class="wk">
+            <div class="wk-h">W4 · 根因定位</div>
+            <div class="wk-item"><b>定位 Prompt 模板</b><span>trace + 证据收集</span></div>
+            <div class="wk-item"><b>调用链追溯</b><span>grep + 符号定位</span></div>
+            <div class="wk-item"><b>根因报告组装</b><span>结论+证据+置信度</span></div>
+          </div>
+          <div class="wk">
+            <div class="wk-h">W5 · 端到端串联</div>
+            <div class="wk-item"><b>业务流串联</b><span>S1→S5 打通</span></div>
+            <div class="wk-item"><b>交互界面</b><span>状态展示 + 澄清卡片</span></div>
+            <div class="wk-item"><b>异常与回退</b><span>NEEDS_REVIEW 处理</span></div>
+          </div>
+          <div class="wk">
+            <div class="wk-h">W6 · 评估调优</div>
+            <div class="wk-item"><b>冷启动种子录入</b><span>批量导入历史单</span></div>
+            <div class="wk-item"><b>Prompt 调优</b><span>抽取/排序/定位质量</span></div>
+            <div class="wk-item"><b>指标评估</b><span>召回率 + 定位准确率</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 METRICS -->
+    <section id="metrics">
+      <div class="wrap">
+        <div class="sec-head"><span class="sec-num">09</span></div>
+        <h2>评估指标</h2>
+        <p class="sec-sub">// Metrics · Phase 1 验收标准</p>
+        <div class="metrics">
+          <div class="metric"><div class="m-val">≥80%</div><div class="m-lab">知识召回 Top-K 命中率</div></div>
+          <div class="metric"><div class="m-val">≥60%</div><div class="m-lab">根因定位准确率</div></div>
+          <div class="metric"><div class="m-val">≥200</div><div class="m-lab">知识库种子条目数</div></div>
+          <div class="metric"><div class="m-val">≤3min</div><div class="m-lab">单问题定位耗时</div></div>
+        </div>
+        <div class="callout amber">
+          <span class="cl-label">说明</span>
+          召回命中率 = 召回 Top-K 中含真实相关案例的比例；定位准确率 = 根因结论与人工认定一致的比例。两项达标即视为 Phase 1 核心价值验证成功，可推进 Phase 2 自动修复。
+        </div>
+      </div>
+    </section>
+
+    <!-- 10 STACK -->
+    <section id="stack">
+      <div class="wrap">
+        <div class="sec-head"><span class="sec-num">10</span></div>
+        <h2>技术选型</h2>
+        <p class="sec-sub">// Tech Stack · Phase 1</p>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>组件</th><th>选型</th><th>用途</th></tr></thead>
+            <tbody>
+              <tr><td>编排层</td><td>LangGraph (Python)</td><td>状态机 + 任务调度</td></tr>
+              <tr><td>执行层</td><td>OpenCode headless</td><td>入库 / 查询 / 定位三类任务</td></tr>
+              <tr><td>知识存储</td><td>Markdown + frontmatter</td><td>人机可读、Git 可版本管理</td></tr>
+              <tr><td>知识索引</td><td>_index.md（+ 可选 SQLite FTS5）</td><td>粗筛与全文检索</td></tr>
+              <tr><td>代码导航</td><td>ripgrep + Tree-sitter</td><td>符号搜索 + 调用链 trace</td></tr>
+              <tr><td>版本管理</td><td>Git</td><td>知识库与代码仓统一版本管理</td></tr>
+              <tr><td>部署</td><td>Win11 + WSL2</td><td>本地运行，公司内网可达</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout violet">
+          <span class="cl-label">Phase 2 预留</span>
+          知识库存储与 OpenCode 调用接口在 Phase 1 即按可升级方式设计：存储层后续可平滑接入向量库；OpenCode 三类任务可封装为 FixExecutor 抽象，复用到自动补丁执行。
+        </div>
+      </div>
+    </section>
+
+    <div style="text-align:center;margin-top:48px;padding-top:28px;border-top:1px solid var(--border)">
+      <p style="font-family:var(--mono);font-size:12px;color:var(--text-dim);letter-spacing:.1em">AutoBugFix · Phase 1 设计文档 · v1.0 · 根因定位 + 问题知识库（OpenCode 驱动）· END</p>
+    </div>
+  </main>
+</div>
+</body>
+</html>
