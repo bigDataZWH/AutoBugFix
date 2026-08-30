@@ -130,6 +130,12 @@ class LightRAGAdapter:
             )
 
     def route_query(self, query: str, intent: str = "history") -> RetrievalResult:
+        """三路检索路由：根据 intent 选择检索模式。
+
+        - history: 历史经验匹配（low-level + hybrid）
+        - propagation: 根因传播追溯（hybrid，含 CodeGraph 调用边）
+        - architecture: 全局架构理解（high_level 主题/社区摘要）
+        """
         mode_map = {
             "history": "hybrid",
             "propagation": "hybrid",
@@ -137,6 +143,29 @@ class LightRAGAdapter:
         }
         mode = mode_map.get(intent, "hybrid")
         return asyncio.run(self.aquery(query, mode=mode))
+
+    @staticmethod
+    def classify_intent(query: str) -> str:
+        """基于关键词的意图分类，自动判断三路检索路由。
+
+        历史经验: 含"历史/曾经/上次/类似/相似/之前/经验"
+        根因传播: 含"调用链/传播/追溯/链路/上游/下游/谁调用"
+        全局架构: 含"架构/模块/整体/全局/概览/结构/设计"
+        """
+        history_kw = {"历史", "曾经", "上次", "类似", "相似", "之前", "经验", "过去"}
+        propagation_kw = {"调用链", "传播", "追溯", "链路", "上游", "下游", "谁调用", "调用关系"}
+        architecture_kw = {"架构", "模块", "整体", "全局", "概览", "结构", "设计", "组成"}
+
+        for kw in propagation_kw:
+            if kw in query:
+                return "propagation"
+        for kw in architecture_kw:
+            if kw in query:
+                return "architecture"
+        for kw in history_kw:
+            if kw in query:
+                return "history"
+        return "history"
 
     def retrieve(
         self,

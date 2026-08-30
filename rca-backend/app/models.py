@@ -144,6 +144,7 @@ class Code2CnRequest(BaseModel):
     file: str = ""
     source_code: str = ""
     language: str = "java"
+    signature: str = ""
 
 
 # ============================================================================

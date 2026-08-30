@@ -50,6 +50,22 @@ class Code2CN:
             model=config.llm.extract_model,
         )
         self._cache: dict[str, CodeOutline] = {}
+        self._token_stats: list[dict] = []
+        self._max_retry = config.llm.max_retry if hasattr(config.llm, "max_retry") else 3
+
+    def _record_tokens(self, role: str, model: str, prompt_tokens: int, completion_tokens: int) -> None:
+        """记录 token 用量统计。"""
+        self._token_stats.append({
+            "role": role,
+            "model": model,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total": prompt_tokens + completion_tokens,
+        })
+
+    @property
+    def token_stats(self) -> list[dict]:
+        return self._token_stats
 
     def _cache_key(self, symbol: str, source_code: str) -> str:
         return hashlib.md5(f"{symbol}:{source_code}".encode()).hexdigest()
@@ -69,6 +85,7 @@ class Code2CN:
     def generate(self, req: Code2CnRequest) -> CodeOutline:
         cached = self._get_from_cache(req.symbol, req.source_code)
         if cached:
+            cached.cached = True
             return cached
 
         prompt = PROMPT_TEMPLATE.format(
@@ -79,18 +96,32 @@ class Code2CN:
             source_code=req.source_code,
         )
 
-        try:
-            raw = self.opencode.run_llm(prompt=prompt)
-            result = self._parse_response(raw, req)
-        except Exception:
-            result = CodeOutline(
-                symbol=req.symbol,
-                file=req.file,
-                cn_summary="",
-                external_calls=[],
-                failure_paths=[],
-                degraded=True,
-            )
+        result = None
+        for attempt in range(self._max_retry):
+            try:
+                raw = self.opencode.run_llm(prompt=prompt)
+                result = self._parse_response(raw, req)
+                # 估算 token 用量（粗略：按字符数/4）
+                est_prompt_tokens = len(prompt) // 4
+                est_completion_tokens = len(raw) // 4
+                self._record_tokens(
+                    role="extract",
+                    model=self.opencode.model,
+                    prompt_tokens=est_prompt_tokens,
+                    completion_tokens=est_completion_tokens,
+                )
+                break
+            except Exception:
+                if attempt < self._max_retry - 1:
+                    continue
+                result = CodeOutline(
+                    symbol=req.symbol,
+                    file=req.file,
+                    cn_summary="",
+                    external_calls=[],
+                    failure_paths=[],
+                    degraded=True,
+                )
 
         self._set_cache(req.symbol, req.source_code, result)
         return result

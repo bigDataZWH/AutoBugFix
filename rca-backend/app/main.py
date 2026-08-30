@@ -4,18 +4,25 @@ import json
 import os
 import time
 from pathlib import Path
+from typing import Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .mock_data import SAMPLE_TICKETS
-from .models import AnalyzeRequest, AnalyzeResponse, AnalysisReport, ConfirmRequest, KBImportRequest, RCAState
+from .models import (
+    AnalyzeRequest, AnalyzeResponse, AnalysisReport, ConfirmRequest, KBImportRequest, RCAState,
+    Code2CnRequest, CodeOutline, AstKg, AstKgEntity, AstKgRelationship,
+)
 from .opencode_adapter import OpenCodeAdapter
 from .pipeline import Pipeline
 from .retriever import Retriever
 from .engine import engine, RCAEngine
 from .runtime_mode import get_current_mode, component_status as _component_status
+from .code2cn import code2cn
+from .codegraph import CodeGraph
+from .lightrag_adapter import lightrag, intent_to_mode
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR.parent
@@ -275,6 +282,99 @@ def _state_summary(state: RCAState) -> dict:
         "degraded": state.degraded,
         "runtime_mode": state.runtime_mode,
     }
+
+
+# ============================================================================
+# Spec 1: code2cn REST API
+# ============================================================================
+
+@app.post("/api/v1/code2cn/generate", response_model=CodeOutline)
+async def code2cn_generate(req: Code2CnRequest):
+    """生成函数级中文大纲。"""
+    outline = code2cn.generate(req)
+    return outline
+
+
+@app.get("/api/v1/code2cn/outline/{symbol}", response_model=CodeOutline)
+async def code2cn_outline(symbol: str):
+    """按符号获取缓存的中文大纲（MCP 工具等价）。"""
+    for outline in code2cn._cache.values():
+        if outline.symbol == symbol:
+            return outline
+    raise HTTPException(status_code=404, detail=f"符号 {symbol} 无缓存大纲，请先 POST generate")
+
+
+# ============================================================================
+# Spec 2: CodeGraph REST API
+# ============================================================================
+
+_codegraph = CodeGraph()
+_codegraph.init_schema()
+
+@app.get("/api/v1/codegraph/node/{symbol}")
+async def codegraph_node(symbol: str):
+    """获取函数节点信息。"""
+    with _codegraph._conn() as conn:
+        row = conn.execute("SELECT * FROM nodes WHERE symbol = ?", (symbol,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"符号 {symbol} 不在图谱中")
+    return dict(row)
+
+
+@app.get("/api/v1/codegraph/callers/{symbol}")
+async def codegraph_callers(symbol: str, depth: int = 2):
+    """获取调用者（谁调用了 symbol）。"""
+    resp = _codegraph.callers(symbol, depth=depth)
+    if resp is None:
+        raise HTTPException(status_code=404, detail=f"符号 {symbol} 不在图谱中")
+    return resp.model_dump()
+
+
+@app.get("/api/v1/codegraph/callees/{symbol}")
+async def codegraph_callees(symbol: str):
+    """获取被调用者（symbol 调用了谁）。"""
+    resp = _codegraph.callees(symbol)
+    if resp is None:
+        raise HTTPException(status_code=404, detail=f"符号 {symbol} 不在图谱中")
+    return resp.model_dump()
+
+
+@app.get("/api/v1/codegraph/explore/{symbol}")
+async def codegraph_explore(symbol: str, hops: int = 2):
+    """探索符号邻域。"""
+    resp = _codegraph.explore(symbol, hops=hops)
+    if resp is None:
+        raise HTTPException(status_code=404, detail=f"符号 {symbol} 不在图谱中")
+    return resp.model_dump()
+
+
+# ============================================================================
+# Spec 3: LightRAG REST API
+# ============================================================================
+
+@app.post("/api/v1/rag/query")
+async def rag_query(query: str, intent: str = "history", top_k: int = 10):
+    """三路检索路由查询。
+
+    intent: history(历史经验匹配) | propagation(根因传播追溯) | architecture(全局架构理解)
+    """
+    mode = intent_to_mode(intent)
+    result = await lightrag.aquery(query, mode=mode, top_k=top_k)
+    return result.model_dump()
+
+
+@app.post("/api/v1/rag/insert")
+async def rag_insert(text: str, ids: Optional[str] = None):
+    """批量索引文本到 LightRAG 文本域。"""
+    ok = await lightrag.ainsert(text, ids=ids)
+    return {"success": ok, "degraded": not lightrag.available}
+
+
+@app.post("/api/v1/rag/insert_kg")
+async def rag_insert_kg(ast_kg: AstKg):
+    """注入 CodeGraph 调用图到 LightRAG 结构域。"""
+    ok = await lightrag.ainsert_custom_kg(ast_kg)
+    return {"success": ok, "degraded": not lightrag.available}
 
 
 if __name__ == "__main__":

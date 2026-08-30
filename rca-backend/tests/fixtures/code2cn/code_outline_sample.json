@@ -1,0 +1,11 @@
+{
+  "symbol": "OrderService.create",
+  "file": "src/main/java/com/example/order/OrderService.java",
+  "cn_summary": "1. 参数校验：检查 productId 非空\n2. 库存校验：调用 InventoryService.getStock 获取库存，不足时抛 InsufficientStockException\n3. 创建订单对象并设置状态为 CREATED\n4. 持久化到数据库（orderRepo.save）\n5. 发送 Kafka 消息通知下游",
+  "external_calls": ["RPC/inventoryService.getStock", "DB/orderRepo.save", "MQ/kafkaTemplate.send"],
+  "failure_paths": ["InsufficientStockException:库存不足", "OrderPersistException:数据库持久化失败"],
+  "degraded": false,
+  "model": "qwen2.5-coder",
+  "tokens": {"prompt_tokens": 350, "completion_tokens": 120, "total": 470},
+  "cached": false
+}
