@@ -69,3 +69,25 @@
 - Task 5 depends on Task 4（以及 orchestrate-five-agent-engine、build-dual-gate-flywheel）
 - Task 6 depends on Task 4（交叉验证算法实现完成）
 - Task 7 depends on Task 6（UT 套件就绪）+ Task 5（A4 集成完成）
+
+## Task 8: 编写跨模块集成测试套件（覆盖 6 个集成场景）
+- [ ] SubTask 8.1: 搭建集成测试骨架（pytest + mock Adapter 注入，复用 UT fixtures）
+- [ ] SubTask 8.2: 编写 integ_codegraph_to_s_static（CodeGraph 调用图 → S_static 提取）
+- [ ] SubTask 8.3: 编写 integ_trace_cmdb_to_p_runtime（Trace span 树 + CMDB 服务拓扑 → P_runtime）
+- [ ] SubTask 8.4: 编写 integ_metrics_to_score（Metrics → metric_corr 异常时间窗关联）
+- [ ] SubTask 8.5: 编写 integ_change_to_score（变更系统 → change_recency 加权）
+- [ ] SubTask 8.6: 编写 integ_dualgraph_to_agent4（cross_validate → Candidate Top-3 → A4 消费）
+- [ ] SubTask 8.7: 编写 integ_full_pipeline_dualgraph（CodeGraph+Trace+CMDB+Metrics+Change 全链路）
+- [ ] SubTask 8.8: 集成测试断言工具封装（四维 evidence 断言、交集断言、降级标记断言、A4 输出断言）
+- **验证步骤**: 6 个集成场景全部通过；mock 全部上游依赖不产生真实外部调用；断言覆盖 score/交集/CONTAINS/降级/A4 消费
+
+## Task 9: 搭建测试数据与 Mock 基础设施（Fixture 工厂 + 图谱构造器 + Mock 注册 + YAML 配置）
+- [ ] SubTask 9.1: 实现 S_static/P_runtime/Candidate Fixture 工厂（默认样本 + 参数覆盖）
+- [ ] SubTask 9.2: 实现图谱构造器 GraphBuilder（服务级拓扑 + 函数级调用图 + CONTAINS 边）
+- [ ] SubTask 9.3: 编写 conftest.py 注册 fixtures（mock Adapter、权重配置、样例数据集、图谱构造器）
+- [ ] SubTask 9.4: 建立 tests/fixtures/dualgraph/ 目录约定（s_static/p_runtime/candidates/config 子目录）
+- [ ] SubTask 9.5: 编写 8 类 Mock 样本（S_static/P_runtime/Candidate/CONTAINS/Metrics/Change/YAML 权重/交集）
+- [ ] SubTask 9.6: 实现 CodeGraph MCP mock / Trace Adapter mock / CMDB mock / Metrics mock / 变更系统 mock
+- [ ] SubTask 9.7: 实现 cross_validate 真实执行（不 mock，验证交集 + score 计算）
+- [ ] SubTask 9.8: 测试数据库初始化（tmp_path YAML 配置文件 + 内存图谱构造）
+- **验证步骤**: 8 类 Mock 样本就绪；Fixture 工厂可参数化生成数据；mock 无真实外部调用；cross_validate 走真实执行路径

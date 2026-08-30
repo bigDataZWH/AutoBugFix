@@ -369,3 +369,279 @@ dual_graph_validation:
 - **测试步骤**：默认权重 (0.3/0.3/0.2/0.2) 跑批 → 修改 w1↑/w3↑ → 重跑 `cross_validate` → 对比 Top-3 排序
 - **预期结果**：权重变化后 Top-3 排序与 score 数值随之改变
 - **断言点**：两次跑批排序结果不同、score 数值随权重变化、配置热加载生效
+
+## 跨模块集成测试方案
+
+### 上下游依赖关系表
+
+| 模块 | 方向 | 数据流 | 关键数据/字段 | 集成点 |
+| --- | --- | --- | --- | --- |
+| CodeGraph（opencode 插件） | 上游 | 函数级调用图 → S_static | func_id / func_name / call_path / static_depth | CodeGraph 加载器 → S_static 提取（反向 BFS） |
+| Trace Adapter | 上游 | span 树 → P_runtime | span_tree / propagation_path / functions / runtime_anomaly | span 树 → 异常传播路径映射到函数 |
+| CMDB | 上游 | 服务元数据/拓扑 → P_runtime 服务节点 | service_id / service_name / owner | CMDB 聚合服务级拓扑节点与归属 |
+| Metrics 系统 | 上游 | 指标时序 → metric_corr | metric_name / value / timestamp / anomaly_flag | 异常时间窗指标关联计算 |
+| 变更系统 | 上游 | 变更记录 → change_recency | change_id / file / author / timestamp | 最近变更时间加权 |
+| 双图谱交叉验证（本模块） | 核心 | S_static × P_runtime → Candidate Top-3 | function_id / score / evidence 四维 | cross_validate 交集 + score 计算 |
+| 5-Agent A4 根因分析 | 下游 | Candidate Top-3 → 根因结论 | root_cause / confidence / evidence_chain / located_function / score | A4 消费 Top-3 候选 |
+
+### 集成测试场景
+
+#### 1. integ_codegraph_to_s_static
+- **涉及模块**：CodeGraph → 双图谱交叉验证（S_static 构建）
+- **集成点**：CodeGraph 调用图数据加载器 → S_static 提取（函数列表 + call_path + static_depth）
+- **测试步骤**：mock CodeGraph 返回预设调用图 → 加载器提取函数节点 → 反向 BFS 计算 call_path 与 static_depth → 组装 S_static
+- **预期结果**：S_static 含完整函数列表，每项含 func_id/func_name/call_path/static_depth 四字段
+- **断言点**：S_static 非空；每项四字段齐全；call_path 从入口到当前函数路径正确；static_depth 与反向 BFS 深度一致
+
+#### 2. integ_trace_cmdb_to_p_runtime
+- **涉及模块**：Trace Adapter + CMDB → 双图谱交叉验证（P_runtime 构建）
+- **集成点**：Trace span 树 + CMDB 服务拓扑 → P_runtime（propagation_path + functions + runtime_anomaly）
+- **测试步骤**：mock Trace 返回含异常 span 的预设 span 树 → mock CMDB 返回预设服务拓扑 → Adapter 聚合异常传播路径 → 映射到函数列表并计算 runtime_anomaly
+- **预期结果**：P_runtime 含 span_tree/propagation_path/functions/runtime_anomaly，异常 span 对应函数异常值 > 0
+- **断言点**：propagation_path 沿调用边正确；functions 均为合法函数 ID；异常 span 所在函数 runtime_anomaly 最高；CMDB 元数据已补全服务归属
+
+#### 3. integ_metrics_to_score
+- **涉及模块**：Metrics 系统 → 双图谱交叉验证（metric_corr 维度）
+- **集成点**：Metrics 系统 → metric_corr（异常时间窗指标关联计算）
+- **测试步骤**：mock Metrics 返回预设指标时序 → 取异常时间窗 → 计算指标与候选函数关联度 → 注入 score 计算
+- **预期结果**：metric_corr ∈ [0,1]，时间窗重叠越大值越高，无重叠为 0
+- **断言点**：metric_corr 数值与预设序列一致；异常时间窗内 anomaly_flag=true 的指标参与计算；score 中 w3*metric_corr 项正确
+
+#### 4. integ_change_to_score
+- **涉及模块**：变更系统 → 双图谱交叉验证（change_recency 维度）
+- **集成点**：变更系统 → change_recency（最近变更时间加权）
+- **测试步骤**：mock 变更系统返回预设变更记录 → 按文件/函数匹配变更时间 → 距离异常时间越近权重越高 → 注入 score 计算
+- **预期结果**：change_recency ∈ [0,1]，最近变更的函数值高、久未变更的函数值低
+- **断言点**：change_recency 与变更时间距离单调相关；score 中 w4*change_recency 项正确
+
+#### 5. integ_dualgraph_to_agent4
+- **涉及模块**：双图谱交叉验证 → 5-Agent A4 根因分析
+- **集成点**：cross_validate(S_static, P_runtime) → Candidate Top-3 → A4 消费
+- **测试步骤**：真实执行 cross_validate（不 mock）→ 产出 Candidate Top-3 → 传入 A4 根因分析 → 消费根因/置信度/证据链
+- **预期结果**：A4 收到 Top-3，每条含 root_cause/confidence/evidence_chain/located_function/score
+- **断言点**：Top-3 按 score 降序；每条 confidence ∈ [0,1]；evidence_chain 含四维证据；located_function 为交集命中函数；A4 输出以 Top-1 为根因结论
+
+#### 6. integ_full_pipeline_dualgraph
+- **涉及模块**：CodeGraph + Trace + CMDB + Metrics + Change → 交叉验证 → A4（全链路）
+- **集成点**：上游五数据源 → S_static + P_runtime → cross_validate → Candidate Top-3 → A4
+- **测试步骤**：mock 全部上游数据源（CodeGraph/Trace/CMDB/Metrics/Change）→ 构建 S_static 与 P_runtime → 真实执行 cross_validate → 取 Top-3 → A4 消费 → 输出根因结论
+- **预期结果**：全链路产出 Top-3，每条含四维 evidence 证据链，A4 输出根因结论
+- **断言点**：S_static 非空、P_runtime.functions 非空；交集命中函数进入高置信候选；Top-3 长度 ∈ (0,3]；score 四维项非零（或缺失维按降级处理）；A4 结论与 Top-1 一致
+
+## 测试数据与 Mock 规范
+
+### 测试数据构造策略
+
+测试数据以 **Fixture 工厂 + 图谱构造器 + conftest.py** 三层组织：
+
+1. **Fixture 工厂**：`SStaticFactory` / `PRuntimeFactory` / `CandidateFactory`，提供默认样本值与参数覆盖（如 `static_depth=2, runtime_anomaly=0.8`），保证用例输入可复现、可裁剪。
+2. **图谱构造器**：`GraphBuilder`，支持程序化构造服务级拓扑图（节点 + 边）、函数级调用图（节点 + 调用边）及跨层 CONTAINS 边，输出可注入 `cross_validate`。
+3. **conftest.py**：统一注册 fixtures（各数据源 Adapter mock、权重 YAML 配置、样例数据集、图谱构造器实例），跨测试模块复用；权重配置一律写 `tmp_path` 隔离，不触碰真实配置路径。
+
+### Mock 数据样本
+
+#### S_static 样本 JSON
+
+```json
+{
+  "S_static": [
+    {"func_id": "order_service::OrderService::handle_request", "func_name": "handle_request", "call_path": ["OrderService::handle_request"], "static_depth": 1},
+    {"func_id": "order_service::OrderService::create_order", "func_name": "create_order", "call_path": ["OrderService::handle_request", "OrderService::create_order"], "static_depth": 2},
+    {"func_id": "order_service::PaymentClient::call_payment", "func_name": "call_payment", "call_path": ["OrderService::handle_request", "OrderService::create_order", "PaymentClient::call_payment"], "static_depth": 3},
+    {"func_id": "order_service::InventoryClient::deduct_stock", "func_name": "deduct_stock", "call_path": ["OrderService::handle_request", "OrderService::create_order", "InventoryClient::deduct_stock"], "static_depth": 3},
+    {"func_id": "payment_service::PaymentService::process", "func_name": "process", "call_path": ["PaymentService::handle_request", "PaymentService::process"], "static_depth": 2}
+  ]
+}
+```
+
+#### P_runtime 样本 JSON
+
+```json
+{
+  "P_runtime": {
+    "span_tree": {
+      "root": {
+        "span_id": "span_0", "service": "order_service", "trace_id": "trace_001", "children": [
+          {"span_id": "span_1", "service": "order_service", "operation": "create_order", "children": [
+            {"span_id": "span_2", "service": "payment_service", "operation": "call_payment", "anomaly": true},
+            {"span_id": "span_3", "service": "inventory_service", "operation": "deduct_stock"}
+          ]}
+        ]
+      }
+    },
+    "propagation_path": ["order_service", "payment_service"],
+    "functions": [
+      "order_service::OrderService::create_order",
+      "order_service::PaymentClient::call_payment",
+      "order_service::InventoryClient::deduct_stock"
+    ],
+    "runtime_anomaly": {
+      "order_service::OrderService::create_order": 0.1,
+      "order_service::PaymentClient::call_payment": 0.9,
+      "order_service::InventoryClient::deduct_stock": 0.0
+    }
+  }
+}
+```
+
+#### Candidate Top-3 样本 JSON
+
+```json
+{
+  "candidates": [
+    {
+      "function_id": "order_service::PaymentClient::call_payment",
+      "root_cause": "外部支付网关超时未兜底，调用链阻塞",
+      "confidence": 0.92,
+      "evidence_chain": [
+        "静态路径: handle_request → create_order → call_payment (static_depth=3)",
+        "运行时路径: order_service → payment_service (span_2 anomaly, runtime_anomaly=0.9)",
+        "metric 关联: payment_service.latency_p99 异常时间窗飙升 320% (metric_corr=0.8)",
+        "变更近因: client.py 10 分钟前变更 (change_recency=0.7)"
+      ],
+      "located_function": "order_service::PaymentClient::call_payment",
+      "score": 0.3 * 3 + 0.3 * 0.9 + 0.2 * 0.8 + 0.2 * 0.7
+    },
+    {
+      "function_id": "order_service::OrderService::create_order",
+      "root_cause": "下单主流程调用异常传播点",
+      "confidence": 0.75,
+      "evidence_chain": ["静态路径: handle_request → create_order (static_depth=2)", "运行时路径: order_service (runtime_anomaly=0.1)"],
+      "located_function": "order_service::OrderService::create_order",
+      "score": 0.3 * 2 + 0.3 * 0.1 + 0.2 * 0.5 + 0.2 * 0.6
+    },
+    {
+      "function_id": "order_service::InventoryClient::deduct_stock",
+      "root_cause": "库存扣减依赖服务慢调用",
+      "confidence": 0.6,
+      "evidence_chain": ["静态路径: create_order → deduct_stock (static_depth=3)", "运行时路径: inventory_service (runtime_anomaly=0.2)"],
+      "located_function": "order_service::InventoryClient::deduct_stock",
+      "score": 0.3 * 3 + 0.3 * 0.2 + 0.2 * 0.3 + 0.2 * 0.1
+    }
+  ]
+}
+```
+
+#### CONTAINS 关系映射样本
+
+```json
+{
+  "contains": {
+    "order_service": [
+      "order_service::OrderService::handle_request",
+      "order_service::OrderService::create_order",
+      "order_service::PaymentClient::call_payment",
+      "order_service::InventoryClient::deduct_stock"
+    ],
+    "payment_service": [
+      "payment_service::PaymentService::process",
+      "payment_service::PaymentClient::call_payment"
+    ]
+  }
+}
+```
+
+#### Metrics 数据样本
+
+```json
+{
+  "metrics": [
+    {"metric_name": "payment_service.latency_p99", "value": 2350.0, "timestamp": "2026-08-31T10:05:00Z", "anomaly_flag": true},
+    {"metric_name": "payment_service.error_rate", "value": 0.15, "timestamp": "2026-08-31T10:05:00Z", "anomaly_flag": true},
+    {"metric_name": "order_service.qps", "value": 1200.0, "timestamp": "2026-08-31T10:05:00Z", "anomaly_flag": false}
+  ]
+}
+```
+
+#### Change 数据样本
+
+```json
+{
+  "changes": [
+    {"change_id": "chg_1001", "file": "order_service/src/payment/client.py", "author": "alice", "timestamp": "2026-08-31T09:55:00Z"},
+    {"change_id": "chg_1002", "file": "order_service/src/payment/timeout.py", "author": "bob", "timestamp": "2026-08-31T08:20:00Z"},
+    {"change_id": "chg_1003", "file": "inventory_service/src/stock/deduct.py", "author": "carol", "timestamp": "2026-08-30T18:00:00Z"}
+  ]
+}
+```
+
+#### YAML 权重配置样本
+
+```yaml
+dual_graph_validation:
+  weights:
+    w1_static_depth: 0.3
+    w2_runtime_anomaly: 0.3
+    w3_metric_corr: 0.2
+    w4_change_recency: 0.2
+  top_k: 3
+  degradation:
+    single_path_allowed: true
+    metric_missing_rebalance: true
+    change_missing_rebalance: true
+    intersection_empty_escalate_hil: true
+```
+
+#### 交集计算输入/输出样本
+
+```json
+{
+  "input": {
+    "S_static_functions": [
+      "order_service::OrderService::create_order",
+      "order_service::PaymentClient::call_payment",
+      "order_service::InventoryClient::deduct_stock",
+      "payment_service::PaymentService::process"
+    ],
+    "P_runtime_functions": [
+      "order_service::OrderService::create_order",
+      "order_service::PaymentClient::call_payment",
+      "order_service::InventoryClient::deduct_stock"
+    ]
+  },
+  "output": {
+    "intersection": [
+      "order_service::OrderService::create_order",
+      "order_service::PaymentClient::call_payment",
+      "order_service::InventoryClient::deduct_stock"
+    ],
+    "static_only": ["payment_service::PaymentService::process"],
+    "runtime_only": []
+  }
+}
+```
+
+### Mock 规范
+
+| Mock | 返回内容 | 用途 | 备注 |
+| --- | --- | --- | --- |
+| CodeGraph MCP mock | 预设调用图（节点 + 调用边） | → S_static 提取 | 不触发真实 CodeGraph 构建 |
+| Trace Adapter mock | 预设 span 树（含异常 span） | → P_runtime | 不连接真实 Trace 系统 |
+| CMDB mock | 预设服务拓扑/服务元数据 | → P_runtime 服务节点聚合 | 不连接真实 CMDB |
+| Metrics 系统 mock | 预设指标时序（含异常时间窗） | → metric_corr 计算 | 不连接真实 Metrics |
+| 变更系统 mock | 预设变更记录（含时间戳） | → change_recency 计算 | 不连接真实变更系统 |
+| cross_validate | 不 mock | 验证交集 + score 计算 | 真实执行核心算法 |
+
+关键约束：**mock 全部上游依赖（CodeGraph/Trace/CMDB/Metrics/Change），不产生任何真实外部调用；`cross_validate` 本身不 mock，真实执行**，确保交集与 score 计算路径被完整覆盖。
+
+### 测试数据库初始化
+
+- 无需真实数据库：图谱数据经 `GraphBuilder` 在内存中构造；权重 YAML 通过 pytest `tmp_path` 写入隔离配置文件，加载后校验 weights/top_k/degradation 开关。
+- 若用例需要持久化中间产物（如交集结果快照），使用 `tmp_path` 下临时文件，用例结束自动清理，不污染真实环境。
+
+### Fixture 文件组织
+
+```
+tests/fixtures/dualgraph/
+├── s_static/            # S_static 样本（func_id/func_name/call_path/static_depth）
+│   └── s_static_sample.json
+├── p_runtime/           # P_runtime 样本（span_tree/propagation_path/functions/runtime_anomaly）
+│   └── p_runtime_sample.json
+├── candidates/          # Candidate Top-3 样本
+│   └── candidates_top3_sample.json
+└── config/              # 权重配置与交集样本
+    ├── weights.yaml
+    └── intersection_sample.json
+```
+
+CONTAINS / Metrics / Change 样本归入对应数据源子目录（`contains/`、`metrics/`、`change/`），命名遵循 `<object>_<variant>.json`（如 `s_static_intersection_hit.json`、`s_static_static_only.json`），与 UT/E2E/集成测试共用。

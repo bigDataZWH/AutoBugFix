@@ -40,3 +40,11 @@
 - [ ] CONTAINS 关系映射 UT 通过
 - [ ] 假阳性降低 ≥40% E2E 验证
 - [ ] CI 流水线集成 pytest 执行
+- [ ] 6 个跨模块集成测试场景全部通过
+- [ ] S_static/P_runtime/Candidate/CONTAINS/Metrics/Change/YAML权重/交集 8 类 Mock 样本就绪
+- [ ] score 四维权重计算集成测试通过（0.3/0.3/0.2/0.2）
+- [ ] 交集计算 S_static ∩ P_runtime 集成测试通过
+- [ ] 降级开关集成测试通过（单维缺失降权 + 权重重分配）
+- [ ] CONTAINS 关系映射集成测试通过
+- [ ] Fixture 文件组织符合 tests/fixtures/dualgraph/ 约定
+- [ ] mock 全部上游依赖不产生真实外部调用
