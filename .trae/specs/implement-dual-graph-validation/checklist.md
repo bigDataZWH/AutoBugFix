@@ -1,0 +1,33 @@
+- [ ] 服务级拓扑图数据模型已定义（节点=微服务/接口，边=跨服务调用，统一节点 ID 命名空间）
+- [ ] 服务级拓扑图已构建（Trace + CMDB 聚合，粒度微服务/接口，用于跨服务根因传播）
+- [ ] 根因传播遍历算法可用（沿调用边反向传播输出嫌疑服务链路）
+- [ ] Trace 缺失时 CMDB 兜底可用并标注"Trace 缺失·CMDB 兜底"降级标记
+- [ ] CMDB 缺失时 Trace service 字段兜底可用并标注降级标记
+- [ ] Trace + CMDB 双缺时降级告警触发，A4 标注"服务级拓扑不可用"
+- [ ] 函数级调用图已就绪（CodeGraph 自动构建，粒度函数/方法，用于精确函数定位）
+- [ ] 函数级调用图边含调用/继承/引用三类关系
+- [ ] S_static 含 function_id/call_path/static_depth 三字段（反向 BFS 产出）
+- [ ] 大仓库增量构建 + 缓存预热生效，构建不阻塞流水线
+- [ ] 跨语言调用链桥接节点已插入并标注"跨语言断点"
+- [ ] CodeGraph 构建超时降级至调用图缓存，无缓存则运行时单路并记录告警
+- [ ] 跨层 CONTAINS 关系已建立，服务→函数下钻可达
+- [ ] `service::function` 复合键命名空间已统一
+- [ ] 服务→函数下钻返回该服务全部函数子图
+- [ ] CONTAINS 缺失时触发 CodeGraph 增量补建并标注"函数下钻不可用"
+- [ ] `cross_validate(S_static, P_runtime, metric_anomalies, change_records)` 接口已实现
+- [ ] `functions_of(P_runtime)` 辅助函数已实现，返回异常路径函数 ID 集合
+- [ ] 静态×运行时交叉验证算法已实现（S_static ∩ functions_of(P_runtime) 交集为高置信候选）
+- [ ] 四维 score 计算已实现（score = w1*static_depth + w2*runtime_anomaly + w3*metric_corr + w4*change_recency）
+- [ ] 候选按 score 降序取 Top-3，输出 List[Candidate] 含 function_id/score/evidence
+- [ ] 单路命中降级处理生效，不进入高置信候选，仅 Top-3 不足时补位标注
+- [ ] Metric 缺失时 w3 归零 + 按比例重分配，evidence 标注"Metric 维度缺失"
+- [ ] 变更记录缺失时 w4 归零 + 按比例重分配，evidence 标注"变更记录缺失"
+- [ ] 交集为空时降级策略生效（单路补位 + 上浮 HIL 闸门，标注"双路未收敛"）
+- [ ] 权重 w1-w4 可配置（默认 0.3/0.3/0.2/0.2，支持环境覆盖）
+- [ ] 交叉验证结论已接入 A4 Top-3 输出（对接 orchestrate-five-agent-engine）
+- [ ] Candidate 证据链已对接双闸门（CRAG 自动纠偏门 + HIL 人工确认门）
+- [ ] V2.0 vs V3.0 对比评估集跑批报告已产出（检索范式/定位深度/幻觉控制/可解释性四维）
+- [ ] 误报率下降 ≥ 40%（vs V2.0 单检索范式）
+- [ ] 双闸门后误报率 ≤ 5%
+- [ ] 双图谱融合方案 Top-3 覆盖率 ≥ 95%
+- [ ] Top-1 命中率 ≥ 80%
