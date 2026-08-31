@@ -254,7 +254,7 @@ class RCAEngine:
             if state.stage.index < 4:
                 state = self._apply_a4(state)
 
-            if state.stage.index < 4 or state.gate_status.hil == "pending":
+            if state.stage.index < 5 or state.gate_status.hil == "pending":
                 state = self._apply_gates(state)
                 if state.gate_status.hil == "pending":
                     self.store.save(state)
@@ -344,7 +344,7 @@ class RCAEngine:
         return state
 
     def _apply_gates(self, state: RCAState) -> RCAState:
-        if state.gate_status.hil == "pending":
+        if state.gate_status.hil in ("pending", "confirmed", "modified", "rejected"):
             return state
         candidates = [self._rootcause_to_candidate(rc) for rc in state.top3]
         valid = [c for c in candidates if c is not None]
