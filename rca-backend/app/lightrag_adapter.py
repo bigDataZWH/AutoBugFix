@@ -9,6 +9,39 @@ from typing import Any, Callable, Optional
 from .config import config
 from .models import AstKg, AstKgEntity, AstKgRelationship, RetrievalResult
 
+# LightRAG 1.5.6 存储类名映射（config 中存储的是友好名）
+# 同一友好名在不同存储类型下对应不同类名
+_STORAGE_NAME_MAP: dict[str, dict[str, str]] = {
+    "pgvector": {
+        "kv": "PGKVStorage",
+        "vector": "PGVectorStorage",
+        "graph": "PGGraphStorage",
+    },
+    "json": {
+        "kv": "JsonKVStorage",
+        "vector": "NanoVectorDBStorage",
+        "graph": "NetworkXStorage",
+    },
+    "redis": {
+        "kv": "RedisKVStorage",
+        "vector": "PGVectorStorage",
+        "graph": "PGGraphStorage",
+    },
+}
+
+
+def _resolve_storage_name(name: str, storage_type: str) -> str:
+    """解析存储名，兼容友好名和类名两种输入。
+
+    Args:
+        name: 配置中的存储名（如 "pgvector"）或完整类名（如 "PGKVStorage"）
+        storage_type: 存储类型，'kv' / 'vector' / 'graph'
+    """
+    lowered = name.lower().strip()
+    if lowered in _STORAGE_NAME_MAP:
+        return _STORAGE_NAME_MAP[lowered].get(storage_type, name)
+    return name
+
 
 class LightRAGAdapter:
     def __init__(self, working_dir: Optional[str] = None) -> None:
@@ -20,9 +53,10 @@ class LightRAGAdapter:
 
     def _init_lightrag(self) -> None:
         try:
-            from lightrag_hku import LightRAG, QueryParam
-            from lightrag_hku.llm import openai_complete_if_cache
-            from lightrag_hku.embed import openai_embedding
+            from lightrag import LightRAG, QueryParam
+            from lightrag.llm.openai import openai_complete_if_cache
+            from lightrag.llm.openai import openai_embed
+            from lightrag.utils import wrap_embedding_func_with_attrs
 
             async def llm_func(
                 prompt: str,
@@ -41,8 +75,15 @@ class LightRAGAdapter:
                     **kwargs,
                 )
 
-            async def embedding_func(texts: list[str]) -> list[list[float]]:
-                return await openai_embedding(
+            @wrap_embedding_func_with_attrs(
+                embedding_dim=config.embed.dim,
+                model_name=config.embed.model,
+            )
+            async def embedding_func(
+                texts: list[str],
+                **kwargs: Any,
+            ) -> list[list[float]]:
+                return await openai_embed.func(
                     texts=texts,
                     model=config.embed.model,
                     base_url=config.llm.base_url,
@@ -53,14 +94,19 @@ class LightRAGAdapter:
                 working_dir=str(self.working_dir),
                 llm_model_func=llm_func,
                 embedding_func=embedding_func,
-                embedding_dim=config.embed.dim,
-                kv_storage=config.lightrag.kv_storage,
-                graph_storage=config.lightrag.graph_storage,
-                vector_storage=config.lightrag.vector_storage,
+                kv_storage=_resolve_storage_name(
+                    config.lightrag.kv_storage, "kv"
+                ),
+                graph_storage=_resolve_storage_name(
+                    config.lightrag.graph_storage, "graph"
+                ),
+                vector_storage=_resolve_storage_name(
+                    config.lightrag.vector_storage, "vector"
+                ),
             )
             self._QueryParam = QueryParam
             self._available = True
-        except ImportError:
+        except Exception:
             self._available = False
 
     @property
