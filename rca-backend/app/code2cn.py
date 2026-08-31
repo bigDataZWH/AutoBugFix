@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
 from typing import Optional
 
 from .config import config
@@ -47,7 +48,7 @@ class Code2CN:
     def __init__(self, opencode: Optional[OpenCodeAdapter] = None) -> None:
         self.opencode = opencode or OpenCodeAdapter(
             binary=config.opencode_binary,
-            model=config.llm.extract_model,
+            model=os.environ.get("OPENCODE_MODEL") or config.llm.extract_model,
         )
         self._cache: dict[str, CodeOutline] = {}
         self._token_stats: list[dict] = []

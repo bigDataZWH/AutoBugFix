@@ -42,11 +42,15 @@
   "agent": {
     "edit": {
       "model": "deepseek-v3",
-      "tools": ["codegraph"]
+      "tools": {
+        "codegraph": true
+      }
     },
     "extract": {
       "model": "qwen2.5-coder",
-      "tools": ["codegraph"]
+      "tools": {
+        "codegraph": true
+      }
     }
   }
 }
