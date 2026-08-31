@@ -79,6 +79,33 @@ class OpenCodeAdapter:
             return {"_raw": out}
         return {}
 
+    def fetch_yunjie_tickets(self, ticket_refs: list[str]) -> list[dict]:
+        if not self.available or not ticket_refs:
+            return []
+        results: list[dict] = []
+        for ref in ticket_refs:
+            ref = (ref or "").strip()
+            if not ref:
+                continue
+            prompt = (
+                "你是一个云捷系统数据采集助手。请使用你的工具能力从华为云云捷系统获取问题单："
+                f"{ref}\n并聚合其关联的所有 MR（Merge Request）。整理为严格 JSON 对象，字段："
+                "ticket_id, title, description, root_cause, fix_code, microservice, module, "
+                "error_code, severity。约定：root_cause 取自 MR/commit 描述，fix_code 取自"
+                "所有关联 MR 的 diff 拼接，一个问题单输出一个对象。不要输出 JSON 以外的文字。"
+            )
+            out = self.run_llm(prompt)
+            parsed = self._extract_json(out)
+            if not parsed:
+                continue
+            if isinstance(parsed, list):
+                for d in parsed:
+                    if isinstance(d, dict) and d.get("ticket_id"):
+                        results.append(d)
+            elif isinstance(parsed, dict) and parsed.get("ticket_id"):
+                results.append(parsed)
+        return results
+
     @staticmethod
     def _extract_json(text: str) -> dict:
         if not text:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Optional, TYPE_CHECKING
 
 from .config import config
 from .models import (
@@ -9,6 +9,9 @@ from .models import (
 )
 from .opencode_adapter import OpenCodeAdapter
 from .mock_data import SAMPLE_TICKETS, SAMPLE_PRACTICES
+
+if TYPE_CHECKING:
+    from .retriever import Retriever
 
 
 class RCAError(Exception):
@@ -46,6 +49,10 @@ class AgentA1:
         )
 
     def _fetch_ticket(self, link: str) -> Optional[dict[str, Any]]:
+        if link and self.opencode.available:
+            raw = self.opencode.fetch_yunjie_tickets([link])
+            if raw and raw[0].get("ticket_id"):
+                return raw[0]
         for t in SAMPLE_TICKETS:
             if link and t["ticket_id"] in link:
                 return t
@@ -204,23 +211,35 @@ class AgentA4:
 
 
 class AgentA5:
-    def __init__(self, opencode: Optional[OpenCodeAdapter] = None) -> None:
+    def __init__(self, opencode: Optional[OpenCodeAdapter] = None, retriever: Optional["Retriever"] = None) -> None:
         self.opencode = opencode or OpenCodeAdapter(
             binary=config.opencode_binary,
             model=config.llm.query_model,
         )
+        self.retriever = retriever
 
     def run(self, top3: list[RootCause], error_type: str = "") -> Solution:
         historical: list[str] = []
         best_practices: list[str] = []
 
-        for rc in top3:
-            for t in SAMPLE_TICKETS:
-                if t["module"] == rc.located_function or t["error_code"] == error_type:
-                    if t["fix_code"] and t["fix_code"] not in historical:
-                        historical.append(t["fix_code"])
-                    if t["root_cause"] and t["root_cause"] not in best_practices:
-                        best_practices.append(t["root_cause"])
+        if self.retriever is not None:
+            for rc in top3:
+                q = f"{rc.root_cause} {rc.located_function} {error_type}"
+                matches = self.retriever.hybrid_search(q, top_k=5)
+                for m in matches:
+                    if m.fix_code and m.fix_code not in historical:
+                        historical.append(m.fix_code)
+                    if m.root_cause and m.root_cause not in best_practices:
+                        best_practices.append(m.root_cause)
+
+        if not historical:
+            for rc in top3:
+                for t in SAMPLE_TICKETS:
+                    if t["module"] == rc.located_function or t["error_code"] == error_type:
+                        if t["fix_code"] and t["fix_code"] not in historical:
+                            historical.append(t["fix_code"])
+                        if t["root_cause"] and t["root_cause"] not in best_practices:
+                            best_practices.append(t["root_cause"])
 
         for p in SAMPLE_PRACTICES:
             entry = f"{p['title']}：{p['content']}（{p['source']}）"

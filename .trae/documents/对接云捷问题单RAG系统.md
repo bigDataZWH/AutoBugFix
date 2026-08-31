@@ -222,6 +222,175 @@ except Exception:
 - 回写位于 `final` 事件发布**之后**，保证用户先拿到结果；best-effort 包裹异常，绝不影响主流程。
 - `resume` 的 reject 分支提前 `return`（既有逻辑），不触发回写；confirm/modify 分支调 `run_sequential` → 自动回写一次（`_inserted_digests` 去重防重复）。
 
+### 4.6 `rca-backend/app/retriever.py` + `main.py` — 知识库维护后端端点（列表/检索/删除）
+
+**What**: 为前端知识库维护界面提供"看/查/删"能力。
+- `Retriever.list_tickets(limit=50, q=None) -> list[dict]`：`q` 为空返回最近条目元数据；非空复用 `hybrid_search` 返回带 `similarity` 的结果。
+- `Retriever.delete_tickets(ids: list[str]) -> int`：`col.delete(ids=ids)` + `_reload_all()`。
+- 端点：`GET /api/kb/tickets?limit=50&q=` 与 `DELETE /api/kb/tickets`（body `{"ids":[...]}`）。
+
+**Why**: 维护界面需查看导入结果、按关键词检索校验、清理错误条目；现有仅有 `/api/kb/import`、`/api/kb/count`，缺列表/删除能力。
+
+**How**:
+
+`retriever.py`（复用已缓存的 `self._metas`/`self._ids`/`self._docs`）：
+```python
+def list_tickets(self, limit=50, q=None):
+    if q and q.strip():
+        ms = self.hybrid_search(q, top_k=limit)
+        return [{"similarity": m.similarity, "ticket_id": m.ticket_id, "title": m.title,
+                 "root_cause": m.root_cause, "fix_code": m.fix_code,
+                 "microservice": m.microservice, "error_code": m.error_code} for m in ms]
+    n = len(self._metas)
+    out = []
+    for i in range(max(0, n - limit), n):  # 最近 limit 条
+        m = self._metas[i]
+        out.append({"ticket_id": self._ids[i], "title": m.get("title", ""),
+                    "root_cause": m.get("root_cause", ""), "fix_code": m.get("fix_code", ""),
+                    "microservice": m.get("microservice", ""), "error_code": m.get("error_code", "")})
+    return out[::-1]
+
+def delete_tickets(self, ids):
+    if not ids: return 0
+    self.col.delete(ids=ids)
+    self._reload_all()
+    return len(ids)
+```
+
+`main.py`（紧邻现有 `/api/kb/import`）：
+```python
+@app.get("/api/kb/tickets")
+async def kb_tickets(limit: int = 50, q: Optional[str] = None):
+    return {"items": retriever.list_tickets(limit=limit, q=q), "total": retriever.count()}
+
+class KbDeleteRequest(BaseModel):
+    ids: list[str]
+
+@app.delete("/api/kb/tickets")
+async def kb_delete(req: KbDeleteRequest):
+    n = retriever.delete_tickets(req.ids)
+    return {"deleted": n, "total": retriever.count()}
+```
+- `Optional` 已在 main.py import；`BaseModel` 经 `models` 或本地定义（`KbDeleteRequest` 就近定义于 main.py，与 4.2 的 `YunjieImportRequest` 风格一致）。
+
+### 4.7 `rca-command.html` — 知识库维护 Web 界面
+
+**What**: 新增顶部导航「知识库」入口与 `view-kb` 视图，含三块：云捷批量导入、手动单条写入、知识库列表/检索/删除。
+
+**Why**: 用户明确要求提供 web 界面维护知识库；需可视化完成导入、校验、清理。
+
+**How**（严格遵循现有约定：`api()`/`toast()`/`esc()`/`$$`/`$`、`.view`+`.nav-btn` 切换、`.cg-table` 表格样式、`.console`/`.field` 表单样式）：
+
+1. **导航按钮**（`#topNav`，置于「知识检索」后）：
+```html
+<button class="nav-btn" data-view="kb"><span>⛏</span> 知识库</button>
+```
+
+2. **视图容器**（置于 `view-rag` 之后，`.foot` 之前）：
+```html
+<div class="view" id="view-kb">
+  <!-- 云捷批量导入 -->
+  <section class="console">
+    <div class="console-head"><span class="tag">YUNJIE</span><h2>从云捷导入问题单</h2><span class="sub">opencode CLI · 自动聚合关联 MR · 双写</span></div>
+    <div class="console-body">
+      <div class="field full"><label>问题单 ID / 链接（每行一条）</label>
+        <div class="input-wrap"><textarea id="kbYunjieRefs" rows="6" placeholder="MSP-2026-0817&#10;https://yunjie.../ticket/MSP-2026-0818"></textarea></div>
+      </div>
+    </div>
+    <div class="console-foot"><button class="btn btn-primary" id="kbYunjieBtn">⛏ 从云捷拉取并双写</button><span class="hint" id="kbYunjieHint">opencode 不可用时返回 0</span></div>
+  </section>
+
+  <!-- 手动单条写入 -->
+  <section class="console" style="margin-top:14px">
+    <div class="console-head"><span class="tag">MANUAL</span><h2>手动写入知识条目</h2><span class="sub">直接构造 KBImportItem · 双写</span></div>
+    <div class="console-body">
+      <div class="field-grid">
+        <div class="field"><label>问题单号 *</label><div class="input-wrap"><input id="mfTicketId" placeholder="MSP-xxx"></div></div>
+        <div class="field"><label>标题 *</label><div class="input-wrap"><input id="mfTitle"></div></div>
+        <div class="field"><label>微服务</label><div class="input-wrap"><input id="mfSvc"></div></div>
+        <div class="field"><label>模块/函数</label><div class="input-wrap"><input id="mfModule"></div></div>
+        <div class="field"><label>错误码</label><div class="input-wrap"><input id="mfErr"></div></div>
+        <div class="field"><label>严重级别</label><div class="input-wrap"><input id="mfSev"></div></div>
+        <div class="field full"><label>描述 *</label><div class="input-wrap"><textarea id="mfDesc" rows="2"></textarea></div></div>
+        <div class="field full"><label>根因 *</label><div class="input-wrap"><textarea id="mfRoot" rows="2"></textarea></div></div>
+        <div class="field full"><label>修复代码 *</label><div class="input-wrap"><textarea id="mfFix" rows="3"></textarea></div></div>
+      </div>
+    </div>
+    <div class="console-foot"><button class="btn btn-primary" id="kbManualBtn">✎ 手动写入</button></div>
+  </section>
+
+  <!-- 列表/检索/删除 -->
+  <section class="console" style="margin-top:14px">
+    <div class="console-head"><span class="tag">KB</span><h2>知识库条目</h2><span class="sub" id="kbListMeta">总数 —</span></div>
+    <div class="console-body">
+      <div class="rag-toolbar">
+        <div class="field" style="flex:1"><label>关键词检索（留空看最近）</label><div class="input-wrap"><input id="kbSearchQ" placeholder="超时 / 锁竞争 / OrderLockService"></div></div>
+        <button class="btn btn-primary btn-sm" id="kbSearchBtn">◎ 检索</button>
+        <button class="btn btn-ghost btn-sm" id="kbListBtn">↻ 刷新列表</button>
+      </div>
+      <table class="cg-table" id="kbTable"><thead><tr><th>单号</th><th>标题</th><th>微服务</th><th>错误码</th><th>相似度</th><th>操作</th></tr></thead><tbody id="kbTableBody"><tr><td colspan="6" style="text-align:center;color:var(--txt-2)">暂无数据</td></tr></tbody></table>
+    </div>
+  </section>
+</div>
+```
+
+3. **JS 逻辑**（追加于 `init()` 之前的脚本区，复用 `api`/`toast`/`esc`）：
+```javascript
+function kbYunjieImport(){
+  var refs=$('#kbYunjieRefs').value.split(/\n+/).map(function(s){return s.trim()}).filter(Boolean);
+  if(!refs.length){toast('请填入问题单 ID/链接',true);return;}
+  $('#kbYunjieBtn').disabled=true;toast('正在通过 opencode 拉取云捷数据…');
+  api('/api/v1/yunjie/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket_refs:refs})})
+    .then(function(d){
+      toast('拉取 '+d.fetched+' · ChromaDB '+d.imported_chroma+' · LightRAG '+d.imported_lightrag+(d.degraded?'（LightRAG 降级）':''));
+      kbList();
+    }).catch(function(e){toast('导入失败：'+e.message,true)})
+    .then(function(){$('#kbYunjieBtn').disabled=false;refreshKb();});
+}
+function kbManualImport(){
+  var it={ticket_id:$('#mfTicketId').value.trim(),title:$('#mfTitle').value.trim(),
+          description:$('#mfDesc').value.trim(),root_cause:$('#mfRoot').value.trim(),
+          fix_code:$('#mfFix').value.trim(),microservice:$('#mfSvc').value.trim()||null,
+          module:$('#mfModule').value.trim()||null,error_code:$('#mfErr').value.trim()||null,
+          severity:$('#mfSev').value.trim()||null};
+  if(!it.ticket_id||!it.title||!it.description||!it.root_cause||!it.fix_code){toast('带 * 字段必填',true);return;}
+  api('/api/kb/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:[it]})})
+    .then(function(d){
+      var text='问题单 '+it.ticket_id+'：'+it.title+'\n描述：'+it.description+'\n根因：'+it.root_cause+'\n修复：'+it.fix_code;
+      return api('/api/v1/rag/insert?text='+encodeURIComponent(text)+'&ids=yunjie:'+encodeURIComponent(it.ticket_id),{method:'POST'});
+    }).then(function(){toast('已写入并双写 LightRAG');kbList();refreshKb();})
+    .catch(function(e){toast('写入失败：'+e.message,true)});
+}
+function kbList(){
+  api('/api/kb/tickets?limit=50').then(function(d){
+    renderKbTable(d.items||[],d.total);
+  }).catch(function(){});
+}
+function kbSearch(){
+  var q=$('#kbSearchQ').value.trim();
+  api('/api/kb/tickets?limit=50'+(q?('&q='+encodeURIComponent(q)):'')).then(function(d){renderKbTable(d.items||[],d.total);}).catch(function(){});
+}
+function renderKbTable(items,total){
+  $('#kbListMeta').textContent='总数 '+total;
+  if(!items.length){$('#kbTableBody').innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--txt-2)">暂无数据</td></tr>';return;}
+  $('#kbTableBody').innerHTML=items.map(function(it){
+    return '<tr><td>'+esc(it.ticket_id)+'</td><td>'+esc(it.title)+'</td><td>'+esc(it.microservice)+'</td><td>'+esc(it.error_code)+'</td><td>'
+      +(it.similarity!=null?fmt(it.similarity):'—')
+      +'</td><td><button class="btn btn-ghost btn-sm" data-del="'+esc(it.ticket_id)+'">删除</button></td></tr>';
+  }).join('');
+  $$('#kbTableBody [data-del]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var id=b.getAttribute('data-del');
+      if(!confirm('删除条目 '+id+'？仅清理 ChromaDB（LightRAG 文本保留）'))return;
+      api('/api/kb/tickets',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids:[id]})})
+        .then(function(){toast('已删除 '+id);kbList();refreshKb();}).catch(function(e){toast('删除失败：'+e.message,true)});
+    });
+  });
+}
+```
+4. **`switchView` 扩展**：`if(v==='kb'){kbList();}`（进入视图时自动加载列表，参照 `switchView` 中 `topology` 的既有钩子写法）。
+5. **`init()` 绑定**：追加 `$('#kbYunjieBtn').addEventListener('click',kbYunjieImport)`、`kbManualBtn`→`kbManualImport`、`kbSearchBtn`/`kbListBtn`→`kbSearch`/`kbList`、`kbSearchQ` 回车→`kbSearch`。
+
 ## 5. 数据流（Data Flow）
 
 ```
@@ -261,7 +430,6 @@ except Exception:
 
 ## 8. 不在本次范围（Out of Scope）
 
-- 前端 `rca-command.html` 的导入 UI（可后续追加，后端端点已可直接用 curl/接口工具触发）。
 - opencode 本身对云捷的访问能力配置（假设执行环境已具备）。
 - 向云捷回写（用户明确仅回写方向为云捷→RCA）。
 - 按月自动调度/分片（用户明确为手工导入或链接输入；如需定时可后续用 Schedule 工具单独建立）。

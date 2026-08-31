@@ -9,16 +9,18 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from .mock_data import SAMPLE_TICKETS
 from .models import (
-    AnalyzeRequest, AnalyzeResponse, AnalysisReport, ConfirmRequest, KBImportRequest, RCAState,
+    AnalyzeRequest, AnalyzeResponse, AnalysisReport, ConfirmRequest, KBImportRequest, KBImportItem, RCAState,
     Code2CnRequest, CodeOutline, AstKg, AstKgEntity, AstKgRelationship,
 )
 from .opencode_adapter import OpenCodeAdapter
 from .pipeline import Pipeline
 from .retriever import Retriever
 from .engine import engine, RCAEngine
+from .agents import AgentA1, AgentA5
 from .runtime_mode import get_current_mode, component_status as _component_status
 from .code2cn import code2cn
 from .codegraph import CodeGraph
@@ -38,6 +40,9 @@ opencode = OpenCodeAdapter(
     model=os.environ.get("OPENCODE_MODEL"),
 )
 pipeline = Pipeline(retriever=retriever, opencode=opencode, repos_dir=str(DATA_DIR / "repos"))
+
+engine.a1 = AgentA1(opencode=opencode)
+engine.a5 = AgentA5(retriever=retriever, opencode=opencode)
 
 tasks: dict[str, dict] = {}
 v3_tasks: dict[str, dict] = {}
@@ -125,6 +130,52 @@ async def kb_import(req: KBImportRequest):
 @app.get("/api/kb/count")
 async def kb_count():
     return {"count": retriever.count()}
+
+
+class YunjieImportRequest(BaseModel):
+    ticket_refs: list[str]
+
+
+@app.post("/api/v1/yunjie/import")
+async def yunjie_import(req: YunjieImportRequest):
+    raw = opencode.fetch_yunjie_tickets(req.ticket_refs)
+    items: list[KBImportItem] = []
+    for d in raw:
+        if not d.get("ticket_id"):
+            continue
+        try:
+            items.append(KBImportItem(**d))
+        except Exception:
+            continue
+    n = retriever.import_tickets(items)
+    for it in items:
+        text = (
+            f"问题单 {it.ticket_id}: {it.title}\n"
+            f"描述: {it.description}\n"
+            f"根因: {it.root_cause}\n"
+            f"修复: {it.fix_code}"
+        )
+        try:
+            await lightrag.ainsert(text, ids=f"yunjie:{it.ticket_id}")
+        except Exception:
+            pass
+    return {"imported": n, "total": retriever.count(), "lightrag_degraded": not lightrag.available}
+
+
+class KbDeleteRequest(BaseModel):
+    ids: list[str]
+
+
+@app.get("/api/kb/tickets")
+async def kb_tickets(limit: int = 50, q: Optional[str] = None):
+    items = retriever.list_tickets(limit=limit, q=q)
+    return {"items": items, "total": len(items), "kb_count": retriever.count()}
+
+
+@app.delete("/api/kb/tickets")
+async def kb_delete_tickets(req: KbDeleteRequest):
+    n = retriever.delete_tickets(req.ids)
+    return {"deleted": n, "total": retriever.count()}
 
 
 # ============================================================================

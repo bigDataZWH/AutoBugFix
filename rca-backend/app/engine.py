@@ -17,6 +17,7 @@ from typing import Any, Callable, Optional
 from .agents import AgentA1, AgentA2, AgentA3, AgentA4, AgentA5, RCAError
 from .config import config
 from .dual_graph import cross_validate
+from .flywheel import flywheel
 from .gates import crag_gate, hil_gate, process_hil_decision
 from .lightrag_adapter import lightrag
 from .models import (
@@ -274,6 +275,20 @@ class RCAEngine:
                 "solution": state.solution.model_dump() if state.solution else {},
                 "gate_status": state.gate_status.model_dump(),
             })
+            try:
+                payload = flywheel.extract_payload(
+                    root_cause=state.top3[0].root_cause if state.top3 else "",
+                    root_cause_function=state.top3[0].located_function if state.top3 else "",
+                    call_path=state.P_runtime.functions,
+                    fix_patch=state.solution.patch_suggestion if state.solution else "",
+                    verify_case="; ".join(state.solution.test_cases) if state.solution else "",
+                    ticket_id=state.bug_info.bug_id,
+                    title=state.bug_info.title,
+                    description=state.bug_info.description,
+                )
+                flywheel.writeback_sync(payload)
+            except Exception:
+                pass
             return state
         except RCAError as exc:
             return self._fail(state, exc.code, exc.message)

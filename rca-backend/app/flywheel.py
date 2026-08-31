@@ -57,6 +57,13 @@ class Flywheel:
         self._similar_edges.append(edge)
         return WritebackResult(inserted=1, similar_edges=[edge])
 
+    def writeback_sync(self, payload: FlywheelPayload) -> WritebackResult:
+        import asyncio
+        try:
+            return asyncio.run(self.writeback(payload))
+        except Exception:
+            return WritebackResult(inserted=0, similar_edges=[])
+
     def extract_payload(
         self,
         root_cause: str,

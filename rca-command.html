@@ -451,6 +451,19 @@ main{position:relative;z-index:2;max-width:1480px;margin:0 auto;padding:16px 24p
 .rag-meta-item b{color:var(--txt-0)}
 .rag-content{font-size:13px;color:var(--txt-0);line-height:1.7;padding:12px;background:var(--bg-2);border-radius:6px;border-left:3px solid var(--violet);white-space:pre-wrap}
 
+/* ===== KB MAINTENANCE VIEW ===== */
+.kb-section{background:var(--bg-1);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px}
+.kb-section h4{font-family:'Space Grotesk';font-size:11px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.kb-section h4 .ic{color:var(--cyan)}
+.kb-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kb-form .field.full{grid-column:1/-1}
+.kb-toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:flex-end}
+.kb-toolbar .field{flex:1;min-width:200px}
+.kb-table-wrap{overflow-x:auto;background:var(--bg-2);border:1px solid var(--border-soft);border-radius:8px}
+.kb-empty{color:var(--txt-2);font-size:11px;padding:14px 0;text-align:center}
+.kb-row-del{color:var(--red);cursor:pointer;font-size:10px;border:1px solid var(--border);border-radius:5px;padding:2px 8px;background:transparent;font-family:'Space Grotesk'}
+.kb-row-del:hover{border-color:var(--red);background:rgba(244,63,94,.08)}
+
 /* ===== FOOTER ===== */
 .foot{margin-top:20px;padding-top:14px;border-top:1px solid var(--border-soft);display:flex;align-items:center;gap:10px;font-size:10px;color:var(--txt-2);font-family:'JetBrains Mono'}
 .foot .sep{color:var(--border)}
@@ -510,6 +523,7 @@ main{position:relative;z-index:2;max-width:1480px;margin:0 auto;padding:16px 24p
     <button class="nav-btn" data-view="codegraph"><span>◐</span> 代码图谱</button>
     <button class="nav-btn" data-view="code2cn"><span>文</span> 中文大纲</button>
     <button class="nav-btn" data-view="rag"><span>◎</span> 知识检索</button>
+    <button class="nav-btn" data-view="kb"><span>⛏</span> 知识库</button>
   </nav>
   <div class="header-spacer"></div>
   <div class="status-cluster">
@@ -818,6 +832,49 @@ main{position:relative;z-index:2;max-width:1480px;margin:0 auto;padding:16px 24p
   </div>
 </div>
 
+<!-- ===== VIEW: KB MAINTENANCE ===== -->
+<div class="view" id="view-kb">
+  <div class="kb-section">
+    <h4><span class="ic">☁</span> 云捷问题单批量导入</h4>
+    <div class="kb-form">
+      <div class="field full"><label>问题单链接/编号（每行一个，通过 opencode 从云捷聚合关联 MR）</label>
+        <div class="input-wrap"><textarea id="kbYunjieRefs" placeholder="https://yunjie.example.com/ticket/MSP-2026-0817&#10;MSP-2026-0999&#10;https://yunjie.example.com/ticket/MSP-2026-1024"></textarea></div>
+      </div>
+    </div>
+    <div style="margin-top:10px"><button class="btn btn-primary btn-sm" id="kbYunjieBtn">☁ 拉取并导入</button></div>
+  </div>
+
+  <div class="kb-section">
+    <h4><span class="ic">✎</span> 手动单条写入知识库</h4>
+    <div class="kb-form">
+      <div class="field"><label>问题单号 <span class="req">*</span></label><div class="input-wrap"><input type="text" id="kbTicketId" placeholder="MSP-2026-0817"></div></div>
+      <div class="field"><label>标题</label><div class="input-wrap"><input type="text" id="kbTitle" placeholder="订单超时"></div></div>
+      <div class="field full"><label>描述</label><div class="input-wrap"><textarea id="kbDesc" placeholder="现象描述…"></textarea></div></div>
+      <div class="field full"><label>根因</label><div class="input-wrap"><textarea id="kbRootCause" placeholder="根因分析…"></textarea></div></div>
+      <div class="field full"><label>修复代码 / Diff</label><div class="input-wrap"><textarea id="kbFixCode" placeholder="修复代码或补丁…"></textarea></div></div>
+      <div class="field"><label>微服务</label><div class="input-wrap"><input type="text" id="kbMicroservice" placeholder="order-center"></div></div>
+      <div class="field"><label>模块</label><div class="input-wrap"><input type="text" id="kbModule" placeholder="OrderService"></div></div>
+      <div class="field"><label>错误码</label><div class="input-wrap"><input type="text" id="kbErrorCode" placeholder="TIMEOUT"></div></div>
+      <div class="field"><label>严重等级</label><div class="input-wrap"><input type="text" id="kbSeverity" placeholder="P1"></div></div>
+    </div>
+    <div style="margin-top:10px"><button class="btn btn-primary btn-sm" id="kbManualBtn">✎ 写入知识库</button></div>
+  </div>
+
+  <div class="kb-section">
+    <h4><span class="ic">◎</span> 知识库列表 / 检索 / 删除</h4>
+    <div class="kb-toolbar">
+      <div class="field"><label>检索关键词（留空则按最近列表）</label>
+        <div class="input-wrap"><input type="text" id="kbSearchQ" placeholder="如：锁竞争 / TIMEOUT / order-center"></div>
+      </div>
+      <button class="btn btn-cyan btn-sm" id="kbSearchBtn">◎ 检索</button>
+      <button class="btn btn-ghost btn-sm" id="kbListBtn">↻ 刷新列表</button>
+    </div>
+    <div class="kb-table-wrap" id="kbTableWrap">
+      <div class="kb-empty">点击「刷新列表」载入知识库条目</div>
+    </div>
+  </div>
+</div>
+
 <div class="foot">
   <span>RCA·Command v3.0.0</span>
   <span class="sep">|</span>
@@ -895,6 +952,7 @@ function switchView(v){
   $$('.view').forEach(function(el){el.classList.toggle('active',el.id==='view-'+v)});
   $$('.nav-btn').forEach(function(b){b.classList.toggle('active',b.dataset.view===v)});
   if(v==='topology')renderTopology();
+  if(v==='kb')kbList();
 }
 
 function switchTab(tab){
@@ -1542,6 +1600,79 @@ function ragSearch(){
   }).catch(function(err){$('#ragResult').innerHTML='<div style="text-align:center;padding:30px;color:var(--red);font-size:13px">'+esc(err.message)+'</div>'});
 }
 
+function kbYunjieImport(){
+  var raw=$('#kbYunjieRefs').value.trim();
+  if(!raw){toast('请输入问题单链接/编号',true);return;}
+  var refs=raw.split(/\n+/).map(function(s){return s.trim()}).filter(Boolean);
+  if(!refs.length){toast('未解析到有效条目',true);return;}
+  $('#kbYunjieBtn').disabled=true;
+  api('/api/v1/yunjie/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket_refs:refs})}).then(function(d){
+    toast('导入 '+d.imported+' 条，知识库共 '+(d.total||0)+' 条'+(d.lightrag_degraded?'（LightRAG 降级）':''));
+    kbList();
+    refreshKb();
+  }).catch(function(err){toast('云捷导入失败：'+err.message,true)}).finally(function(){
+    $('#kbYunjieBtn').disabled=false;
+  });
+}
+
+function kbManualImport(){
+  var tid=$('#kbTicketId').value.trim();
+  if(!tid){toast('问题单号必填',true);return;}
+  var item={
+    ticket_id:tid,
+    title:$('#kbTitle').value.trim(),
+    description:$('#kbDesc').value.trim(),
+    root_cause:$('#kbRootCause').value.trim(),
+    fix_code:$('#kbFixCode').value.trim(),
+    microservice:$('#kbMicroservice').value.trim(),
+    module:$('#kbModule').value.trim(),
+    error_code:$('#kbErrorCode').value.trim(),
+    severity:$('#kbSeverity').value.trim()
+  };
+  api('/api/kb/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:[item]})}).then(function(d){
+    toast('写入成功，知识库共 '+(d.total||0)+' 条');
+    ['kbTicketId','kbTitle','kbDesc','kbRootCause','kbFixCode','kbMicroservice','kbModule','kbErrorCode','kbSeverity'].forEach(function(id){$('#'+id).value=''});
+    kbList();
+    refreshKb();
+  }).catch(function(err){toast('写入失败：'+err.message,true)});
+}
+
+function kbList(){
+  api('/api/kb/tickets?limit=50').then(function(d){renderKbTable(d.items||[],d.kb_count||0)}).catch(function(err){
+    $('#kbTableWrap').innerHTML='<div class="kb-empty" style="color:var(--red)">'+esc(err.message)+'</div>';
+  });
+}
+
+function kbSearch(){
+  var q=$('#kbSearchQ').value.trim();
+  var url='/api/kb/tickets?limit=50'+(q?('&q='+encodeURIComponent(q)):'');
+  api(url).then(function(d){renderKbTable(d.items||[],d.kb_count||0)}).catch(function(err){
+    $('#kbTableWrap').innerHTML='<div class="kb-empty" style="color:var(--red)">'+esc(err.message)+'</div>';
+  });
+}
+
+function renderKbTable(items,total){
+  if(!items.length){$('#kbTableWrap').innerHTML='<div class="kb-empty">知识库为空，请导入或手动写入</div>';return;}
+  var h='<div style="padding:8px 10px;font-size:10px;color:var(--txt-2);font-family:\'JetBrains Mono\'">命中 <b style="color:var(--txt-0)">'+items.length+'</b> 条 · 知识库共 <b style="color:var(--cyan)">'+total+'</b> 条</div>';
+  h+='<table class="cg-table"><thead><tr><th>问题单</th><th>标题</th><th>根因</th><th>微服务</th><th>错误码</th><th>相似度</th><th></th></tr></thead><tbody>';
+  items.forEach(function(it){
+    var sim=it.similarity!=null?fmt(it.similarity):'—';
+    h+='<tr><td>'+esc(it.ticket_id)+'</td><td>'+esc(it.title)+'</td><td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(it.root_cause)+'">'+esc(it.root_cause||'')+'</td><td>'+esc(it.microservice||'')+'</td><td>'+esc(it.error_code||'')+'</td><td>'+sim+'</td><td><button class="kb-row-del" data-id="'+esc(it.ticket_id)+'">删除</button></td></tr>';
+  });
+  h+='</tbody></table>';
+  $('#kbTableWrap').innerHTML=h;
+  $('#kbTableWrap').querySelectorAll('.kb-row-del').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var id=btn.getAttribute('data-id');
+      api('/api/kb/tickets',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids:[id]})}).then(function(d){
+        toast('已删除 '+id+'，剩余 '+(d.total||0)+' 条');
+        kbList();
+        refreshKb();
+      }).catch(function(err){toast('删除失败：'+err.message,true)});
+    });
+  });
+}
+
 function refreshHealth(){
   api('/api/v1/health').then(function(d){
     var up=d.status==='up';
@@ -1622,6 +1753,11 @@ function init(){
   $('#c2cnGenBtn').addEventListener('click',c2cnGen);
   $('#ragSearchBtn').addEventListener('click',ragSearch);
   $('#ragQuery').addEventListener('keydown',function(e){if(e.key==='Enter')ragSearch()});
+  $('#kbYunjieBtn').addEventListener('click',kbYunjieImport);
+  $('#kbManualBtn').addEventListener('click',kbManualImport);
+  $('#kbSearchBtn').addEventListener('click',kbSearch);
+  $('#kbListBtn').addEventListener('click',kbList);
+  $('#kbSearchQ').addEventListener('keydown',function(e){if(e.key==='Enter')kbSearch()});
   $('#hilConfirmBtn').addEventListener('click',function(){sendHilDecision('confirm')});
   $('#hilModifyBtn').addEventListener('click',function(){sendHilDecision('modify')});
   $('#hilRejectBtn').addEventListener('click',function(){sendHilDecision('reject')});
