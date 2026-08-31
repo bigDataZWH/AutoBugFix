@@ -1008,10 +1008,16 @@ function openSSE(taskId){
     try{evt=JSON.parse(e.data);}catch(_){return;}
     if(evt.type==='final'){
       if(eventSource){eventSource.close();eventSource=null;}
-      stopPolling();
-      if(evt.data)renderAll(evt.data);
-      $('#runBtn').disabled=false;
-      setLive('● 已完成');
+      var hilPending=evt.data&&evt.data.gate_status&&evt.data.gate_status.hil==='pending';
+      if(hilPending){
+        showHIL(evt.data);
+        setLive('● 等待人工确认');
+      }else{
+        stopPolling();
+        if(evt.data)renderAll(evt.data);
+        $('#runBtn').disabled=false;
+        setLive('● 已完成');
+      }
     }else if(evt.type==='error'){
       if(eventSource){eventSource.close();eventSource=null;}
       stopPolling();
@@ -1030,9 +1036,10 @@ function startPolling(taskId){
   pollTimer=setInterval(function(){
     api('/api/v1/rca/'+encodeURIComponent(taskId)+'/state').then(function(state){
       updatePipelineFromState(state);
-      if(state.gate_status&&state.gate_status.hil==='pending'){showHIL(state);}
       var st=state.stage&&state.stage.status;
       var idx=state.stage&&state.stage.index;
+      var hilPending=state.gate_status&&state.gate_status.hil==='pending';
+      if(hilPending){showHIL(state);return;}
       if(st==='completed'||idx>=6||st==='failed'||st==='rejected'||idx>=99){
         stopPolling();
         if(eventSource){eventSource.close();eventSource=null;}
@@ -1059,7 +1066,8 @@ function renderAll(s){
   renderRca(s,top3,top1);
   renderDual(s,top1);
   renderSolution(s);
-  setLive('● 已完成');
+  var _st=(s.stage&&s.stage.status)||'completed';
+  setLive(_st==='rejected'?'● 已驳回':(_st==='failed'?'● 失败':'● 已完成'));
   refreshHistory();
 }
 
@@ -1249,7 +1257,7 @@ function sendHilDecision(action){
   var body={action:action,comment:comment||null,confirmed_root_cause_id:fn||'',operator:'HW'};
   api('/api/v1/rca/'+encodeURIComponent(currentTask)+'/confirm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(state){
     hideHIL();
-    toast('HIL '+action+' 已提交，继续生成方案');
+    toast(action==='reject'?'HIL 已驳回，任务终止':'HIL '+action+' 已提交，继续生成方案');
     stopPolling();
     if(eventSource){eventSource.close();eventSource=null;}
     renderAll(state);

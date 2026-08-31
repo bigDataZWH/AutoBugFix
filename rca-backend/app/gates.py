@@ -100,8 +100,15 @@ def process_hil_decision(
 ) -> tuple[list[Candidate], str]:
     if decision.action == "confirm":
         return top3, "confirmed"
-    elif decision.action == "modify" and decision.modified_top3:
-        return decision.modified_top3, "modified"
+    elif decision.action == "modify":
+        if decision.modified_top3:
+            return decision.modified_top3, "modified"
+        picked = getattr(decision, "confirmed_root_cause_id", "") or ""
+        if picked and top3:
+            matched = [c for c in top3 if c.function_name == picked or c.function_id == picked]
+            others = [c for c in top3 if not (c.function_name == picked or c.function_id == picked)]
+            return matched + others, "modified"
+        return top3, "modified"
     elif decision.action == "reject":
         return [], "rejected"
     return top3, "confirmed"
