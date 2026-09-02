@@ -1,0 +1,8 @@
+[
+  {"src": "OrderController.createOrder", "tgt": "OrderService.submit", "type": "call", "weight": 8.0},
+  {"src": "OrderService.submit", "tgt": "OrderLockService.acquire", "type": "call", "weight": 7.0},
+  {"src": "OrderService.submit", "tgt": "InventoryService.deduct", "type": "call", "weight": 6.0},
+  {"src": "OrderService.submit", "tgt": "PaymentClient.charge", "type": "call", "weight": 5.0},
+  {"src": "OrderLockService.acquire", "tgt": "JedisPool.getResource", "type": "call", "weight": 9.0},
+  {"src": "OrderController.createOrder", "tgt": "OrderLockService.acquire", "type": "dataflow", "weight": 3.0}
+]

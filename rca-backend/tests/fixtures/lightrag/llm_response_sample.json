@@ -1,0 +1,5 @@
+{
+  "history": "POST /order/create 偶发500，NullPointerException at OrderService.java:42",
+  "propagation": "OrderController.createOrder → OrderService.create → InventoryService.getStock → JedisPool.getResource [BLOCKED]",
+  "architecture": "订单中心微服务架构：OrderService 为核心编排服务，依赖 InventoryService(库存) 和 PaymentClient(支付)，通过 Kafka 异步通知下游"
+}

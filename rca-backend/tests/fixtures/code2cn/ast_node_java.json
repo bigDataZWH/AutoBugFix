@@ -1,0 +1,9 @@
+{
+  "symbol": "OrderService.create",
+  "file": "src/main/java/com/example/order/OrderService.java",
+  "start_line": 42,
+  "end_line": 68,
+  "source_code": "public OrderResult create(OrderRequest req) {\n    // 1. 参数校验\n    if (req.getProductId() == null) {\n        throw new IllegalArgumentException(\"productId required\");\n    }\n    // 2. 库存校验\n    int stock = inventoryService.getStock(req.getProductId());\n    if (stock < req.getQuantity()) {\n        throw new InsufficientStockException(req.getProductId());\n    }\n    // 3. 创建订单\n    Order order = new Order();\n    order.setProductId(req.getProductId());\n    order.setQuantity(req.getQuantity());\n    order.setStatus(OrderStatus.CREATED);\n    try {\n        orderRepo.save(order);\n    } catch (DataAccessException e) {\n        log.error(\"DB save failed\", e);\n        throw new OrderPersistException(\"订单持久化失败\", e);\n    }\n    // 4. 发送消息\n    kafkaTemplate.send(\"order-created\", order.getId().toString());\n    return OrderResult.success(order);\n}",
+  "language": "java",
+  "signature": "public OrderResult create(OrderRequest req)"
+}

@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+rca-backend/data/
+rca-backend/.codegraph/
+.env
+*.log
+.venv/
+venv/
+*.db

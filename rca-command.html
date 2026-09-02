@@ -3,424 +3,507 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RCA Command · 问题单智能根因分析平台</title>
+<title>RCA Command · 问题单智能根因分析平台 v3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg-0:#070b14;
-  --bg-1:#0d1320;
-  --bg-2:#131b2c;
-  --bg-3:#1a2538;
-  --border:#26324a;
-  --border-soft:#1e2840;
-  --txt-0:#e8eef7;
-  --txt-1:#a6b3c8;
-  --txt-2:#6b7891;
-  --cyan:#22d3ee;
-  --cyan-dim:#0e7490;
-  --amber:#fbbf24;
-  --amber-dim:#92400e;
-  --green:#34d399;
-  --green-dim:#065f46;
-  --red:#f87171;
-  --violet:#a78bfa;
-  --grid-line:rgba(34,211,238,.06);
-  --glow-cyan:0 0 24px rgba(34,211,238,.35);
-  --glow-amber:0 0 24px rgba(251,191,36,.3);
+  --bg-0:#0a0d12;--bg-1:#0f131a;--bg-2:#141921;--bg-3:#1a2030;--bg-4:#1e2638;
+  --border:#212836;--border-soft:#181d28;
+  --txt-0:#e6ecf3;--txt-1:#9ba6b8;--txt-2:#5e6878;
+  --cyan:#2dd4bf;--cyan-dim:#0d9488;--amber:#f59e0b;--amber-dim:#b45309;
+  --green:#10b981;--green-dim:#047857;--red:#f43f5e;--violet:#8b5cf6;
+  --glow-cyan:0 0 0 3px rgba(45,212,191,.12);--glow-amber:0 0 0 3px rgba(245,158,11,.12);
+  --glow-red:0 0 0 3px rgba(244,63,94,.12);
+  --nav-h:52px;--header-h:56px;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%}
 body{
-  font-family:'IBM Plex Sans',sans-serif;
-  background:var(--bg-0);
-  color:var(--txt-0);
-  font-size:14px;
-  line-height:1.5;
-  overflow-x:hidden;
-  background-image:
-    linear-gradient(var(--grid-line) 1px,transparent 1px),
-    linear-gradient(90deg,var(--grid-line) 1px,transparent 1px),
-    radial-gradient(ellipse at 20% 0%,rgba(34,211,238,.08),transparent 50%),
-    radial-gradient(ellipse at 90% 10%,rgba(167,139,250,.06),transparent 45%);
-  background-size:32px 32px,32px 32px,100% 100%,100% 100%;
-}
-body::before{
-  content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
-  background:repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0 1px,transparent 1px 3px);
+  font-family:'Inter',system-ui,sans-serif;background:var(--bg-0);color:var(--txt-0);
+  font-size:14px;line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased;
 }
 .mono{font-family:'JetBrains Mono',monospace}
-.display{font-family:'Chakra Petch',sans-serif;letter-spacing:.02em}
+.display{font-family:'Space Grotesk',sans-serif}
 
 /* ===== HEADER ===== */
 header{
-  position:sticky;top:0;z-index:50;
-  display:flex;align-items:center;gap:24px;
-  padding:14px 28px;
-  background:rgba(7,11,20,.85);
-  backdrop-filter:blur(12px);
+  position:sticky;top:0;z-index:100;height:var(--header-h);
+  display:flex;align-items:center;gap:16px;padding:0 24px;
+  background:rgba(10,13,18,.96);backdrop-filter:blur(16px);
   border-bottom:1px solid var(--border);
 }
-.brand{display:flex;align-items:center;gap:14px}
+.brand{display:flex;align-items:center;gap:10px;flex-shrink:0}
 .brand-mark{
-  width:38px;height:38px;position:relative;
-  background:linear-gradient(135deg,var(--cyan),var(--violet));
-  clip-path:polygon(20% 0,100% 0,80% 100%,0 100%);
-  display:flex;align-items:center;justify-content:center;
+  width:30px;height:30px;background:linear-gradient(135deg,var(--cyan),var(--cyan-dim));
+  border-radius:7px;display:flex;align-items:center;justify-content:center;
+  font-family:'Space Grotesk';font-weight:700;font-size:16px;color:#0a0d12;
 }
-.brand-mark::after{
-  content:'';position:absolute;inset:3px;
-  background:var(--bg-0);
-  clip-path:polygon(20% 0,100% 0,80% 100%,0 100%);
-}
-.brand-mark span{
-  position:relative;z-index:2;font-family:'Chakra Petch';font-weight:700;
-  font-size:18px;color:var(--cyan);
-  text-shadow:0 0 8px rgba(34,211,238,.6);
-}
-.brand-text h1{
-  font-family:'Chakra Petch';font-weight:600;font-size:17px;letter-spacing:.04em;
-}
+.brand-text h1{font-family:'Space Grotesk';font-weight:600;font-size:15px}
 .brand-text h1 b{color:var(--cyan)}
-.brand-text p{font-size:11px;color:var(--txt-2);letter-spacing:.12em;text-transform:uppercase}
-.header-nav{display:flex;gap:4px;margin-left:16px}
-.header-nav a{
-  padding:7px 14px;font-size:13px;color:var(--txt-1);
-  border:1px solid transparent;border-radius:4px;text-decoration:none;
-  transition:all .2s;
+.brand-text p{font-size:10px;color:var(--txt-2);letter-spacing:.05em;margin-top:-1px}
+.header-nav{display:flex;gap:1px;margin-left:12px;flex:1}
+.nav-btn{
+  padding:6px 14px;font-size:13px;color:var(--txt-1);border-radius:6px;
+  cursor:pointer;transition:all .15s;font-weight:500;background:none;border:none;
+  display:flex;align-items:center;gap:6px;white-space:nowrap;
 }
-.header-nav a:hover{color:var(--txt-0);background:var(--bg-2)}
-.header-nav a.active{color:var(--cyan);border-color:var(--cyan-dim);background:rgba(34,211,238,.08)}
+.nav-btn:hover{color:var(--txt-0);background:var(--bg-2)}
+.nav-btn.active{color:var(--cyan);background:rgba(45,212,191,.08)}
+.nav-btn .badge{
+  font-size:9px;padding:0 5px;border-radius:6px;background:var(--bg-3);color:var(--txt-2);
+  font-family:'JetBrains Mono';
+}
+.nav-btn.active .badge{background:var(--cyan-dim);color:var(--cyan)}
 .header-spacer{flex:1}
-.status-cluster{display:flex;align-items:center;gap:20px}
+.status-cluster{display:flex;align-items:center;gap:14px;flex-shrink:0}
 .status-pill{
-  display:flex;align-items:center;gap:8px;
-  font-size:11px;color:var(--txt-1);letter-spacing:.06em;text-transform:uppercase;
+  display:flex;align-items:center;gap:6px;font-size:10px;color:var(--txt-1);font-weight:500;
 }
-.dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
 .dot.pulse{animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.kb-meter{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--txt-2);text-transform:uppercase;letter-spacing:.1em}
-.kb-meter b{color:var(--txt-0);font-family:'JetBrains Mono';font-size:13px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.dot.amber{background:var(--amber)}.dot.red{background:var(--red)}.dot.violet{background:var(--violet)}
+.kb-meter{font-size:10px;color:var(--txt-2)}
+.kb-meter b{color:var(--txt-0);font-family:'JetBrains Mono';font-size:11px}
 .user-chip{
-  display:flex;align-items:center;gap:10px;padding:6px 12px 6px 6px;
-  background:var(--bg-2);border:1px solid var(--border);border-radius:30px;
+  display:flex;align-items:center;gap:6px;padding:4px 10px 4px 4px;
+  background:var(--bg-2);border:1px solid var(--border);border-radius:18px;font-size:11px;
 }
 .avatar{
-  width:26px;height:26px;border-radius:50%;
-  background:linear-gradient(135deg,var(--amber),var(--red));
+  width:22px;height:22px;border-radius:50%;
+  background:linear-gradient(135deg,var(--amber),#d97706);
   display:flex;align-items:center;justify-content:center;
-  font-family:'Chakra Petch';font-weight:600;font-size:12px;color:#1a1206;
+  font-family:'Space Grotesk';font-weight:600;font-size:10px;color:#1a1206;
 }
 
 /* ===== LAYOUT ===== */
-main{position:relative;z-index:2;max-width:1680px;margin:0 auto;padding:24px 28px 60px}
-.layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
+main{position:relative;z-index:2;max-width:1480px;margin:0 auto;padding:16px 24px 40px}
+.view{display:none}.view.active{display:block;animation:fadeUp .35s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.layout{display:grid;grid-template-columns:1fr 290px;gap:16px;align-items:start}
 
 /* ===== INPUT CONSOLE ===== */
-.console{
-  background:linear-gradient(180deg,var(--bg-1),var(--bg-2));
-  border:1px solid var(--border);
-  border-radius:10px;
-  overflow:hidden;
-  position:relative;
-}
-.console::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
-  opacity:.5;
-}
+.console{background:var(--bg-1);border:1px solid var(--border);border-radius:12px;overflow:hidden}
 .console-head{
-  display:flex;align-items:center;gap:10px;
-  padding:14px 20px;border-bottom:1px solid var(--border-soft);
-  background:rgba(0,0,0,.2);
+  display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid var(--border-soft);
 }
 .console-head .tag{
-  font-family:'JetBrains Mono';font-size:10px;color:var(--cyan);
-  padding:2px 8px;background:rgba(34,211,238,.1);border:1px solid var(--cyan-dim);
-  border-radius:3px;letter-spacing:.1em;
+  font-family:'JetBrains Mono';font-size:9px;color:var(--cyan);
+  padding:2px 7px;background:rgba(45,212,191,.08);border:1px solid var(--cyan-dim);
+  border-radius:4px;letter-spacing:.04em;
 }
-.console-head h2{font-family:'Chakra Petch';font-size:15px;font-weight:600;letter-spacing:.03em}
-.console-head .sub{font-size:11px;color:var(--txt-2);margin-left:auto;font-family:'JetBrains Mono'}
-.console-body{padding:22px 24px}
-.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-.field{display:flex;flex-direction:column;gap:7px}
+.console-head h2{font-family:'Space Grotesk';font-size:13px;font-weight:600}
+.console-head .sub{font-size:10px;color:var(--txt-2);margin-left:auto;font-family:'JetBrains Mono'}
+.console-body{padding:16px 18px}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:flex;flex-direction:column;gap:5px}
 .field.full{grid-column:1/-1}
-.field label{
-  font-size:11px;color:var(--txt-1);text-transform:uppercase;letter-spacing:.1em;
-  display:flex;align-items:center;gap:6px;font-weight:500;
-}
+.field.half{grid-column:span 1}
+.field label{font-size:10px;color:var(--txt-1);font-weight:500;display:flex;align-items:center;gap:4px}
 .field label .req{color:var(--amber)}
-.field label .ico{color:var(--cyan);font-family:'JetBrains Mono'}
+.field label .ico{color:var(--cyan);font-family:'JetBrains Mono';font-size:9px}
 .input-wrap{position:relative}
 .input-wrap input,.input-wrap select,.input-wrap textarea{
   width:100%;background:var(--bg-0);border:1px solid var(--border);
-  color:var(--txt-0);font-family:'IBM Plex Sans';font-size:13px;
-  padding:11px 13px;border-radius:6px;outline:none;transition:all .2s;
+  color:var(--txt-0);font-family:'Inter';font-size:12px;
+  padding:8px 10px;border-radius:7px;outline:none;transition:all .15s;
 }
-.input-wrap textarea{min-height:74px;resize:vertical;font-family:'JetBrains Mono';font-size:12px}
+.input-wrap textarea{min-height:58px;resize:vertical;font-family:'JetBrains Mono';font-size:11px;line-height:1.6}
 .input-wrap input:focus,.input-wrap select:focus,.input-wrap textarea:focus{
-  border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.12);
+  border-color:var(--cyan);box-shadow:var(--glow-cyan);
 }
 .input-wrap .prefix{
-  position:absolute;left:11px;top:50%;transform:translateY(-50%);
-  color:var(--txt-2);font-family:'JetBrains Mono';font-size:12px;pointer-events:none;
+  position:absolute;left:9px;top:50%;transform:translateY(-50%);
+  color:var(--txt-2);font-family:'JetBrains Mono';font-size:10px;pointer-events:none;
 }
-.input-wrap.with-prefix input{padding-left:32px}
-.select-chev{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--txt-2);pointer-events:none}
+.input-wrap.with-prefix input{padding-left:27px}
+.select-chev{position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--txt-2);pointer-events:none;font-size:10px}
 .console-foot{
-  display:flex;align-items:center;gap:14px;
-  padding:16px 24px;border-top:1px solid var(--border-soft);background:rgba(0,0,0,.15);
+  display:flex;align-items:center;gap:10px;padding:12px 18px;border-top:1px solid var(--border-soft);
 }
 .btn{
-  font-family:'Chakra Petch';font-weight:600;font-size:13px;letter-spacing:.06em;
-  padding:11px 22px;border-radius:6px;border:1px solid;cursor:pointer;
-  display:inline-flex;align-items:center;gap:9px;transition:all .2s;text-transform:uppercase;
+  font-family:'Space Grotesk';font-weight:600;font-size:12px;
+  padding:8px 18px;border-radius:7px;border:1px solid;cursor:pointer;
+  display:inline-flex;align-items:center;gap:7px;transition:all .15s;
 }
-.btn-primary{
-  background:linear-gradient(135deg,var(--cyan-dim),#0891b2);
-  border-color:var(--cyan);color:#021016;
-  box-shadow:0 4px 16px rgba(34,211,238,.25);
-}
-.btn-primary:hover{box-shadow:0 6px 24px rgba(34,211,238,.4);transform:translateY(-1px)}
-.btn-primary:active{transform:translateY(0)}
-.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-primary{background:var(--cyan);border-color:var(--cyan);color:#0a0d12}
+.btn-primary:hover{background:#5eeade;border-color:#5eeade}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed}
 .btn-ghost{background:transparent;border-color:var(--border);color:var(--txt-1)}
 .btn-ghost:hover{border-color:var(--txt-2);color:var(--txt-0)}
-.console-foot .hint{font-size:11px;color:var(--txt-2);font-family:'JetBrains Mono';margin-left:auto;display:flex;align-items:center;gap:6px}
+.btn-sm{padding:5px 12px;font-size:11px}
+.btn-cyan{color:var(--cyan);border-color:var(--cyan-dim);background:rgba(45,212,191,.06)}
+.btn-cyan:hover{background:rgba(45,212,191,.12)}
+.console-foot .hint{font-size:10px;color:var(--txt-2);font-family:'JetBrains Mono';margin-left:auto}
 
 /* ===== PIPELINE ===== */
-.pipeline{
-  margin-top:20px;background:var(--bg-1);border:1px solid var(--border);
-  border-radius:10px;overflow:hidden;
-}
-.pipeline-head{display:flex;align-items:center;gap:10px;padding:13px 20px;border-bottom:1px solid var(--border-soft);background:rgba(0,0,0,.2)}
-.pipeline-head h2{font-family:'Chakra Petch';font-size:14px;font-weight:600;letter-spacing:.03em}
-.pipeline-head .live{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:10px;color:var(--txt-2);font-family:'JetBrains Mono';text-transform:uppercase;letter-spacing:.1em}
+.pipeline{margin-top:12px;background:var(--bg-1);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.pipeline-head{display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid var(--border-soft)}
+.pipeline-head h2{font-family:'Space Grotesk';font-size:13px;font-weight:600}
+.pipeline-head .live{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:10px;color:var(--txt-2);font-family:'JetBrains Mono'}
 .stages{
   display:grid;grid-template-columns:repeat(6,1fr);
-  padding:26px 20px;gap:8px;position:relative;
+  padding:20px 16px;gap:4px;position:relative;
 }
-.stage{
-  position:relative;text-align:center;
-}
+.stage{position:relative;text-align:center}
 .stage:not(:last-child)::after{
-  content:'';position:absolute;top:18px;left:60%;right:-40%;height:2px;
-  background:var(--border);z-index:0;
+  content:'';position:absolute;top:14px;left:58%;right:-42%;height:1.5px;
+  background:var(--border);z-index:0;transition:background .3s;
 }
 .stage:not(:last-child).done::after{background:var(--green)}
 .stage:not(:last-child).active::after{background:linear-gradient(90deg,var(--cyan),var(--border))}
+.stage:not(:last-child).fail::after{background:var(--red)}
 .node{
-  width:38px;height:38px;margin:0 auto 12px;border-radius:50%;
-  background:var(--bg-2);border:2px solid var(--border);
+  width:28px;height:28px;margin:0 auto 8px;border-radius:50%;
+  background:var(--bg-2);border:1.5px solid var(--border);
   display:flex;align-items:center;justify-content:center;
-  position:relative;z-index:2;transition:all .4s;
-  font-family:'JetBrains Mono';font-size:13px;font-weight:700;color:var(--txt-2);
+  position:relative;z-index:2;transition:all .3s;
+  font-family:'JetBrains Mono';font-size:11px;font-weight:600;color:var(--txt-2);
 }
-.stage.done .node{border-color:var(--green);color:var(--green);background:rgba(52,211,153,.08)}
-.stage.done .node::after{content:'✓';position:absolute;font-size:15px}
+.stage.done .node{border-color:var(--green);color:var(--green);background:rgba(16,185,129,.06)}
+.stage.done .node::after{content:'\u2713';position:absolute;font-size:12px}
 .stage.done .node span{display:none}
+.stage.fail .node{border-color:var(--red);color:var(--red);background:rgba(244,63,94,.06)}
+.stage.fail .node::after{content:'\u2717';position:absolute;font-size:12px}
+.stage.fail .node span{display:none}
 .stage.active .node{
   border-color:var(--cyan);color:var(--cyan);
-  box-shadow:var(--glow-cyan);
-  animation:nspin 1.2s linear infinite;
+  box-shadow:var(--glow-cyan);animation:nspin 1.5s ease-in-out infinite;
 }
-@keyframes nspin{0%{box-shadow:0 0 0 0 rgba(34,211,238,.4)}100%{box-shadow:0 0 0 12px rgba(34,211,238,0)}}
-.stage-label{font-size:11px;color:var(--txt-1);font-weight:500;line-height:1.3}
+@keyframes nspin{0%,100%{box-shadow:0 0 0 0 rgba(45,212,191,.2)}50%{box-shadow:0 0 0 8px rgba(45,212,191,0)}}
+.stage-label{font-size:10px;color:var(--txt-1);font-weight:500;line-height:1.3}
 .stage.active .stage-label{color:var(--cyan)}
-.stage-done-label{font-size:9px;color:var(--txt-2);font-family:'JetBrains Mono';margin-top:3px;text-transform:uppercase;letter-spacing:.08em}
-.stage.active .stage-done-label{color:var(--cyan);opacity:.7}
+.stage-done-label{font-size:8px;color:var(--txt-2);font-family:'JetBrains Mono';margin-top:1px;letter-spacing:.02em}
+.stage.active .stage-done-label{color:var(--cyan);opacity:.6}
 
 /* ===== RESULTS ===== */
-.results{
-  margin-top:20px;background:var(--bg-1);border:1px solid var(--border);
-  border-radius:10px;overflow:hidden;display:none;
-}
-.results.show{display:block;animation:fadeUp .5s ease}
-@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-.results-head{display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--border-soft);background:rgba(0,0,0,.2)}
+.results{margin-top:12px;background:var(--bg-1);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:none}
+.results.show{display:block;animation:fadeUp .4s ease}
+.results-head{display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid var(--border-soft);flex-wrap:wrap}
 .results-head .confidence{
-  display:flex;align-items:center;gap:8px;font-size:11px;font-family:'JetBrains Mono';
-  padding:4px 10px;border-radius:4px;border:1px solid var(--green-dim);background:rgba(52,211,153,.08);color:var(--green)
+  display:flex;align-items:center;gap:5px;font-size:10px;font-family:'JetBrains Mono';font-weight:600;
+  padding:2px 7px;border-radius:5px;border:1px solid var(--green-dim);background:rgba(16,185,129,.06);color:var(--green)
 }
-.results-head .meta{font-size:11px;color:var(--txt-2);font-family:'JetBrains Mono';margin-left:auto}
-.tabs{display:flex;border-bottom:1px solid var(--border-soft);background:var(--bg-2);overflow-x:auto}
+.results-head .meta{font-size:10px;color:var(--txt-2);font-family:'JetBrains Mono';margin-left:auto}
+.tabs{display:flex;border-bottom:1px solid var(--border-soft);overflow-x:auto}
 .tab{
-  padding:13px 20px;font-family:'Chakra Petch';font-size:13px;font-weight:500;
+  padding:9px 16px;font-family:'Space Grotesk';font-size:12px;font-weight:500;
   color:var(--txt-1);cursor:pointer;border-bottom:2px solid transparent;
-  display:flex;align-items:center;gap:8px;white-space:nowrap;transition:all .2s;
-  letter-spacing:.03em;
+  display:flex;align-items:center;gap:6px;white-space:nowrap;transition:all .15s;
 }
 .tab:hover{color:var(--txt-0)}
 .tab.active{color:var(--cyan);border-bottom-color:var(--cyan)}
 .tab .badge{
-  font-family:'JetBrains Mono';font-size:10px;padding:1px 6px;border-radius:10px;
+  font-family:'JetBrains Mono';font-size:9px;padding:1px 5px;border-radius:8px;
   background:var(--bg-3);color:var(--txt-1);
 }
 .tab.active .badge{background:var(--cyan-dim);color:var(--cyan)}
-.tab-panels{padding:24px}
+.tab-panels{padding:18px}
 .tab-panel{display:none}
-.tab-panel.active{display:block;animation:fadeUp .4s ease}
+.tab-panel.active{display:block;animation:fadeUp .3s ease}
 
-/* Root cause */
+/* Root cause cards */
 .rc-summary{
-  display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start;
-  padding:18px;background:var(--bg-2);border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:8px;margin-bottom:20px;
+  display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;
+  padding:14px;background:var(--bg-2);border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:8px;margin-bottom:14px;
 }
 .rc-summary .ico{
-  width:42px;height:42px;border-radius:8px;background:rgba(251,191,36,.1);
-  display:flex;align-items:center;justify-content:center;font-size:20px;
+  width:34px;height:34px;border-radius:7px;background:rgba(245,158,11,.08);
+  display:flex;align-items:center;justify-content:center;font-size:16px;
 }
-.rc-summary h3{font-family:'Chakra Petch';font-size:15px;margin-bottom:6px}
-.rc-summary p{font-size:13px;color:var(--txt-1);line-height:1.6}
-.rc-summary .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
-.chip{font-family:'JetBrains Mono';font-size:10px;padding:3px 8px;border-radius:3px;background:var(--bg-3);border:1px solid var(--border);color:var(--txt-1)}
-.chip.amber{color:var(--amber);border-color:var(--amber-dim);background:rgba(251,191,36,.08)}
-.chip.cyan{color:var(--cyan);border-color:var(--cyan-dim);background:rgba(34,211,238,.08)}
-.chip.violet{color:var(--violet);border-color:#6d28d9;background:rgba(167,139,250,.08)}
+.rc-summary h3{font-family:'Space Grotesk';font-size:13px;margin-bottom:4px;font-weight:600}
+.rc-summary p{font-size:12px;color:var(--txt-1);line-height:1.6}
+.rc-summary .tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.chip{font-family:'JetBrains Mono';font-size:9px;padding:2px 6px;border-radius:4px;background:var(--bg-3);border:1px solid var(--border);color:var(--txt-1)}
+.chip.amber{color:var(--amber);border-color:var(--amber-dim);background:rgba(245,158,11,.06)}
+.chip.cyan{color:var(--cyan);border-color:var(--cyan-dim);background:rgba(45,212,191,.06)}
+.chip.violet{color:var(--violet);border-color:#6d28d9;background:rgba(139,92,246,.06)}
+.chip.green{color:var(--green);border-color:var(--green-dim);background:rgba(16,185,129,.06)}
+.chip.red{color:var(--red);border-color:var(--red);background:rgba(244,63,94,.06)}
 
-.section-title{display:flex;align-items:center;gap:10px;margin:22px 0 12px;font-family:'Chakra Petch';font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--txt-1)}
-.section-title::before{content:'';width:3px;height:14px;background:var(--cyan);border-radius:2px}
-.section-title .count{font-family:'JetBrains Mono';font-size:11px;color:var(--txt-2);font-weight:400;margin-left:auto;text-transform:none}
+.section-title{
+  display:flex;align-items:center;gap:7px;margin:16px 0 8px;
+  font-family:'Space Grotesk';font-size:11px;font-weight:600;color:var(--txt-1);
+}
+.section-title::before{content:'';width:2.5px;height:12px;background:var(--cyan);border-radius:2px}
+.section-title .count{font-family:'JetBrains Mono';font-size:9px;color:var(--txt-2);font-weight:400;margin-left:auto}
 
-.call-stack{font-family:'JetBrains Mono';font-size:12px;background:var(--bg-0);border:1px solid var(--border);border-radius:8px;overflow:hidden}
-.stack-line{display:flex;gap:0;padding:9px 14px;border-bottom:1px solid var(--border-soft);align-items:center}
+/* Evidence chain */
+.evidence-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.evidence-card{
+  background:var(--bg-2);border:1px solid var(--border);border-radius:7px;padding:10px;text-align:center;
+}
+.evidence-card .ev-label{font-size:9px;color:var(--txt-2);font-family:'JetBrains Mono';text-transform:uppercase;letter-spacing:.03em}
+.evidence-card .ev-value{font-family:'Space Grotesk';font-size:18px;font-weight:700;margin:4px 0 2px}
+.evidence-card .ev-bar{height:3px;background:var(--bg-3);border-radius:2px;overflow:hidden}
+.evidence-card .ev-bar i{display:block;height:100%;border-radius:2px;transition:width .6s ease}
+.evidence-card.high .ev-value{color:var(--green)}.evidence-card.high .ev-bar i{background:var(--green)}
+.evidence-card.med .ev-value{color:var(--amber)}.evidence-card.med .ev-bar i{background:var(--amber)}
+.evidence-card.low .ev-value{color:var(--red)}.evidence-card.low .ev-bar i{background:var(--red)}
+.evidence-card.none .ev-value{color:var(--txt-2)}.evidence-card.none .ev-bar i{background:var(--txt-2)}
+
+/* Call stack */
+.call-stack{font-family:'JetBrains Mono';font-size:11px;background:var(--bg-0);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:14px}
+.stack-line{display:flex;gap:0;padding:6px 10px;border-bottom:1px solid var(--border-soft);align-items:center}
 .stack-line:last-child{border-bottom:none}
-.stack-line .ln{color:var(--txt-2);width:30px;flex-shrink:0}
+.stack-line .ln{color:var(--txt-2);width:20px;flex-shrink:0}
 .stack-line .fn{color:var(--cyan)}
-.stack-line .file{color:var(--txt-1);margin-left:auto;font-size:11px}
-.stack-line.culprit{background:rgba(248,113,113,.08);border-left:3px solid var(--red);padding-left:11px}
+.stack-line .file{color:var(--txt-1);margin-left:auto;font-size:10px}
+.stack-line.culprit{background:rgba(244,63,94,.05);border-left:2px solid var(--red);padding-left:8px}
 .stack-line.culprit .fn{color:var(--red)}
-.stack-line.culprit::after{content:'⚠ CULPRIT';color:var(--red);font-size:9px;margin-left:12px;padding:2px 6px;background:rgba(248,113,113,.12);border-radius:3px}
 
-/* KB matches */
+/* Top3 candidates */
+.candidate-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.cand-card{
+  background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:12px;position:relative;
+  border-top:2px solid var(--border);
+}
+.cand-card.top1{border-top-color:var(--amber)}
+.cand-card.top2{border-top-color:var(--txt-2)}
+.cand-card.top3{border-top-color:var(--violet)}
+.cand-card .rank{
+  font-family:'Space Grotesk';font-size:10px;font-weight:600;color:var(--txt-2);
+  display:flex;align-items:center;gap:5px;margin-bottom:6px;
+}
+.cand-card .cand-fn{font-size:12px;font-weight:600;margin-bottom:4px;word-break:break-all}
+.cand-card .cand-rc{font-size:11px;color:var(--txt-1);margin-bottom:6px;line-height:1.5}
+.cand-card .cand-meta{font-size:9px;color:var(--txt-2);font-family:'JetBrains Mono'}
+.cand-card .cand-conf{
+  position:absolute;top:10px;right:10px;font-family:'Space Grotesk';font-size:16px;font-weight:700;
+}
+.cand-card.top1 .cand-conf{color:var(--amber)}
+.cand-card.top2 .cand-conf{color:var(--txt-1)}
+.cand-card.top3 .cand-conf{color:var(--violet)}
+
+/* KB cards */
 .kb-card{
-  background:var(--bg-2);border:1px solid var(--border);border-radius:8px;
-  padding:16px;margin-bottom:14px;transition:all .2s;position:relative;
+  background:var(--bg-2);border:1px solid var(--border);border-radius:7px;
+  padding:12px;margin-bottom:10px;transition:all .15s;position:relative;
 }
-.kb-card:hover{border-color:var(--cyan-dim);transform:translateX(3px)}
-.kb-card::before{content:'';position:absolute;left:0;top:14px;bottom:14px;width:3px;background:var(--violet);border-radius:2px}
-.kb-card-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-left:10px}
+.kb-card:hover{border-color:var(--cyan-dim)}
+.kb-card::before{content:'';position:absolute;left:0;top:10px;bottom:10px;width:2.5px;background:var(--violet);border-radius:2px}
+.kb-card-head{display:flex;align-items:center;gap:7px;margin-bottom:6px;padding-left:8px}
 .kb-sim{
-  font-family:'JetBrains Mono';font-size:11px;font-weight:700;
-  padding:3px 8px;border-radius:4px;color:var(--green);
-  background:rgba(52,211,153,.12);border:1px solid var(--green-dim);
+  font-family:'JetBrains Mono';font-size:10px;font-weight:600;
+  padding:2px 6px;border-radius:4px;color:var(--green);
+  background:rgba(16,185,129,.08);border:1px solid var(--green-dim);
 }
-.kb-sim.med{color:var(--amber);background:rgba(251,191,36,.1);border-color:var(--amber-dim)}
-.kb-card h4{font-size:13px;font-weight:600;flex:1}
-.kb-card .tid{font-family:'JetBrains Mono';font-size:10px;color:var(--txt-2)}
-.kb-card-body{padding-left:10px;font-size:12px;color:var(--txt-1);line-height:1.6}
-.kb-card-body .label{color:var(--cyan);font-family:'JetBrains Mono';font-size:10px;text-transform:uppercase;letter-spacing:.08em;margin-top:8px;display:block}
-.kb-card-body code{font-family:'JetBrains Mono';font-size:11px;color:var(--amber);background:rgba(251,191,36,.08);padding:1px 5px;border-radius:3px}
+.kb-sim.med{color:var(--amber);background:rgba(245,158,11,.06);border-color:var(--amber-dim)}
+.kb-card h4{font-size:12px;font-weight:600;flex:1}
+.kb-card .tid{font-family:'JetBrains Mono';font-size:9px;color:var(--txt-2)}
+.kb-card-body{padding-left:8px;font-size:11px;color:var(--txt-1);line-height:1.6}
+.kb-card-body .label{color:var(--cyan);font-family:'JetBrains Mono';font-size:9px;margin-top:5px;display:block}
+.kb-card-body code{font-family:'JetBrains Mono';font-size:10px;color:var(--amber);background:rgba(245,158,11,.06);padding:1px 4px;border-radius:3px}
 
-/* best practices */
-.bp-item{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--border-soft)}
+/* BP items */
+.bp-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-soft)}
 .bp-item:last-child{border-bottom:none}
-.bp-num{font-family:'Chakra Petch';font-size:22px;font-weight:700;color:var(--cyan);opacity:.5;flex-shrink:0;width:34px}
-.bp-content h4{font-size:13px;font-weight:600;margin-bottom:5px}
-.bp-content p{font-size:12px;color:var(--txt-1);line-height:1.6}
-.bp-content .src{font-family:'JetBrains Mono';font-size:10px;color:var(--txt-2);margin-top:6px}
+.bp-num{font-family:'Space Grotesk';font-size:18px;font-weight:700;color:var(--cyan);opacity:.4;flex-shrink:0;width:26px}
+.bp-content h4{font-size:12px;font-weight:600;margin-bottom:3px}
+.bp-content p{font-size:11px;color:var(--txt-1);line-height:1.6}
+.bp-content .src{font-family:'JetBrains Mono';font-size:9px;color:var(--txt-2);margin-top:4px}
 
-/* design solution */
-.solution-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
-.sol-block{background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:16px}
-.sol-block h4{font-family:'Chakra Petch';font-size:13px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
-.sol-block h4 .ic{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px}
-.sol-block.before h4 .ic{background:rgba(248,113,113,.15);color:var(--red)}
-.sol-block.after h4 .ic{background:rgba(52,211,153,.15);color:var(--green)}
-.code-block{font-family:'JetBrains Mono';font-size:11.5px;background:var(--bg-0);border:1px solid var(--border-soft);border-radius:6px;padding:12px;overflow-x:auto;line-height:1.7;color:var(--txt-1)}
-.code-block .kw{color:var(--violet)}
-.code-block .fn{color:var(--cyan)}
-.code-block .str{color:var(--green)}
-.code-block .com{color:var(--txt-2);font-style:italic}
-.code-block .num{color:var(--amber)}
-.code-block .del{background:rgba(248,113,113,.12);display:block;margin:0 -12px;padding:0 12px}
-.code-block .add{background:rgba(52,211,153,.1);display:block;margin:0 -12px;padding:0 12px}
+/* Solution */
+.solution-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.sol-block{background:var(--bg-2);border:1px solid var(--border);border-radius:7px;padding:12px}
+.sol-block h4{font-family:'Space Grotesk';font-size:11px;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.sol-block h4 .ic{width:16px;height:16px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px}
+.sol-block.before h4 .ic{background:rgba(244,63,94,.1);color:var(--red)}
+.sol-block.after h4 .ic{background:rgba(16,185,129,.1);color:var(--green)}
+.code-block{font-family:'JetBrains Mono';font-size:10px;background:var(--bg-0);border:1px solid var(--border-soft);border-radius:5px;padding:8px;overflow-x:auto;line-height:1.6;color:var(--txt-1);white-space:pre-wrap}
+.code-block .del{background:rgba(244,63,94,.08);display:block;margin:0 -8px;padding:0 8px}
+.code-block .add{background:rgba(16,185,129,.06);display:block;margin:0 -8px;padding:0 8px}
 .steps{list-style:none;counter-reset:step}
-.steps li{counter-increment:step;padding:10px 0 10px 38px;position:relative;font-size:13px;color:var(--txt-1);border-bottom:1px solid var(--border-soft)}
+.steps li{counter-increment:step;padding:7px 0 7px 30px;position:relative;font-size:12px;color:var(--txt-1);border-bottom:1px solid var(--border-soft)}
 .steps li:last-child{border-bottom:none}
 .steps li::before{
-  content:counter(step);position:absolute;left:0;top:8px;
-  width:24px;height:24px;border-radius:50%;background:var(--cyan-dim);
-  color:var(--cyan);font-family:'Chakra Petch';font-weight:600;font-size:12px;
+  content:counter(step);position:absolute;left:0;top:5px;
+  width:20px;height:20px;border-radius:50%;background:rgba(45,212,191,.1);
+  color:var(--cyan);font-family:'Space Grotesk';font-weight:600;font-size:10px;
   display:flex;align-items:center;justify-content:center;
 }
 .steps li b{color:var(--txt-0)}
-.verify-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
-.verify-card{background:var(--bg-2);border:1px solid var(--border);border-radius:6px;padding:12px;text-align:center}
-.verify-card .v-ic{font-size:18px;margin-bottom:6px}
-.verify-card .v-t{font-size:11px;color:var(--txt-2);text-transform:uppercase;letter-spacing:.06em}
-.verify-card .v-v{font-family:'JetBrains Mono';font-size:14px;color:var(--green);margin-top:4px}
+.verify-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.verify-card{background:var(--bg-2);border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center}
+.verify-card .v-ic{font-size:14px;margin-bottom:3px}
+.verify-card .v-t{font-size:9px;color:var(--txt-2);text-transform:uppercase;letter-spacing:.03em}
+.verify-card .v-v{font-family:'JetBrains Mono';font-size:12px;color:var(--green);margin-top:2px}
+
+/* ===== GATE dialog ===== */
+.modal-overlay{
+  position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;
+}
+.modal-overlay.show{display:flex}
+.modal{
+  background:var(--bg-1);border:1px solid var(--border);border-radius:12px;
+  max-width:520px;width:90%;max-height:80vh;overflow-y:auto;animation:fadeUp .3s ease;
+}
+.modal-head{
+  display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border-soft);
+  position:sticky;top:0;background:var(--bg-1);z-index:1;
+}
+.modal-head h3{font-family:'Space Grotesk';font-size:14px;font-weight:600}
+.modal-head .tag{
+  font-size:9px;padding:2px 7px;border-radius:4px;font-family:'JetBrains Mono';
+  background:rgba(245,158,11,.08);border:1px solid var(--amber-dim);color:var(--amber);
+}
+.modal-body{padding:16px 18px}
+.modal-foot{display:flex;gap:10px;padding:12px 18px;border-top:1px solid var(--border-soft);justify-content:flex-end}
+.modal-foot .btn{padding:7px 16px;font-size:12px}
 
 /* ===== SIDEBAR ===== */
-.sidebar{display:flex;flex-direction:column;gap:20px;position:sticky;top:80px}
+.sidebar{display:flex;flex-direction:column;gap:12px;position:sticky;top:calc(var(--header-h) + 8px)}
 .side-card{background:var(--bg-1);border:1px solid var(--border);border-radius:10px;overflow:hidden}
-.side-head{display:flex;align-items:center;gap:8px;padding:13px 16px;border-bottom:1px solid var(--border-soft);background:rgba(0,0,0,.2)}
-.side-head h3{font-family:'Chakra Petch';font-size:13px;font-weight:600;letter-spacing:.03em}
-.side-head .ic{color:var(--cyan);font-family:'JetBrains Mono';font-size:14px}
-.side-head .more{margin-left:auto;font-size:10px;color:var(--txt-2);font-family:'JetBrains Mono'}
-.side-body{padding:14px 16px}
-
-.kb-stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.kb-stat{padding:12px;background:var(--bg-2);border:1px solid var(--border-soft);border-radius:6px}
-.kb-stat .num{font-family:'Chakra Petch';font-size:22px;font-weight:700;color:var(--cyan)}
-.kb-stat .num.amber{color:var(--amber)}
-.kb-stat .num.green{color:var(--green)}
-.kb-stat .lbl{font-size:10px;color:var(--txt-2);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
-.kb-dist{margin-top:14px}
-.kb-dist .row{display:flex;align-items:center;gap:8px;font-size:11px;margin-bottom:7px}
-.kb-dist .row .name{width:70px;color:var(--txt-1)}
-.kb-dist .row .bar{flex:1;height:6px;background:var(--bg-3);border-radius:3px;overflow:hidden}
-.kb-dist .row .bar i{display:block;height:100%;border-radius:3px;background:var(--cyan)}
-.kb-dist .row .val{font-family:'JetBrains Mono';font-size:10px;color:var(--txt-2);width:32px;text-align:right}
-
-.history-item{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--border-soft);cursor:pointer;transition:all .2s}
+.side-head{display:flex;align-items:center;gap:6px;padding:9px 12px;border-bottom:1px solid var(--border-soft)}
+.side-head h3{font-family:'Space Grotesk';font-size:11px;font-weight:600}
+.side-head .ic{color:var(--cyan);font-size:12px}
+.side-head .more{margin-left:auto;font-size:9px;color:var(--txt-2);font-family:'JetBrains Mono';cursor:pointer}
+.side-head .more:hover{color:var(--cyan)}
+.side-body{padding:10px 12px}
+.kb-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kb-stat{padding:8px;background:var(--bg-2);border:1px solid var(--border-soft);border-radius:5px}
+.kb-stat .num{font-family:'Space Grotesk';font-size:18px;font-weight:700;color:var(--cyan)}
+.kb-stat .num.amber{color:var(--amber)}.kb-stat .num.green{color:var(--green)}
+.kb-stat .lbl{font-size:9px;color:var(--txt-2);margin-top:1px}
+.kb-dist{margin-top:10px}
+.kb-dist .row{display:flex;align-items:center;gap:6px;font-size:10px;margin-bottom:5px}
+.kb-dist .row .name{width:54px;color:var(--txt-1)}
+.kb-dist .row .bar{flex:1;height:4px;background:var(--bg-3);border-radius:2px;overflow:hidden}
+.kb-dist .row .bar i{display:block;height:100%;border-radius:2px;background:var(--cyan)}
+.kb-dist .row .val{font-family:'JetBrains Mono';font-size:9px;color:var(--txt-2);width:28px;text-align:right}
+.history-item{
+  display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-soft);cursor:pointer;transition:all .15s;
+}
 .history-item:last-child{border-bottom:none}
-.history-item:hover{padding-left:4px}
-.h-status{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}
-.h-status.resolved{background:var(--green);box-shadow:0 0 6px var(--green)}
-.h-status.analyzing{background:var(--amber);box-shadow:0 0 6px var(--amber)}
+.history-item:hover{padding-left:2px}
+.h-status{width:6px;height:6px;border-radius:50%;margin-top:4px;flex-shrink:0}
+.h-status.resolved{background:var(--green)}
+.h-status.analyzing{background:var(--amber);animation:pulse 2s infinite}
 .h-status.open{background:var(--red)}
 .h-info{flex:1;min-width:0}
-.h-info .t{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.h-info .m{font-size:10px;color:var(--txt-2);font-family:'JetBrains Mono';margin-top:2px}
-
-.flow-mini{font-family:'JetBrains Mono';font-size:10px;color:var(--txt-1);line-height:1.8}
-.flow-mini .step{display:flex;gap:8px;align-items:flex-start}
+.h-info .t{font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h-info .m{font-size:9px;color:var(--txt-2);font-family:'JetBrains Mono';margin-top:1px}
+.flow-mini{font-family:'JetBrains Mono';font-size:9px;color:var(--txt-1);line-height:1.7}
+.flow-mini .step{display:flex;gap:6px;align-items:flex-start}
 .flow-mini .step .n{color:var(--cyan);flex-shrink:0}
 .flow-mini .step .arr{color:var(--txt-2)}
-.flow-mini .note{color:var(--txt-2);font-size:9px;margin-top:8px;padding:8px;background:var(--bg-2);border-radius:4px;border-left:2px solid var(--violet)}
+.flow-mini .note{color:var(--txt-2);font-size:8px;margin-top:6px;padding:6px;background:var(--bg-2);border-radius:4px;border-left:2px solid var(--violet)}
 
-/* footer */
-.foot{margin-top:32px;padding-top:20px;border-top:1px solid var(--border-soft);display:flex;align-items:center;gap:16px;font-size:11px;color:var(--txt-2);font-family:'JetBrains Mono'}
+/* ===== SERVICE TOPOLOGY VIEW ===== */
+.topo-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.topo-header h2{font-family:'Space Grotesk';font-size:15px;font-weight:600}
+.topo-canvas{
+  background:var(--bg-1);border:1px solid var(--border);border-radius:12px;padding:20px;min-height:400px;
+  display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;
+}
+.topo-canvas svg{width:100%;max-height:500px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.3))}
+.topo-info{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.topo-info-card{background:var(--bg-1);border:1px solid var(--border);border-radius:8px;padding:12px}
+.topo-info-card h4{font-family:'Space Grotesk';font-size:11px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.topo-info-card h4 .ic{color:var(--cyan)}
+.topo-table{width:100%;font-size:11px;border-collapse:collapse}
+.topo-table th{text-align:left;color:var(--txt-2);font-weight:500;padding:4px 6px;border-bottom:1px solid var(--border-soft);font-size:9px;text-transform:uppercase}
+.topo-table td{padding:5px 6px;border-bottom:1px solid var(--border-soft)}
+.topo-table tr:last-child td{border-bottom:none}
+
+/* ===== CODEGRAPH VIEW ===== */
+.cg-toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.cg-toolbar .input-wrap{flex:1;min-width:200px}
+.cg-toolbar .input-wrap input{font-size:12px}
+.cg-panels{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cg-panel{background:var(--bg-1);border:1px solid var(--border);border-radius:8px;padding:14px;min-height:120px}
+.cg-panel.full{grid-column:1/-1}
+.cg-panel h4{font-family:'Space Grotesk';font-size:11px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.cg-panel h4 .ic{color:var(--cyan)}
+.cg-panel .empty{color:var(--txt-2);font-size:11px;padding:10px 0;text-align:center}
+.cg-table{width:100%;font-size:11px;border-collapse:collapse}
+.cg-table th{text-align:left;color:var(--txt-2);font-weight:500;padding:3px 6px;border-bottom:1px solid var(--border-soft);font-size:9px}
+.cg-table td{padding:4px 6px;border-bottom:1px solid var(--border-soft);font-size:11px;font-family:'JetBrains Mono'}
+.cg-table tr:last-child td{border-bottom:none}
+
+/* ===== CODE2CN VIEW ===== */
+.c2cn-toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-end}
+.c2cn-toolbar .field{flex:1;min-width:180px}
+.c2cn-outline{
+  background:var(--bg-1);border:1px solid var(--border);border-radius:8px;padding:16px;
+}
+.c2cn-outline .cn-symbol{font-family:'Space Grotesk';font-size:16px;font-weight:600;margin-bottom:4px}
+.c2cn-outline .cn-file{font-size:10px;color:var(--txt-2);font-family:'JetBrains Mono';margin-bottom:10px}
+.c2cn-outline .cn-summary{font-size:13px;color:var(--txt-0);line-height:1.7;padding:10px;background:var(--bg-2);border-radius:6px;border-left:3px solid var(--cyan);margin-bottom:12px}
+.c2cn-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.c2cn-meta-card{background:var(--bg-2);border:1px solid var(--border-soft);border-radius:6px;padding:10px}
+.c2cn-meta-card h5{font-size:10px;color:var(--txt-2);font-weight:500;margin-bottom:5px;font-family:'JetBrains Mono';text-transform:uppercase}
+.c2cn-meta-card ul{list-style:none}
+.c2cn-meta-card li{font-size:11px;padding:3px 0;border-bottom:1px solid var(--border-soft);display:flex;gap:5px}
+.c2cn-meta-card li:last-child{border-bottom:none}
+.c2cn-tokens{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.c2cn-token{background:var(--bg-3);border:1px solid var(--border);padding:4px 8px;border-radius:4px;font-size:10px;font-family:'JetBrains Mono';color:var(--txt-1)}
+
+/* ===== RAG VIEW ===== */
+.rag-toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-end}
+.rag-toolbar .field{flex:1;min-width:200px}
+.rag-result{background:var(--bg-1);border:1px solid var(--border);border-radius:8px;padding:16px;min-height:120px}
+.rag-result .rag-meta{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.rag-meta-item{font-size:10px;color:var(--txt-2);font-family:'JetBrains Mono'}
+.rag-meta-item b{color:var(--txt-0)}
+.rag-content{font-size:13px;color:var(--txt-0);line-height:1.7;padding:12px;background:var(--bg-2);border-radius:6px;border-left:3px solid var(--violet);white-space:pre-wrap}
+
+/* ===== KB MAINTENANCE VIEW ===== */
+.kb-section{background:var(--bg-1);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px}
+.kb-section h4{font-family:'Space Grotesk';font-size:11px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.kb-section h4 .ic{color:var(--cyan)}
+.kb-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kb-form .field.full{grid-column:1/-1}
+.kb-toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:flex-end}
+.kb-toolbar .field{flex:1;min-width:200px}
+.kb-table-wrap{overflow-x:auto;background:var(--bg-2);border:1px solid var(--border-soft);border-radius:8px}
+.kb-empty{color:var(--txt-2);font-size:11px;padding:14px 0;text-align:center}
+.kb-row-del{color:var(--red);cursor:pointer;font-size:10px;border:1px solid var(--border);border-radius:5px;padding:2px 8px;background:transparent;font-family:'Space Grotesk'}
+.kb-row-del:hover{border-color:var(--red);background:rgba(244,63,94,.08)}
+
+/* ===== FOOTER ===== */
+.foot{margin-top:20px;padding-top:14px;border-top:1px solid var(--border-soft);display:flex;align-items:center;gap:10px;font-size:10px;color:var(--txt-2);font-family:'JetBrains Mono'}
 .foot .sep{color:var(--border)}
 
-/* toast */
+/* ===== TOAST ===== */
 .toast{
-  position:fixed;bottom:24px;right:24px;z-index:100;
+  position:fixed;bottom:16px;right:16px;z-index:100;
   background:var(--bg-2);border:1px solid var(--cyan-dim);border-left:3px solid var(--cyan);
-  padding:13px 18px;border-radius:6px;font-size:12px;
-  box-shadow:0 8px 30px rgba(0,0,0,.5);
-  display:flex;align-items:center;gap:10px;
-  transform:translateX(120%);transition:transform .4s cubic-bezier(.4,0,.2,1);
+  padding:9px 14px;border-radius:7px;font-size:11px;
+  box-shadow:0 6px 20px rgba(0,0,0,.4);
+  display:flex;align-items:center;gap:8px;
+  transform:translateX(120%);transition:transform .3s cubic-bezier(.4,0,.2,1);
 }
 .toast.show{transform:none}
-.toast .ti{color:var(--cyan);font-size:16px}
+.toast .ti{color:var(--cyan);font-size:13px}
+.toast.err{border-left-color:var(--red)}
+.toast.err .ti{color:var(--red)}
 
-/* responsive */
-@media(max-width:1200px){
+/* ===== RESPONSIVE ===== */
+@media(max-width:1100px){
   .layout{grid-template-columns:1fr}
   .sidebar{position:static;flex-direction:row;flex-wrap:wrap}
-  .side-card{flex:1;min-width:280px}
+  .side-card{flex:1;min-width:240px}
+  .candidate-grid{grid-template-columns:1fr}
+  .evidence-grid{grid-template-columns:repeat(2,1fr)}
+  .cg-panels{grid-template-columns:1fr}
+  .topo-info{grid-template-columns:1fr}
 }
-@media(max-width:760px){
+@media(max-width:720px){
   .field-grid{grid-template-columns:1fr}
-  .stages{grid-template-columns:repeat(3,1fr);gap:24px 8px}
+  .stages{grid-template-columns:repeat(3,1fr);gap:16px 6px}
   .solution-grid{grid-template-columns:1fr}
   .verify-grid{grid-template-columns:1fr}
-  .header-nav{display:none}
-  main{padding:16px}
+  .header-nav{gap:0;margin-left:4px}
+  .nav-btn{padding:4px 8px;font-size:11px}
+  .nav-btn .badge{display:none}
+  .status-cluster{gap:8px}
+  .status-pill{display:none}
+  main{padding:10px}
+  .c2cn-meta{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -428,539 +511,1273 @@ main{position:relative;z-index:2;max-width:1680px;margin:0 auto;padding:24px 28p
 
 <header>
   <div class="brand">
-    <div class="brand-mark"><span>R</span></div>
+    <div class="brand-mark">R</div>
     <div class="brand-text">
       <h1>RCA<b>·</b>Command</h1>
-      <p>Root Cause Analysis Platform</p>
+      <p>v3 · 双图谱智能根因分析</p>
     </div>
   </div>
-  <nav class="header-nav">
-    <a href="#" class="active">分析台</a>
-    <a href="#">知识库</a>
-    <a href="#">问题单看板</a>
-    <a href="#">最佳实践</a>
-    <a href="#">设置</a>
+  <nav class="header-nav" id="topNav">
+    <button class="nav-btn active" data-view="dashboard"><span>◈</span> 分析台</button>
+    <button class="nav-btn" data-view="topology"><span>◉</span> 服务拓扑</button>
+    <button class="nav-btn" data-view="codegraph"><span>◐</span> 代码图谱</button>
+    <button class="nav-btn" data-view="code2cn"><span>文</span> 中文大纲</button>
+    <button class="nav-btn" data-view="rag"><span>◎</span> 知识检索</button>
+    <button class="nav-btn" data-view="kb"><span>⛏</span> 知识库</button>
   </nav>
   <div class="header-spacer"></div>
   <div class="status-cluster">
-    <div class="status-pill"><span class="dot pulse"></span>opencode 在线</div>
-    <div class="status-pill"><span class="dot pulse" style="background:var(--violet);box-shadow:0 0 8px var(--violet)"></span>RAG 引擎就绪</div>
-    <div class="kb-meter">知识库条目 <b>12,847</b></div>
+    <div class="status-pill"><span class="dot pulse" id="healthDot"></span><span id="healthLabel">就绪</span></div>
+    <div class="kb-meter">知识库 <b id="kbCount">—</b></div>
     <div class="user-chip">
       <div class="avatar">HW</div>
-      <span style="font-size:12px">华为微服务团队</span>
+      <span>华为微服务团队</span>
     </div>
   </div>
 </header>
 
 <main>
+<!-- ===== VIEW: DASHBOARD ===== -->
+<div class="view active" id="view-dashboard">
 <div class="layout">
 <div>
 
-  <!-- ===== INPUT CONSOLE ===== -->
   <section class="console">
     <div class="console-head">
-      <span class="tag">INPUT // 01</span>
+      <span class="tag">INPUT</span>
       <h2>问题单根因分析请求</h2>
-      <span class="sub">opencode + RAG pipeline v2.4</span>
+      <span class="sub">5-Agent 智能引擎 · SSE 实时流</span>
     </div>
     <div class="console-body">
       <div class="field-grid">
         <div class="field full">
-          <label><span class="ico">①</span>问题单链接 <span class="req">*</span></label>
+          <label><span class="ico">01</span>问题单链接 <span class="req">*</span></label>
           <div class="input-wrap with-prefix">
             <span class="prefix">🔗</span>
-            <input type="text" id="ticketUrl" placeholder="https://issues.huawei.com/ticket/MSP-2026-0817" value="https://issues.huawei.com/ticket/MSP-2026-0817">
+            <input type="text" id="bugLink" placeholder="https://issues.example.com/ticket/MSP-2026-0817" value="https://issues.example.com/ticket/MSP-2026-0817">
           </div>
         </div>
         <div class="field">
-          <label><span class="ico">②</span>代码仓库 <span class="req">*</span></label>
+          <label><span class="ico">02</span>代码仓库</label>
           <div class="input-wrap with-prefix">
-            <span class="prefix">git://</span>
-            <input type="text" id="repoUrl" placeholder="microservice-order-center" value="microservice-order-center">
+            <span class="prefix">📁</span>
+            <input type="text" id="repo" placeholder="microservice-order-center" value="microservice-order-center">
           </div>
         </div>
         <div class="field">
-          <label><span class="ico">③</span>分支 / Tag <span class="req">*</span></label>
+          <label><span class="ico">03</span>分支</label>
           <div class="input-wrap">
-            <select id="branch">
-              <option>release/2026.08</option>
-              <option>master</option>
-              <option>hotfix/order-timeout</option>
-              <option>dev</option>
-            </select>
+            <select id="branch"><option>release/2026.08</option><option>master</option><option>hotfix/order-timeout</option><option>dev</option></select>
             <span class="select-chev">▾</span>
           </div>
         </div>
         <div class="field">
-          <label><span class="ico">④</span>微服务模块</label>
+          <label><span class="ico">04</span>错误类型</label>
           <div class="input-wrap">
-            <select id="module">
-              <option>order-service (订单中心)</option>
-              <option>payment-service (支付)</option>
-              <option>inventory-service (库存)</option>
-              <option>user-service (用户)</option>
-            </select>
-            <span class="select-chev">▾</span>
+            <input type="text" id="errorType" placeholder="TIMEOUT / OOM / NPE / ..." value="TIMEOUT">
           </div>
         </div>
         <div class="field">
-          <label><span class="ico">⑤</span>分析深度</label>
+          <label><span class="ico">05</span>嫌疑服务</label>
           <div class="input-wrap">
-            <select id="depth">
-              <option>深度根因 (含调用链追溯)</option>
-              <option>快速定位</option>
-              <option>仅知识库匹配</option>
-            </select>
+            <input type="text" id="suspectService" placeholder="order-service">
+          </div>
+        </div>
+        <div class="field">
+          <label><span class="ico">06</span>分析深度</label>
+          <div class="input-wrap">
+            <select id="depth"><option value="standard">标准深度 (含调用链)</option><option value="quick">快速定位</option><option value="deep">深度 (含知识库)</option></select>
             <span class="select-chev">▾</span>
+          </div>
+        </div>
+        <div class="field half">
+          <label><span class="ico">07</span>运行模式</label>
+          <div class="input-wrap">
+            <select id="runtimeMode"><option value="mock_demo">🖥 模拟演示</option><option value="offline_light">💡 轻量离线</option><option value="online_full">☁ 全量在线</option></select>
+            <span class="select-chev">▾</span>
+          </div>
+        </div>
+        <div class="field half">
+          <label><span class="ico">08</span>问题编号</label>
+          <div class="input-wrap">
+            <input type="text" id="bugId" placeholder="MSP-2026-0817">
           </div>
         </div>
         <div class="field full">
-          <label><span class="ico">⑥</span>问题描述 / 复现步骤 (可选，无链接时必填)</label>
+          <label><span class="ico">09</span>症状 / 问题描述</label>
           <div class="input-wrap">
-            <textarea id="desc" placeholder="例如：高并发场景下订单创建接口偶发超时，p99 延迟从 200ms 飙升至 3500ms，伴随 Hystrix 熔断告警...">高并发场景下订单创建接口偶发超时，p99 延迟从 200ms 飙升至 3500ms，伴随 Hystrix 熔断告警，重试后数据一致性异常。</textarea>
+            <textarea id="bugDesc" placeholder="高并发场景下订单创建接口偶发超时，p99 延迟从 200ms 飙升至 3500ms，伴随 Hystrix 熔断告警…">高并发场景下订单创建接口偶发超时，p99 延迟从 200ms 飙升至 3500ms，伴随 Hystrix 熔断告警，重试后数据一致性异常。</textarea>
           </div>
         </div>
       </div>
     </div>
     <div class="console-foot">
-      <button class="btn btn-primary" id="runBtn">
-        <span>▶</span> 启动根因分析
-      </button>
+      <button class="btn btn-primary" id="runBtn"><span>▶</span> 启动根因分析</button>
       <button class="btn btn-ghost" id="resetBtn">重置</button>
-      <span class="hint">⌘ + Enter 快速启动 · 预计耗时 45-90s</span>
+      <span class="hint">⌘+Enter</span>
     </div>
   </section>
 
-  <!-- ===== PIPELINE ===== -->
   <section class="pipeline">
     <div class="pipeline-head">
-      <span class="tag" style="font-family:'JetBrains Mono';font-size:10px;color:var(--cyan);padding:2px 8px;background:rgba(34,211,238,.1);border:1px solid var(--cyan-dim);border-radius:3px">PIPELINE // 02</span>
+      <span class="tag">PIPELINE</span>
       <h2>分析流水线</h2>
       <span class="live" id="liveStatus">● 待命</span>
     </div>
     <div class="stages" id="stages">
-      <div class="stage" data-i="0"><div class="node"><span>1</span></div><div class="stage-label">拉取问题单</div><div class="stage-done-label">fetch ticket</div></div>
-      <div class="stage" data-i="1"><div class="node"><span>2</span></div><div class="stage-label">克隆代码仓</div><div class="stage-done-label">clone repo</div></div>
-      <div class="stage" data-i="2"><div class="node"><span>3</span></div><div class="stage-label">opencode 静态分析</div><div class="stage-done-label">static scan</div></div>
-      <div class="stage" data-i="3"><div class="node"><span>4</span></div><div class="stage-label">调用链追溯</div><div class="stage-done-label">trace</div></div>
-      <div class="stage" data-i="4"><div class="node"><span>5</span></div><div class="stage-label">RAG 知识匹配</div><div class="stage-done-label">rag match</div></div>
-      <div class="stage" data-i="5"><div class="node"><span>6</span></div><div class="stage-label">方案生成</div><div class="stage-done-label">solution</div></div>
+      <div class="stage" data-i="0"><div class="node"><span>1</span></div><div class="stage-label">问题理解</div><div class="stage-done-label">A1 · analyze</div></div>
+      <div class="stage" data-i="1"><div class="node"><span>2</span></div><div class="stage-label">静态分析</div><div class="stage-done-label">A2 · static</div></div>
+      <div class="stage" data-i="2"><div class="node"><span>3</span></div><div class="stage-label">链路追溯</div><div class="stage-done-label">A3 · trace</div></div>
+      <div class="stage" data-i="3"><div class="node"><span>4</span></div><div class="stage-label">根因定位</div><div class="stage-done-label">A4 · dual-graph</div></div>
+      <div class="stage" data-i="4"><div class="node"><span>5</span></div><div class="stage-label">闸门验证</div><div class="stage-done-label">CRAG · HIL</div></div>
+      <div class="stage" data-i="5"><div class="node"><span>6</span></div><div class="stage-label">方案生成</div><div class="stage-done-label">A5 · solution</div></div>
     </div>
   </section>
 
-  <!-- ===== RESULTS ===== -->
   <section class="results" id="results">
     <div class="results-head">
-      <span class="tag" style="font-family:'JetBrains Mono';font-size:10px;color:var(--cyan);padding:2px 8px;background:rgba(34,211,238,.1);border:1px solid var(--cyan-dim);border-radius:3px">OUTPUT // 03</span>
-      <h2 style="font-family:'Chakra Petch';font-size:15px">分析报告 · MSP-2026-0817</h2>
-      <span class="confidence">置信度 94.2%</span>
-      <span class="meta">耗时 62s · 分析路径 4 条 · 匹配条目 7</span>
+      <span class="tag">OUTPUT</span>
+      <h2 style="font-family:'Space Grotesk';font-size:13px;font-weight:600">分析报告</h2>
+      <span class="confidence" id="confidenceBadge">置信度 —</span>
+      <span class="meta" id="resultMeta">—</span>
     </div>
     <div class="tabs">
       <div class="tab active" data-tab="rca">根因分析 <span class="badge">RCA</span></div>
-      <div class="tab" data-tab="kb">知识库匹配 <span class="badge">7</span></div>
-      <div class="tab" data-tab="bp">业界最佳实践 <span class="badge">5</span></div>
+      <div class="tab" data-tab="dual">双图谱验证 <span class="badge">DUAL</span></div>
       <div class="tab" data-tab="sol">设计方案 <span class="badge">FIX</span></div>
     </div>
     <div class="tab-panels">
 
-      <!-- RCA -->
       <div class="tab-panel active" data-panel="rca">
-        <div class="rc-summary">
+        <div class="rc-summary" id="rcSummary">
           <div class="ico">⚠</div>
           <div>
-            <h3>根因：分布式锁粒度过粗 + Redis 连接池耗尽导致雪崩</h3>
-            <p>在高并发订单创建场景下，<code class="mono" style="color:var(--amber)">OrderLockService.acquire()</code> 使用单一 Redis 分布式锁保护整个 SKU 维度的库存扣减，锁等待队列在 QPS＞800 时迅速堆积；同时 <code class="mono" style="color:var(--amber)">JedisPool</code> 配置 maxActive=8 过小，锁等待线程长期占用连接，触发连接池耗尽，最终 Hystrix 熔断。重试逻辑未做幂等校验，导致部分订单重复扣减库存。</p>
-            <div class="tags">
-              <span class="chip amber">并发缺陷</span>
-              <span class="chip amber">资源耗尽</span>
-              <span class="chip violet">分布式锁</span>
-              <span class="chip cyan">幂等性缺失</span>
-              <span class="chip">P0 · 线上故障</span>
-            </div>
+            <h3 id="rcTitle">等待分析结果…</h3>
+            <p id="rcDesc">请提交分析任务</p>
+            <div class="tags" id="rcTags"></div>
           </div>
         </div>
-
-        <div class="section-title">调用链追溯 <span class="count">定位至 OrderLockService.java:127</span></div>
-        <div class="call-stack">
-          <div class="stack-line"><span class="ln">→</span><span class="fn">OrderController.createOrder</span><span class="file">OrderController.java:64</span></div>
-          <div class="stack-line"><span class="ln">→</span><span class="fn">OrderService.submit</span><span class="file">OrderService.java:92</span></div>
-          <div class="stack-line"><span class="ln">→</span><span class="fn">InventoryService.deduct</span><span class="file">InventoryService.java:48</span></div>
-          <div class="stack-line culprit"><span class="ln">→</span><span class="fn">OrderLockService.acquire</span><span class="file">OrderLockService.java:127</span></div>
-          <div class="stack-line"><span class="ln">→</span><span class="fn">JedisPool.getResource</span><span class="file">JedisPool.java:210 [BLOCKED]</span></div>
+        <div class="section-title">四维证据链评分 <span class="count" id="evidenceChainLabel">—</span></div>
+        <div class="evidence-grid" id="evidenceGrid">
+          <div class="evidence-card none"><div class="ev-label">静态可达</div><div class="ev-value">0.00</div><div class="ev-bar"><i style="width:0%"></i></div></div>
+          <div class="evidence-card none"><div class="ev-label">运行时异常</div><div class="ev-value">0.00</div><div class="ev-bar"><i style="width:0%"></i></div></div>
+          <div class="evidence-card none"><div class="ev-label">指标关联</div><div class="ev-value">0.00</div><div class="ev-bar"><i style="width:0%"></i></div></div>
+          <div class="evidence-card none"><div class="ev-label">变更时效</div><div class="ev-value">0.00</div><div class="ev-bar"><i style="width:0%"></i></div></div>
         </div>
-
-        <div class="section-title">根因要素分解</div>
-        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
-          <div class="kb-card" style="margin:0">
-            <div class="kb-card-head"><h4>直接原因</h4></div>
-            <div class="kb-card-body">Redis 连接池 maxActive=8 无法支撑锁等待线程堆积，连接获取阻塞 &gt;3s。</div>
-          </div>
-          <div class="kb-card" style="margin:0">
-            <div class="kb-card-head"><h4>根本原因</h4></div>
-            <div class="kb-card-body">分布式锁粒度按 SKU 全局加锁，未按 <code>userId+skuId</code> 分段，高并发下成为瓶颈。</div>
-          </div>
-          <div class="kb-card" style="margin:0">
-            <div class="kb-card-head"><h4>触发条件</h4></div>
-            <div class="kb-card-body">QPS ＞ 800 + 大促秒杀场景，库存热点 SKU 集中访问。</div>
-          </div>
-          <div class="kb-card" style="margin:0">
-            <div class="kb-card-head"><h4>衍生问题</h4></div>
-            <div class="kb-card-body">重试未做幂等，超时后重试导致库存重复扣减，数据不一致。</div>
-          </div>
+        <div class="section-title">调用链 / 证据链 <span class="count" id="chainLabel">—</span></div>
+        <div class="call-stack" id="callStack"><div style="padding:10px;color:var(--txt-2);font-size:11px;text-align:center">暂无数据</div></div>
+        <div class="section-title">Top 3 候选根因</div>
+        <div class="candidate-grid" id="candidateGrid">
+          <div class="cand-card top1"><div class="rank"><span class="dot amber"></span> 候选 #1</div><div class="cand-conf">—</div><div class="cand-fn">—</div><div class="cand-rc">等待分析结果</div></div>
+          <div class="cand-card top2"><div class="rank"><span class="dot" style="background:var(--txt-2)"></span> 候选 #2</div><div class="cand-conf">—</div><div class="cand-fn">—</div><div class="cand-rc">等待分析结果</div></div>
+          <div class="cand-card top3"><div class="rank"><span class="dot violet"></span> 候选 #3</div><div class="cand-conf">—</div><div class="cand-fn">—</div><div class="cand-rc">等待分析结果</div></div>
         </div>
       </div>
 
-      <!-- KB -->
-      <div class="tab-panel" data-panel="kb">
-        <p style="font-size:12px;color:var(--txt-2);margin-bottom:16px">RAG 引擎从 <b style="color:var(--txt-0)">12,847</b> 条历史问题单中检索到 <b style="color:var(--cyan)">7</b> 条高相似度记录，含根因、验证方案、修复代码。</p>
-
-        <div class="kb-card">
-          <div class="kb-card-head">
-            <span class="kb-sim">96.4%</span>
-            <h4>大促期间订单接口超时熔断，库存重复扣减</h4>
-            <span class="tid">MSP-2025-1108</span>
-          </div>
-          <div class="kb-card-body">
-            <b style="color:var(--txt-0)">根因：</b>分布式锁粒度过粗 + 连接池配置不当，与本次问题高度一致。
-            <span class="label">验证方案</span>
-            压测 1000 QPS 持续 5min，监控连接池使用率与锁等待时长；幂等 token 校验。
-            <span class="label">修复代码</span>
-            <code>OrderLockService</code> 改为分段锁 + <code>JedisPool maxActive=64</code> + 幂等拦截器
-          </div>
+      <div class="tab-panel" data-panel="dual">
+        <div class="section-title">双图谱交叉验证</div>
+        <div class="evidence-grid" id="dualEvidenceGrid">
+          <div class="evidence-card none"><div class="ev-label">静态图谱</div><div class="ev-value">0.00</div><div class="ev-bar"><i style="width:0%"></i></div></div>
+          <div class="evidence-card none"><div class="ev-label">运行时图谱</div><div class="ev-value">0.00</div><div class="ev-bar"><i style="width:0%"></i></div></div>
+          <div class="evidence-card none"><div class="ev-label">交叉交点</div><div class="ev-value">0.00</div><div class="ev-bar"><i style="width:0%"></i></div></div>
+          <div class="evidence-card none"><div class="ev-label">综合评分</div><div class="ev-value">0.00</div><div class="ev-bar"><i style="width:0%"></i></div></div>
         </div>
-
-        <div class="kb-card">
-          <div class="kb-card-head">
-            <span class="kb-sim">91.2%</span>
-            <h4>Redis 连接池耗尽导致服务雪崩</h4>
-            <span class="tid">MSP-2025-0932</span>
-          </div>
-          <div class="kb-card-body">
-            <b style="color:var(--txt-0)">根因：</b>长事务持有 Redis 连接，池配置 maxActive=10 过小。
-            <span class="label">经验沉淀</span>
-            建议连接池 maxActive ≥ 64，并配置 maxWait + 超时降级；引入连接泄漏检测。
-          </div>
+        <div class="section-title">闸门状态</div>
+        <div class="evidence-grid" id="gateStatusGrid" style="grid-template-columns:repeat(2,1fr)">
+          <div class="evidence-card none"><div class="ev-label">CRAG 自动纠偏</div><div class="ev-value" style="font-size:14px">—</div></div>
+          <div class="evidence-card none"><div class="ev-label">HIL 人工确认</div><div class="ev-value" style="font-size:14px">—</div></div>
         </div>
-
-        <div class="kb-card">
-          <div class="kb-card-head">
-            <span class="kb-sim">87.5%</span>
-            <h4>幂等性缺失导致重复扣款</h4>
-            <span class="tid">MSP-2024-2210</span>
-          </div>
-          <div class="kb-card-body">
-            <b style="color:var(--txt-0)">根因：</b>重试未携带幂等 token，下游未做去重。
-            <span class="label">修复模式</span>
-            前端生成 requestId，服务端 Redis SETNX 去重窗口 30s。
-          </div>
-        </div>
-
-        <div class="kb-card">
-          <div class="kb-card-head">
-            <span class="kb-sim med">78.3%</span>
-            <h4>Hystrix 熔断配置不合理误熔断</h4>
-            <span class="tid">MSP-2025-0751</span>
-          </div>
-          <div class="kb-card-body">
-            <b style="color:var(--txt-0)">根因：</b>熔断阈值 QPS 与实际峰值不匹配。
-            <span class="label">经验沉淀</span>
-            按服务容量动态调整熔断参数，结合压测基线设定。
-          </div>
-        </div>
+        <div class="section-title">命中类型分布</div>
+        <div id="hitKindChart" style="padding:10px;background:var(--bg-2);border-radius:6px;font-size:11px;color:var(--txt-1)">暂无数据</div>
       </div>
 
-      <!-- BP -->
-      <div class="tab-panel" data-panel="bp">
-        <p style="font-size:12px;color:var(--txt-2);margin-bottom:8px">结合业界开源实践与华为内部技术规范，推荐以下最佳实践。</p>
-
-        <div class="bp-item">
-          <div class="bp-num">01</div>
-          <div class="bp-content">
-            <h4>分布式锁分段（Striped Lock）</h4>
-            <p>将单一粗粒度锁拆分为 N 个分段锁（如按 hash(skuId) % 64），将锁竞争分散，QPS 承载能力提升 10-20 倍。参考 Java Striped&lt;Lock&gt; 与 Redis Redlock 分段实现。</p>
-            <div class="src">src: Java Concurrency in Practice §13 / Redis 官方文档</div>
-          </div>
-        </div>
-        <div class="bp-item">
-          <div class="bp-num">02</div>
-          <div class="bp-content">
-            <h4>连接池容量公式</h4>
-            <p>maxActive = (峰值 QPS × 平均 RT(s)) × 1.3 冗余系数。本次场景：800 × 0.05 × 1.3 ≈ 52，建议取 64。</p>
-            <div class="src">src: HikariCP Pool Sizing Wiki</div>
-          </div>
-        </div>
-        <div class="bp-item">
-          <div class="bp-num">03</div>
-          <div class="bp-content">
-            <h4>幂等性三件套</h4>
-            <p>前端 requestId + 服务端 SETNX 去重 + 数据库唯一索引，三层防护保证最终一致。</p>
-            <div class="src">src: 阿里《微服务设计模式》/ 华为分布式规范 DOC-2024-117</div>
-          </div>
-        </div>
-        <div class="bp-item">
-          <div class="bp-num">04</div>
-          <div class="bp-content">
-            <h4>熔断器自适应配置</h4>
-            <p>基于实时 QPS 与 RT 动态调整熔断阈值，避免静态配置导致的误熔断或熔断失效。推荐 Sentinel 流控规则。</p>
-            <div class="src">src: Sentinel 官方文档 / Netflix Hystrix Wiki</div>
-          </div>
-        </div>
-        <div class="bp-item">
-          <div class="bp-num">05</div>
-          <div class="bp-content">
-            <h4>压测基线 + 容量规划</h4>
-            <p>上线前以 1.5 倍预期峰值压测，建立 p99/错误率/资源水位基线，作为熔断与扩容依据。</p>
-            <div class="src">src: 华为性能测试规范 PERF-2023-08</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Solution -->
       <div class="tab-panel" data-panel="sol">
-        <div class="section-title">修复方案 · 代码对比</div>
-        <div class="solution-grid">
-          <div class="sol-block before">
-            <h4><span class="ic">✕</span>修复前 (OrderLockService.java:127)</h4>
-            <div class="code-block">
-<span class="kw">public</span> <span class="kw">boolean</span> <span class="fn">acquire</span>(String skuId) {
-  <span class="com">// 粗粒度全局锁</span>
-<span class="del">  String key = <span class="str">"lock:sku:"</span> + skuId;</span>
-<span class="del">  <span class="kw">return</span> jedis.setnx(key, <span class="str">"1"</span>) == 1;</span>
-}
-            </div>
-          </div>
-          <div class="sol-block after">
-            <h4><span class="ic">✓</span>修复后 (分段锁 + 超时)</h4>
-            <div class="code-block">
-<span class="kw">public</span> <span class="kw">boolean</span> <span class="fn">acquire</span>(String skuId) {
-  <span class="com">// 分段锁，分散竞争</span>
-<span class="add">  <span class="kw">int</span> seg = Math.abs(skuId.hashCode()) % <span class="num">64</span>;</span>
-<span class="add">  String key = <span class="str">"lock:sku:"</span> + seg + <span class="str">":"</span> + skuId;</span>
-<span class="add">  <span class="kw">return</span> jedis.setnx(key, <span class="str">"1"</span>, <span class="str">"NX"</span>, <span class="str">"PX"</span>, <span class="num">3000</span>) != <span class="kw">null</span>;</span>
-}
-            </div>
-          </div>
-        </div>
-
-        <div class="solution-grid">
-          <div class="sol-block before">
-            <h4><span class="ic">✕</span>连接池配置 (application.yml)</h4>
-            <div class="code-block">
-<span class="com"># 连接池过小</span>
-<span class="del">jedis:</span>
-<span class="del">  pool:</span>
-<span class="del">    max-active: <span class="num">8</span></span>
-<span class="del">    max-wait: <span class="num">3000</span>ms</span>
-            </div>
-          </div>
-          <div class="sol-block after">
-            <h4><span class="ic">✓</span>优化配置</h4>
-            <div class="code-block">
-<span class="com"># 按容量公式调整</span>
-<span class="add">jedis:</span>
-<span class="add">  pool:</span>
-<span class="add">    max-active: <span class="num">64</span></span>
-<span class="add">    max-wait: <span class="num">500</span>ms</span>
-<span class="add">    timeout: <span class="num">1000</span>ms</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="section-title">实施步骤</div>
-        <ol class="steps">
-          <li><b>紧急止血</b>：动态调整 JedisPool maxActive 至 64，重启受影响实例，恢复服务可用性。</li>
-          <li><b>代码修复</b>：OrderLockService 改为分段锁，提交 hotfix 分支并 Code Review。</li>
-          <li><b>幂等加固</b>：新增 IdempotentInterceptor，前端透传 requestId，Redis SETNX 去重。</li>
-          <li><b>压测验证</b>：1000 QPS 持续 10min，验证 p99 &lt; 500ms，无重复扣减。</li>
-          <li><b>灰度发布</b>：按 10% → 50% → 100% 灰度，监控错误率与延迟。</li>
-          <li><b>经验沉淀</b>：将本次问题单（根因+验证+代码）回写知识库，供后续复用。</li>
-        </ol>
-
-        <div class="section-title">验证结果预期</div>
-        <div class="verify-grid">
-          <div class="verify-card"><div class="v-ic">⚡</div><div class="v-t">P99 延迟</div><div class="v-v">120ms ↓</div></div>
-          <div class="verify-card"><div class="v-ic">🔀</div><div class="v-t">最大 QPS</div><div class="v-v">1500 ↑</div></div>
-          <div class="verify-card"><div class="v-ic">✓</div><div class="v-t">数据一致</div><div class="v-v">100%</div></div>
-        </div>
+        <div id="solutionContent"><p style="color:var(--txt-2);padding:10px 0">等待分析结果…</p></div>
       </div>
 
     </div>
   </section>
-
 </div>
 
-<!-- ===== SIDEBAR ===== -->
 <aside class="sidebar">
-
   <div class="side-card">
-    <div class="side-head">
-      <span class="ic">📊</span>
-      <h3>知识库概览</h3>
-      <span class="more">实时</span>
-    </div>
+    <div class="side-head"><span class="ic">📊</span><h3>知识库概览</h3><span class="more" id="refreshKb">刷新</span></div>
     <div class="side-body">
       <div class="kb-stats">
-        <div class="kb-stat"><div class="num">12,847</div><div class="lbl">问题单总数</div></div>
-        <div class="kb-stat"><div class="num green">11,204</div><div class="lbl">已闭环</div></div>
-        <div class="kb-stat"><div class="num amber">1,643</div><div class="lbl">待验证</div></div>
-        <div class="kb-stat"><div class="num">94.2%</div><div class="lbl">平均命中率</div></div>
+        <div class="kb-stat"><div class="num" id="kbTotal">—</div><div class="lbl">问题单总数</div></div>
+        <div class="kb-stat"><div class="num green" id="kbClosed">—</div><div class="lbl">已闭环</div></div>
+        <div class="kb-stat"><div class="num amber" id="kbPending">—</div><div class="lbl">待验证</div></div>
+        <div class="kb-stat"><div class="num" id="kbHitRate">—</div><div class="lbl">平均命中率</div></div>
       </div>
-      <div class="kb-dist">
-        <div class="row"><span class="name">订单中心</span><span class="bar"><i style="width:82%"></i></span><span class="val">3.2k</span></div>
-        <div class="row"><span class="name">支付</span><span class="bar"><i style="width:64%;background:var(--amber)"></i></span><span class="val">2.5k</span></div>
-        <div class="row"><span class="name">库存</span><span class="bar"><i style="width:48%;background:var(--violet)"></i></span><span class="val">1.9k</span></div>
-        <div class="row"><span class="name">用户</span><span class="bar"><i style="width:35%;background:var(--green)"></i></span><span class="val">1.4k</span></div>
-      </div>
+      <div class="kb-dist" id="kbDist"><div class="row"><span class="name">订单中心</span><span class="bar"><i style="width:0%"></i></span><span class="val">—</span></div></div>
     </div>
   </div>
-
   <div class="side-card">
-    <div class="side-head">
-      <span class="ic">🗂</span>
-      <h3>最近分析</h3>
-      <span class="more">查看全部</span>
-    </div>
-    <div class="side-body" style="padding-top:4px;padding-bottom:4px">
-      <div class="history-item">
-        <div class="h-status resolved"></div>
-        <div class="h-info"><div class="t">订单超时熔断</div><div class="m">MSP-2026-0817 · 2min前</div></div>
-      </div>
-      <div class="history-item">
-        <div class="h-status resolved"></div>
-        <div class="h-info"><div class="t">支付回调失败</div><div class="m">MSP-2026-0802 · 1h前</div></div>
-      </div>
-      <div class="history-item">
-        <div class="h-status analyzing"></div>
-        <div class="h-info"><div class="t">库存扣减不一致</div><div class="m">MSP-2026-0795 · 进行中</div></div>
-      </div>
-      <div class="history-item">
-        <div class="h-status resolved"></div>
-        <div class="h-info"><div class="t">网关 502 异常</div><div class="m">MSP-2026-0788 · 3h前</div></div>
-      </div>
-      <div class="history-item">
-        <div class="h-status open"></div>
-        <div class="h-info"><div class="t">用户登录态丢失</div><div class="m">MSP-2026-0779 · 5h前</div></div>
-      </div>
+    <div class="side-head"><span class="ic">🗂</span><h3>最近分析</h3><span class="more">查看全部</span></div>
+    <div class="side-body" id="historyList" style="padding-top:2px;padding-bottom:2px">
+      <div class="history-item"><div class="h-status resolved"></div><div class="h-info"><div class="t">订单超时熔断</div><div class="m">MSP-2026-0817 · 2min前</div></div></div>
+      <div class="history-item"><div class="h-status resolved"></div><div class="h-info"><div class="t">支付回调失败</div><div class="m">MSP-2026-0802 · 1h前</div></div></div>
+      <div class="history-item"><div class="h-status open"></div><div class="h-info"><div class="t">用户登录态丢失</div><div class="m">MSP-2026-0779 · 5h前</div></div></div>
     </div>
   </div>
-
   <div class="side-card">
-    <div class="side-head">
-      <span class="ic">⚙</span>
-      <h3>分析引擎</h3>
-    </div>
+    <div class="side-head"><span class="ic">⚙</span><h3>分析引擎</h3></div>
     <div class="side-body">
       <div class="flow-mini">
-        <div class="step"><span class="n">▸</span> <span>opencode 静态扫描 (AST + 数据流)</span></div>
+        <div class="step"><span class="n">▸</span> <span>A1 问题理解 (LLM + 问题单解析)</span></div>
+        <div class="step"><span class="arr">  ↳</span> <span>抽取症状·错误类型·嫌疑服务</span></div>
+        <div class="step"><span class="n">▸</span> <span>A2 静态分析 (CodeGraph 图谱)</span></div>
         <div class="step"><span class="arr">  ↳</span> <span>调用链构建 + 热点定位</span></div>
-        <div class="step"><span class="n">▸</span> <span>RAG 向量检索 (bge-m3)</span></div>
-        <div class="step"><span class="arr">  ↳</span> <span>历史问题单 Top-K 召回</span></div>
-        <div class="step"><span class="n">▸</span> <span>LLM 根因推理 + 方案合成</span></div>
-        <div class="step"><span class="arr">  ↳</span> <span>业界实践增强 (Web 检索)</span></div>
-        <div class="note">知识库持续自学习：每次问题单闭环后自动回写根因、验证、代码，形成飞轮。</div>
+        <div class="step"><span class="n">▸</span> <span>A3 链路追溯 (Trace + 服务拓扑)</span></div>
+        <div class="step"><span class="arr">  ↳</span> <span>Span 聚合 + 异常传播路径</span></div>
+        <div class="step"><span class="n">▸</span> <span>A4 双图谱交叉验证</span></div>
+        <div class="step"><span class="arr">  ↳</span> <span>静态×运行时四维评分</span></div>
+        <div class="step"><span class="n">▸</span> <span>CRAG 自动纠偏门</span></div>
+        <div class="step"><span class="n">▸</span> <span>HIL 人工确认门</span></div>
+        <div class="step"><span class="n">▸</span> <span>A5 方案生成 (LLM 合成)</span></div>
+        <div class="note">知识飞轮：闭环后自动回写根因+验证+代码</div>
       </div>
     </div>
   </div>
-
 </aside>
+</div>
+</div>
+
+<!-- ===== VIEW: SERVICE TOPOLOGY ===== -->
+<div class="view" id="view-topology">
+  <div class="topo-header">
+    <h2>服务级拓扑图</h2>
+    <div class="input-wrap" style="flex:1;max-width:300px">
+      <input type="text" id="topoSvcInput" placeholder="输入服务名称过滤 (回车)" value="order-service">
+    </div>
+    <button class="btn btn-primary btn-sm" id="topoRenderBtn">◉ 渲染拓扑</button>
+    <button class="btn btn-ghost btn-sm" id="topoResetBtn">重置</button>
+  </div>
+  <div class="topo-canvas" id="topoCanvas">
+    <div class="empty" style="color:var(--txt-2);font-size:13px">点击「渲染拓扑」查看服务级拓扑图</div>
+  </div>
+  <div class="topo-info">
+    <div class="topo-info-card">
+      <h4><span class="ic">◉</span> 服务节点</h4>
+      <table class="topo-table" id="topoNodeTable"><thead><tr><th>服务</th><th>Owner</th><th>语言</th><th>状态</th></tr></thead><tbody id="topoNodeBody"><tr><td colspan="4" style="text-align:center;color:var(--txt-2)">暂无数据</td></tr></tbody></table>
+    </div>
+    <div class="topo-info-card">
+      <h4><span class="ic">→</span> 调用边</h4>
+      <table class="topo-table" id="topoEdgeTable"><thead><tr><th>源</th><th>目标</th><th>类型</th><th>延迟</th></tr></thead><tbody id="topoEdgeBody"><tr><td colspan="4" style="text-align:center;color:var(--txt-2)">暂无数据</td></tr></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== VIEW: CODEGRAPH ===== -->
+<div class="view" id="view-codegraph">
+  <div class="cg-toolbar">
+    <div class="input-wrap" style="flex:1;max-width:350px">
+      <input type="text" id="cgSymbol" placeholder="输入符号名 (如 OrderLockService.acquire)" value="OrderLockService.acquire">
+    </div>
+    <button class="btn btn-primary btn-sm" id="cgNodeBtn">🔍 节点信息</button>
+    <button class="btn btn-cyan btn-sm" id="cgCallersBtn">← 调用者</button>
+    <button class="btn btn-cyan btn-sm" id="cgCalleesBtn">→ 被调用者</button>
+    <button class="btn btn-cyan btn-sm" id="cgExploreBtn">◉ 邻域探索</button>
+  </div>
+  <div class="cg-panels">
+    <div class="cg-panel">
+      <h4><span class="ic">◈</span> 节点信息</h4>
+      <div id="cgNodeInfo" class="empty">输入符号名后点击「节点信息」</div>
+    </div>
+    <div class="cg-panel">
+      <h4><span class="ic">←</span> 调用者 (Callers)</h4>
+      <div id="cgCallers" class="empty">—</div>
+    </div>
+    <div class="cg-panel">
+      <h4><span class="ic">→</span> 被调用者 (Callees)</h4>
+      <div id="cgCallees" class="empty">—</div>
+    </div>
+    <div class="cg-panel">
+      <h4><span class="ic">◉</span> 邻域探索</h4>
+      <div id="cgExplore" class="empty">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== VIEW: CODE2CN ===== -->
+<div class="view" id="view-code2cn">
+  <div class="c2cn-toolbar">
+    <div class="field"><label>符号名</label><div class="input-wrap"><input type="text" id="c2cnSymbol" value="OrderLockService.acquire"></div></div>
+    <div class="field"><label>文件路径</label><div class="input-wrap"><input type="text" id="c2cnFile" value="OrderLockService.java"></div></div>
+    <div class="field" style="flex:2"><label>源码 (可选)</label><div class="input-wrap"><input type="text" id="c2cnSource" placeholder="留空则使用 mock 数据"></div></div>
+    <button class="btn btn-primary btn-sm" id="c2cnGenBtn">文 生成中文大纲</button>
+  </div>
+  <div class="c2cn-outline" id="c2cnOutline">
+    <div style="text-align:center;padding:30px;color:var(--txt-2);font-size:13px">点击「生成中文大纲」查看结果</div>
+  </div>
+</div>
+
+<!-- ===== VIEW: RAG ===== -->
+<div class="view" id="view-rag">
+  <div class="rag-toolbar">
+    <div class="field" style="max-width:200px"><label>检索意图</label>
+      <div class="input-wrap"><select id="ragIntent">
+        <option value="history">历史经验匹配 (history)</option>
+        <option value="propagation">根因传播追溯 (propagation)</option>
+        <option value="architecture">全局架构理解 (architecture)</option>
+      </select><span class="select-chev">▾</span></div>
+    </div>
+    <div class="field" style="flex:1"><label>查询</label>
+      <div class="input-wrap"><input type="text" id="ragQuery" value="订单超时锁竞争"></div>
+    </div>
+    <button class="btn btn-primary btn-sm" id="ragSearchBtn">◎ 检索</button>
+  </div>
+  <div class="rag-result" id="ragResult">
+    <div style="text-align:center;padding:30px;color:var(--txt-2);font-size:13px">输入查询后点击「检索」</div>
+  </div>
+</div>
+
+<!-- ===== VIEW: KB MAINTENANCE ===== -->
+<div class="view" id="view-kb">
+  <div class="kb-section">
+    <h4><span class="ic">☁</span> 云捷问题单批量导入</h4>
+    <div class="kb-form">
+      <div class="field full"><label>问题单链接/编号（每行一个，通过 opencode 从云捷聚合关联 MR）</label>
+        <div class="input-wrap"><textarea id="kbYunjieRefs" placeholder="https://yunjie.example.com/ticket/MSP-2026-0817&#10;MSP-2026-0999&#10;https://yunjie.example.com/ticket/MSP-2026-1024"></textarea></div>
+      </div>
+    </div>
+    <div style="margin-top:10px"><button class="btn btn-primary btn-sm" id="kbYunjieBtn">☁ 拉取并导入</button></div>
+  </div>
+
+  <div class="kb-section">
+    <h4><span class="ic">✎</span> 手动单条写入知识库</h4>
+    <div class="kb-form">
+      <div class="field"><label>问题单号 <span class="req">*</span></label><div class="input-wrap"><input type="text" id="kbTicketId" placeholder="MSP-2026-0817"></div></div>
+      <div class="field"><label>标题</label><div class="input-wrap"><input type="text" id="kbTitle" placeholder="订单超时"></div></div>
+      <div class="field full"><label>描述</label><div class="input-wrap"><textarea id="kbDesc" placeholder="现象描述…"></textarea></div></div>
+      <div class="field full"><label>根因</label><div class="input-wrap"><textarea id="kbRootCause" placeholder="根因分析…"></textarea></div></div>
+      <div class="field full"><label>修复代码 / Diff</label><div class="input-wrap"><textarea id="kbFixCode" placeholder="修复代码或补丁…"></textarea></div></div>
+      <div class="field"><label>微服务</label><div class="input-wrap"><input type="text" id="kbMicroservice" placeholder="order-center"></div></div>
+      <div class="field"><label>模块</label><div class="input-wrap"><input type="text" id="kbModule" placeholder="OrderService"></div></div>
+      <div class="field"><label>错误码</label><div class="input-wrap"><input type="text" id="kbErrorCode" placeholder="TIMEOUT"></div></div>
+      <div class="field"><label>严重等级</label><div class="input-wrap"><input type="text" id="kbSeverity" placeholder="P1"></div></div>
+    </div>
+    <div style="margin-top:10px"><button class="btn btn-primary btn-sm" id="kbManualBtn">✎ 写入知识库</button></div>
+  </div>
+
+  <div class="kb-section">
+    <h4><span class="ic">◎</span> 知识库列表 / 检索 / 删除</h4>
+    <div class="kb-toolbar">
+      <div class="field"><label>检索关键词（留空则按最近列表）</label>
+        <div class="input-wrap"><input type="text" id="kbSearchQ" placeholder="如：锁竞争 / TIMEOUT / order-center"></div>
+      </div>
+      <button class="btn btn-cyan btn-sm" id="kbSearchBtn">◎ 检索</button>
+      <button class="btn btn-ghost btn-sm" id="kbListBtn">↻ 刷新列表</button>
+    </div>
+    <div class="kb-table-wrap" id="kbTableWrap">
+      <div class="kb-empty">点击「刷新列表」载入知识库条目</div>
+    </div>
+  </div>
 </div>
 
 <div class="foot">
-  <span>RCA·Command v2.4.0</span>
+  <span>RCA·Command v3.0.0</span>
   <span class="sep">|</span>
-  <span>opencode engine: 0.9.3</span>
+  <span>5-Agent 引擎 · 双图谱交叉验证 · 双闸门机制 · 服务级拓扑 · 三级降级</span>
   <span class="sep">|</span>
-  <span>RAG: bge-m3 + qwen2.5-72b</span>
-  <span class="sep">|</span>
-  <span>© Huawei Microservice Team</span>
+  <span>Spec1-Code2CN / Spec2-CodeGraph / Spec3-LightRAG / Spec4-5Agent / Spec5-双图谱 / Spec6-双闸门 / Spec7-部署</span>
 </div>
 </main>
 
-<div class="toast" id="toast"><span class="ti">◆</span><span id="toastMsg">分析启动中...</span></div>
+<!-- ===== HIL 人工确认弹窗 ===== -->
+<div class="modal-overlay" id="hilOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="tag">HIL GATE</span>
+      <h3>人工确认根因</h3>
+    </div>
+    <div class="modal-body" id="hilBody"></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="hilRejectBtn">驳回</button>
+      <button class="btn btn-ghost" id="hilModifyBtn">修正</button>
+      <button class="btn btn-primary" id="hilConfirmBtn">确认放行</button>
+    </div>
+  </div>
+</div>
 
 <script>
-const runBtn=document.getElementById('runBtn');
-const resetBtn=document.getElementById('resetBtn');
-const stages=document.querySelectorAll('.stage');
-const results=document.getElementById('results');
-const liveStatus=document.getElementById('liveStatus');
-const toast=document.getElementById('toast');
-const toastMsg=document.getElementById('toastMsg');
+(function(){
+'use strict';
 
-const stageNames=['拉取问题单','克隆代码仓','opencode 静态分析','调用链追溯','RAG 知识匹配','方案生成'];
-const stageLogs=[
-  '正在拉取问题单 MSP-2026-0817 ...',
-  '克隆 microservice-order-center @ release/2026.08 ...',
-  'opencode 执行 AST 分析 + 数据流追踪 ...',
-  '构建调用链，定位异常堆栈 ...',
-  'RAG 向量检索 12,847 条历史记录 ...',
-  'LLM 合成根因报告 + 修复方案 ...'
-];
+var $=function(s){return document.querySelector(s)};
+var $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s))};
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
+var fmt=function(n){n=Number(n)||0;return n.toFixed(2)};
 
-function showToast(msg){
-  toastMsg.textContent=msg;
-  toast.classList.add('show');
-  setTimeout(()=>toast.classList.remove('show'),2600);
-}
+var currentTask=null;
+var pollTimer=null;
+var eventSource=null;
+var finished=false;
 
-let running=false;
-async function runAnalysis(){
-  if(running)return;
-  const ticket=document.getElementById('ticketUrl').value.trim();
-  const repo=document.getElementById('repoUrl').value.trim();
-  if(!ticket||!repo){showToast('请填写问题单链接与代码仓库');return;}
-  running=true;
-  runBtn.disabled=true;
-  runBtn.innerHTML='<span style="display:inline-block;animation:nspin 1s linear infinite">◐</span> 分析中...';
-  results.classList.remove('show');
-  stages.forEach(s=>{s.classList.remove('done','active')});
-  liveStatus.innerHTML='<span class="dot pulse" style="background:var(--amber);box-shadow:0 0 8px var(--amber)"></span> 分析中';
-  liveStatus.style.color='var(--amber)';
-
-  for(let i=0;i<stages.length;i++){
-    stages[i].classList.add('active');
-    showToast(stageLogs[i]);
-    await new Promise(r=>setTimeout(r,1100));
-    stages[i].classList.remove('active');
-    stages[i].classList.add('done');
+function toast(msg,isErr){
+  var t=$('#toastBox');
+  if(!t){
+    t=document.createElement('div');
+    t.id='toastBox';
+    t.className='toast';
+    t.innerHTML='<span class="ti">●</span><span class="tt"></span>';
+    document.body.appendChild(t);
   }
-  liveStatus.innerHTML='<span class="dot pulse"></span> 完成';
-  liveStatus.style.color='var(--green)';
-  results.classList.add('show');
-  results.scrollIntoView({behavior:'smooth',block:'start'});
-  showToast('✓ 分析完成，置信度 94.2%');
-  running=false;
-  runBtn.disabled=false;
-  runBtn.innerHTML='<span>▶</span> 重新分析';
+  t.querySelector('.tt').textContent=msg;
+  t.className='toast'+(isErr?' err':'');
+  requestAnimationFrame(function(){t.classList.add('show')});
+  clearTimeout(t._h);
+  t._h=setTimeout(function(){t.classList.remove('show')},3200);
 }
 
-runBtn.addEventListener('click',runAnalysis);
-resetBtn.addEventListener('click',()=>{
-  results.classList.remove('show');
-  stages.forEach(s=>s.classList.remove('done','active'));
-  liveStatus.innerHTML='● 待命';
-  liveStatus.style.color='var(--txt-2)';
-  runBtn.innerHTML='<span>▶</span> 启动根因分析';
-});
-
-document.addEventListener('keydown',e=>{
-  if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();runAnalysis();}
-});
-
-document.querySelectorAll('.tab').forEach(tab=>{
-  tab.addEventListener('click',()=>{
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-    tab.classList.add('active');
-    document.querySelector(`.tab-panel[data-panel="${tab.dataset.tab}"]`).classList.add('active');
+function api(url,opts){
+  return fetch(url,opts||{}).then(function(res){
+    if(!res.ok){
+      return res.json().catch(function(){return {}}).then(function(j){
+        throw new Error(j.detail||('HTTP '+res.status));
+      });
+    }
+    return res.json();
   });
-});
+}
 
-document.querySelectorAll('.history-item').forEach(h=>{
-  h.addEventListener('click',()=>showToast('加载历史分析记录...'));
-});
+function setLive(t){$('#liveStatus').textContent=t}
+function setHealth(up,label){
+  var dot=$('#healthDot');
+  dot.className='dot pulse '+(up?'':'amber');
+  $('#healthLabel').textContent=label;
+}
+
+function switchView(v){
+  $$('.view').forEach(function(el){el.classList.toggle('active',el.id==='view-'+v)});
+  $$('.nav-btn').forEach(function(b){b.classList.toggle('active',b.dataset.view===v)});
+  if(v==='topology')renderTopology();
+  if(v==='kb')kbList();
+}
+
+function switchTab(tab){
+  $$('#results .tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab===tab)});
+  $$('#results .tab-panel').forEach(function(p){p.classList.toggle('active',p.dataset.panel===tab)});
+}
+
+function setPipeline(stages){
+  $$('#stages .stage').forEach(function(node){node.classList.remove('done','active','fail')});
+  stages.forEach(function(s){
+    var node=document.querySelector('#stages .stage[data-i="'+s.i+'"]');
+    if(!node)return;
+    if(s.status==='done')node.classList.add('done');
+    else if(s.status==='active')node.classList.add('active');
+    else if(s.status==='fail')node.classList.add('fail');
+  });
+}
+
+function updatePipelineFromState(state){
+  var idx=(state.stage&&state.stage.index)||0;
+  var st=(state.stage&&state.stage.status)||'running';
+  var hil=state.gate_status&&state.gate_status.hil;
+  if(st==='failed'||st==='rejected'||idx>=99){
+    setPipeline([
+      {i:0,status:'done'},{i:1,status:'done'},{i:2,status:'done'},
+      {i:3,status:'done'},{i:4,status:st==='rejected'?'fail':'done'},{i:5,status:'fail'}
+    ]);
+    return;
+  }
+  var doneSet={0:false,1:false,2:false,3:false,4:false,5:false};
+  if(idx>=1)doneSet[0]=true;
+  if(idx>=2){doneSet[1]=true;doneSet[2]=true;}
+  if(idx>=4)doneSet[3]=true;
+  if(idx>=4&&hil&&hil!=='pending')doneSet[4]=true;
+  if(idx>=5)doneSet[5]=true;
+  if(idx>=6||st==='completed'){for(var i=0;i<6;i++)doneSet[i]=true;}
+  var stages=[];
+  var firstIdle=-1;
+  for(var j=0;j<6;j++){
+    stages.push({i:j,status:doneSet[j]?'done':'idle'});
+    if(!doneSet[j]&&firstIdle<0)firstIdle=j;
+  }
+  if(firstIdle>=0&&st!=='completed'&&st!=='failed'&&st!=='rejected')stages[firstIdle].status='active';
+  setPipeline(stages);
+}
+
+function resetResults(){
+  var r=$('#results');
+  r.classList.remove('show');
+  r.querySelector('#rcTitle').textContent='等待分析结果…';
+  r.querySelector('#rcDesc').textContent='请提交分析任务';
+  r.querySelector('#rcTags').innerHTML='';
+  r.querySelector('#confidenceBadge').textContent='置信度 —';
+  r.querySelector('#resultMeta').textContent='—';
+  r.querySelector('#evidenceChainLabel').textContent='—';
+  r.querySelectorAll('#evidenceGrid .evidence-card').forEach(function(c){
+    c.className='evidence-card none';c.querySelector('.ev-value').textContent='0.00';c.querySelector('.ev-bar i').style.width='0%';
+  });
+  r.querySelector('#callStack').innerHTML='<div style="padding:10px;color:var(--txt-2);font-size:11px;text-align:center">暂无数据</div>';
+  r.querySelector('#candidateGrid').innerHTML='<div style="padding:14px;color:var(--txt-2);font-size:11px;text-align:center">等待分析结果…</div>';
+  r.querySelectorAll('#dualEvidenceGrid .evidence-card').forEach(function(c){
+    c.className='evidence-card none';c.querySelector('.ev-value').textContent='0.00';c.querySelector('.ev-bar i').style.width='0%';
+  });
+  r.querySelectorAll('#gateStatusGrid .evidence-card').forEach(function(c){
+    c.className='evidence-card none';c.querySelector('.ev-value').textContent='—';
+  });
+  r.querySelector('#hitKindChart').textContent='暂无数据';
+  r.querySelector('#solutionContent').innerHTML='<p style="color:var(--txt-2);padding:10px 0">等待分析结果…</p>';
+}
+
+function startAnalysis(){
+  var link=$('#bugLink').value.trim();
+  var desc=$('#bugDesc').value.trim();
+  if(!link&&!desc){toast('请填写问题单链接或症状描述',true);return;}
+  var payload={
+    bug_id:$('#bugId').value.trim(),
+    symptom:desc.slice(0,120),
+    error_type:$('#errorType').value.trim()||null,
+    suspect_service:$('#suspectService').value.trim()||null,
+    repo:$('#repo').value.trim(),
+    branch:$('#branch').value,
+    bug_link:link,
+    bug_desc:desc,
+    runtime_mode:$('#runtimeMode').value,
+    depth:$('#depth').value
+  };
+  var btn=$('#runBtn');
+  btn.disabled=true;
+  finished=false;
+  resetResults();
+  setPipeline([{i:0,status:'active'},{i:1,status:'idle'},{i:2,status:'idle'},{i:3,status:'idle'},{i:4,status:'idle'},{i:5,status:'idle'}]);
+  setLive('● 分析中…');
+  api('/api/v1/rca/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(function(data){
+    currentTask=data.task_id;
+    $('#resultMeta').textContent='task: '+currentTask+' · '+data.runtime_mode;
+    toast('分析已启动 · '+currentTask);
+    openSSE(currentTask);
+    startPolling(currentTask);
+  }).catch(function(err){
+    toast(err.message,true);
+    setLive('● 启动失败');
+    btn.disabled=false;
+  });
+}
+
+function openSSE(taskId){
+  if(eventSource){eventSource.close();eventSource=null;}
+  eventSource=new EventSource('/api/v1/rca/'+encodeURIComponent(taskId)+'/stream');
+  eventSource.onmessage=function(e){
+    var evt;
+    try{evt=JSON.parse(e.data);}catch(_){return;}
+    if(evt.type==='final'){
+      if(eventSource){eventSource.close();eventSource=null;}
+      var hilPending=evt.data&&evt.data.gate_status&&evt.data.gate_status.hil==='pending';
+      if(hilPending){
+        showHIL(evt.data);
+        setLive('● 等待人工确认');
+      }else{
+        stopPolling();
+        if(evt.data)renderAll(evt.data);
+        $('#runBtn').disabled=false;
+        setLive('● 已完成');
+      }
+    }else if(evt.type==='error'){
+      if(eventSource){eventSource.close();eventSource=null;}
+      stopPolling();
+      toast((evt.data&&evt.data.message)||'分析失败',true);
+      setLive('● 分析失败');
+      $('#runBtn').disabled=false;
+    }
+  };
+  eventSource.onerror=function(){
+    if(finished){if(eventSource){eventSource.close();eventSource=null;}}
+  };
+}
+
+function startPolling(taskId){
+  stopPolling();
+  pollTimer=setInterval(function(){
+    api('/api/v1/rca/'+encodeURIComponent(taskId)+'/state').then(function(state){
+      updatePipelineFromState(state);
+      var st=state.stage&&state.stage.status;
+      var idx=state.stage&&state.stage.index;
+      var hilPending=state.gate_status&&state.gate_status.hil==='pending';
+      if(hilPending){showHIL(state);return;}
+      if(st==='completed'||idx>=6||st==='failed'||st==='rejected'||idx>=99){
+        stopPolling();
+        if(eventSource){eventSource.close();eventSource=null;}
+        if(!finished){finished=true;renderAll(state);}
+        $('#runBtn').disabled=false;
+        setLive(st==='completed'?'● 已完成':'● '+st);
+      }
+    }).catch(function(){});
+  },1500);
+}
+
+function stopPolling(){
+  if(pollTimer){clearInterval(pollTimer);pollTimer=null;}
+}
+
+function renderAll(s){
+  finished=true;
+  var top3=(s.top3||[]).filter(function(r){return r&&r.root_cause&&r.root_cause!=='insufficient_evidence'});
+  var top1=top3[0]||null;
+  var conf=top1?(top1.confidence||0):0;
+  $('#confidenceBadge').textContent='置信度 '+Math.round(conf*100)+'%';
+  $('#resultMeta').textContent='task: '+(s.task_id||currentTask||'')+' · '+(s.runtime_mode||'');
+  $('#results').classList.add('show');
+  renderRca(s,top3,top1);
+  renderDual(s,top1);
+  renderSolution(s);
+  var _st=(s.stage&&s.stage.status)||'completed';
+  setLive(_st==='rejected'?'● 已驳回':(_st==='failed'?'● 失败':'● 已完成'));
+  refreshHistory();
+}
+
+function parseEvidence(rc){
+  var e={static_depth:0,runtime_anomaly:0,metric_corr:0,change_recency:0};
+  if(!rc||!rc.evidence_chain)return e;
+  rc.evidence_chain.forEach(function(line){
+    var m=line.match(/(static_depth|runtime_anomaly|metric_corr|change_recency)=([\d.]+)/);
+    if(m)e[m[1]]=parseFloat(m[2])||0;
+  });
+  return e;
+}
+
+function renderRca(s,top3,top1){
+  $('#rcTitle').textContent=top1?(top1.root_cause):'未定位到明确根因';
+  $('#rcDesc').textContent=(s.symptoms&&s.symptoms.length?s.symptoms.join('；'):((top1&&top1.root_cause)||'暂无症状信息'));
+  var tags=[];
+  if(s.error_type)tags.push('<span class="chip amber">'+esc(s.error_type)+'</span>');
+  (s.suspect_services||[]).forEach(function(sv){tags.push('<span class="chip cyan">'+esc(sv)+'</span>')});
+  if(s.runtime_mode)tags.push('<span class="chip violet">'+esc(s.runtime_mode)+'</span>');
+  if(s.degraded)tags.push('<span class="chip red">degraded</span>');
+  $('#rcTags').innerHTML=tags.join('');
+  var ev=parseEvidence(top1);
+  var items=[['静态可达',ev.static_depth],['运行时异常',ev.runtime_anomaly],['指标关联',ev.metric_corr],['变更时效',ev.change_recency]];
+  var cards=$('#evidenceGrid').querySelectorAll('.evidence-card');
+  cards.forEach(function(card,i){
+    if(i>=items.length)return;
+    var val=items[i][1];
+    card.querySelector('.ev-value').textContent=fmt(val);
+    card.querySelector('.ev-bar i').style.width=Math.min(100,val*100)+'%';
+    card.className='evidence-card '+(val>=0.7?'high':val>=0.4?'med':val>0?'low':'none');
+  });
+  $('#evidenceChainLabel').textContent=top1?('共 '+((top1.evidence_chain||[]).length)+' 条证据'):'—';
+  renderCallStack(top1?(top1.evidence_chain||[]):[]);
+  renderCandidates(top3);
+}
+
+function renderCallStack(chain){
+  var box=$('#callStack');
+  if(!chain||!chain.length){box.innerHTML='<div style="padding:10px;color:var(--txt-2);font-size:11px;text-align:center">暂无证据链</div>';return;}
+  box.innerHTML=chain.map(function(line,i){
+    var last=i===chain.length-1;
+    var num=String(i+1).padStart(2,'0');
+    return '<div class="stack-line'+(last?' culprit':'')+'"><span class="ln">'+num+'</span><span class="fn">'+esc(line)+'</span></div>';
+  }).join('');
+}
+
+function renderCandidates(top3){
+  var grid=$('#candidateGrid');
+  if(!top3.length){grid.innerHTML='<div style="padding:14px;color:var(--txt-2);font-size:11px;text-align:center">未定位候选根因</div>';return;}
+  var ranks=[['top1','候选 #1','var(--amber)'],['top2','候选 #2','var(--txt-2)'],['top3','候选 #3','var(--violet)']];
+  grid.innerHTML=top3.map(function(rc,i){
+    var r=ranks[i]||['top3','候选 #'+(i+1),'var(--violet)'];
+    var fn=rc.located_function||rc.root_cause;
+    var loc=rc.file?(esc(rc.file)+(rc.line?':'+rc.line:'')):'';
+    return '<div class="cand-card '+r[0]+'">'
+      +'<div class="rank"><span class="dot" style="background:'+r[2]+'"></span> '+r[1]+'</div>'
+      +'<div class="cand-conf">'+Math.round((rc.confidence||0)*100)+'%</div>'
+      +'<div class="cand-fn">'+esc(fn)+'</div>'
+      +'<div class="cand-rc">'+esc(rc.root_cause)+'</div>'
+      +(loc?'<div class="cand-meta">'+loc+'</div>':'')
+      +'</div>';
+  }).join('');
+}
+
+function renderDual(s,top1){
+  var ev=parseEvidence(top1);
+  var composite=Math.round((ev.static_depth*0.3+ev.runtime_anomaly*0.3+ev.metric_corr*0.2+ev.change_recency*0.2)*100)/100;
+  var vals=[ev.static_depth,ev.runtime_anomaly,Math.min(ev.static_depth,ev.runtime_anomaly),composite];
+  var cards=$('#dualEvidenceGrid').querySelectorAll('.evidence-card');
+  cards.forEach(function(card,i){
+    if(i>=vals.length)return;
+    var val=vals[i];
+    card.querySelector('.ev-value').textContent=fmt(val);
+    card.querySelector('.ev-bar i').style.width=Math.min(100,val*100)+'%';
+    card.className='evidence-card '+(val>=0.7?'high':val>=0.4?'med':val>0?'low':'none');
+  });
+  var gs=s.gate_status||{};
+  var gv=[gs.crag||'—',gs.hil||'—'];
+  var gcards=$('#gateStatusGrid').querySelectorAll('.evidence-card');
+  gcards.forEach(function(card,i){
+    if(i>=gv.length)return;
+    var val=gv[i];
+    card.querySelector('.ev-value').textContent=val;
+    card.className='evidence-card '+(['passed','confirmed','relevant'].indexOf(val)>=0?'high':['pending','ambiguous','modified'].indexOf(val)>=0?'med':['rejected','irrelevant'].indexOf(val)>=0?'low':'none');
+  });
+  renderHitChart(ev);
+}
+
+function renderHitChart(ev){
+  var items=[['静态',ev.static_depth],['运行',ev.runtime_anomaly],['指标',ev.metric_corr],['变更',ev.change_recency]];
+  var max=Math.max(0.01,items[0][1],items[1][1],items[2][1],items[3][1]);
+  $('#hitKindChart').innerHTML=items.map(function(it){
+    var v=it[1],w=Math.max(2,Math.round(v/max*100));
+    var col=v>=0.7?'var(--green)':v>=0.4?'var(--amber)':'var(--red)';
+    return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:11px">'
+      +'<span style="width:32px;color:var(--txt-2)">'+it[0]+'</span>'
+      +'<span style="flex:1;height:6px;background:var(--bg-3);border-radius:3px;overflow:hidden"><span style="display:block;height:100%;width:'+w+'%;background:'+col+';border-radius:3px"></span></span>'
+      +'<span style="width:44px;text-align:right;font-family:JetBrains Mono">'+fmt(v)+'</span>'
+      +'</div>';
+  }).join('');
+}
+
+function renderSolution(s){
+  var sol=s.solution||{};
+  var diffs=sol.diffs||[];
+  var steps=sol.steps||[];
+  var verify=sol.verify_expected||{};
+  var testCases=sol.test_cases||[];
+  var histCases=sol.historical_cases||[];
+  var best=sol.best_practices||[];
+  var h='';
+  if(diffs.length){
+    h+='<div class="section-title">代码变更建议 <span class="count">'+diffs.length+' 处</span></div>';
+    h+='<div class="solution-grid">';
+    diffs.forEach(function(d){
+      h+='<div class="sol-block before"><h4><span class="ic">−</span>修复前 · '+esc(d.file||'')+'</h4><div class="code-block">'+esc(d.before||'')+'</div></div>';
+      h+='<div class="sol-block after"><h4><span class="ic">+</span>修复后 · '+esc(d.file||'')+'</h4><div class="code-block">'+esc(d.after||'')+'</div></div>';
+    });
+    h+='</div>';
+  }
+  if(sol.patch_suggestion){
+    h+='<div class="section-title">Patch 建议</div><div class="code-block">'+esc(sol.patch_suggestion)+'</div>';
+  }
+  if(steps.length){
+    h+='<div class="section-title">实施步骤 <span class="count">'+steps.length+' 步</span></div><ol class="steps">';
+    steps.forEach(function(st){
+      h+='<li><b>'+esc(st.action||('步骤 '+st.step))+'</b>'+(st.detail?' — '+esc(st.detail):'')+'</li>';
+    });
+    h+='</ol>';
+  }
+  var vkeys=Object.keys(verify||{});
+  if(vkeys.length){
+    h+='<div class="section-title">验证预期</div><div class="verify-grid">';
+    vkeys.slice(0,6).forEach(function(k){
+      h+='<div class="verify-card"><div class="v-ic">✓</div><div class="v-t">'+esc(k)+'</div><div class="v-v">'+esc(String(verify[k]))+'</div></div>';
+    });
+    h+='</div>';
+  }
+  if(testCases.length){
+    h+='<div class="section-title">测试用例 <span class="count">'+testCases.length+'</span></div><div class="code-block">'+esc(testCases.join('\n'))+'</div>';
+  }
+  if(histCases.length){
+    h+='<div class="section-title">历史相似案例</div>';
+    histCases.forEach(function(c){
+      h+='<div class="kb-card"><div class="kb-card-head"><span class="kb-sim">REF</span><h4>'+esc(c)+'</h4></div></div>';
+    });
+  }
+  if(best.length){
+    h+='<div class="section-title">最佳实践</div>';
+    best.forEach(function(b){
+      h+='<div class="bp-item"><div class="bp-num">•</div><div class="bp-content"><p>'+esc(b)+'</p></div></div>';
+    });
+  }
+  if(!h)h='<p style="color:var(--txt-2);padding:10px 0">暂无方案数据</p>';
+  $('#solutionContent').innerHTML=h;
+}
+
+function showHIL(state){
+  var overlay=$('#hilOverlay');
+  if(overlay.classList.contains('show'))return;
+  var top3=(state.top3||[]).filter(function(r){return r&&r.root_cause&&r.root_cause!=='insufficient_evidence'});
+  var conf=state.top3&&state.top3[0]?(state.top3[0].confidence||0):0;
+  var body='<p style="font-size:12px;color:var(--txt-1);margin-bottom:10px">置信度 '+Math.round(conf*100)+'% 未达到 HIL 放行阈值 70%，请人工确认以下候选根因：</p>';
+  if(!top3.length)body+='<p style="font-size:11px;color:var(--txt-2)">暂无候选根因</p>';
+  top3.forEach(function(rc,i){
+    var fn=rc.located_function||rc.root_cause;
+    body+='<label style="display:flex;gap:10px;align-items:flex-start;padding:10px;background:var(--bg-2);border:1px solid var(--border);border-radius:7px;margin-bottom:8px;cursor:pointer">'
+      +'<input type="radio" name="hilPick" value="'+esc(fn)+'"'+(i===0?' checked':'')+' style="margin-top:4px">'
+      +'<span style="flex:1"><span style="font-size:12px;font-weight:600">'+esc(fn)+'</span> <span style="color:var(--amber);font-family:JetBrains Mono">'+Math.round((rc.confidence||0)*100)+'%</span>'
+      +'<div style="font-size:11px;color:var(--txt-1);margin-top:3px">'+esc(rc.root_cause)+'</div>'
+      +(rc.file?'<div style="font-size:9px;color:var(--txt-2);font-family:JetBrains Mono;margin-top:2px">'+esc(rc.file)+(rc.line?':'+rc.line:'')+'</div>':'')
+      +'</span></label>';
+  });
+  body+='<textarea id="hilComment" placeholder="人工备注 / 修正意见（可选）" style="width:100%;background:var(--bg-0);border:1px solid var(--border);color:var(--txt-0);font-family:JetBrains Mono;font-size:11px;padding:8px;border-radius:7px;min-height:48px;box-sizing:border-box"></textarea>';
+  $('#hilBody').innerHTML=body;
+  overlay.classList.add('show');
+  if(state.task_id)currentTask=state.task_id;
+}
+
+function hideHIL(){$('#hilOverlay').classList.remove('show')}
+
+function sendHilDecision(action){
+  var pick=document.querySelector('input[name="hilPick"]:checked');
+  var fn=pick?pick.value:'';
+  var comment=$('#hilComment')?$('#hilComment').value.trim():'';
+  var body={action:action,comment:comment||null,confirmed_root_cause_id:fn||'',operator:'HW'};
+  api('/api/v1/rca/'+encodeURIComponent(currentTask)+'/confirm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(state){
+    hideHIL();
+    toast(action==='reject'?'HIL 已驳回，任务终止':'HIL '+action+' 已提交，继续生成方案');
+    stopPolling();
+    if(eventSource){eventSource.close();eventSource=null;}
+    renderAll(state);
+    $('#runBtn').disabled=false;
+  }).catch(function(err){toast(err.message,true)});
+}
+
+function renderTopology(){
+  var data={
+    services:[
+      {name:'api-gateway',owner:'平台组',language:'Go',status:'normal'},
+      {name:'order-service',owner:'订单中心',language:'Java',status:'normal'},
+      {name:'order-core',owner:'订单中心',language:'Java',status:'anomaly'},
+      {name:'user-service',owner:'用户中心',language:'Java',status:'normal'},
+      {name:'inventory-service',owner:'仓储组',language:'Go',status:'normal'},
+      {name:'pay-service',owner:'支付组',language:'Java',status:'normal'},
+      {name:'notification-service',owner:'消息组',language:'Python',status:'normal'}
+    ],
+    calls:[
+      {src:'api-gateway',tgt:'order-service',type:'REST',latency:180},
+      {src:'order-service',tgt:'order-core',type:'RPC',latency:320},
+      {src:'order-service',tgt:'user-service',type:'REST',latency:42},
+      {src:'order-service',tgt:'inventory-service',type:'REST',latency:66},
+      {src:'order-core',tgt:'pay-service',type:'RPC',latency:210},
+      {src:'order-core',tgt:'notification-service',type:'MQ',latency:15},
+      {src:'api-gateway',tgt:'user-service',type:'REST',latency:30}
+    ],
+    contains:[
+      {service:'order-core',functions:['OrderLockService.acquire','OrderPersistService.save','StockDeductService.deduct']},
+      {service:'order-service',functions:['OrderCreateController.create','OrderService.createOrder']},
+      {service:'pay-service',functions:['PayCallbackController.handle','PayRefundService.refund']}
+    ],
+    anomalyPath:['api-gateway','order-service','order-core']
+  };
+  var svc=$('#topoSvcInput').value.trim();
+  if(svc&&data.services.every(function(s){return s.name!==svc})){toast('服务「'+svc+'」不在拓扑中',true);}
+  var canvas=$('#topoCanvas');
+  var W=880,H=560,CX=W/2,CY=H/2,RX=300,RY=200;
+  var NS='http://www.w3.org/2000/svg';
+  var svg=document.createElementNS(NS,'svg');
+  svg.setAttribute('viewBox','0 0 '+W+' '+H);
+  svg.setAttribute('xmlns',NS);
+  var defs=document.createElementNS(NS,'defs');
+  svg.appendChild(defs);
+  var m0=document.createElementNS(NS,'marker');
+  m0.setAttribute('id','arr');m0.setAttribute('markerWidth','8');m0.setAttribute('markerHeight','8');m0.setAttribute('refX','7');m0.setAttribute('refY','4');m0.setAttribute('orient','auto');
+  var mp=document.createElementNS(NS,'path');
+  mp.setAttribute('d','M0,0 L8,4 L0,8 Z');mp.setAttribute('fill','#5e6878');
+  m0.appendChild(mp);defs.appendChild(m0);
+  var m1=document.createElementNS(NS,'marker');
+  m1.setAttribute('id','arrA');m1.setAttribute('markerWidth','8');m1.setAttribute('markerHeight','8');m1.setAttribute('refX','7');m1.setAttribute('refY','4');m1.setAttribute('orient','auto');
+  var mp2=document.createElementNS(NS,'path');
+  mp2.setAttribute('d','M0,0 L8,4 L0,8 Z');mp2.setAttribute('fill','#f43f5e');
+  m1.appendChild(mp2);defs.appendChild(m1);
+  var pos={};
+  data.services.forEach(function(s,i){
+    var ang=(-90+(360*i/data.services.length))*Math.PI/180;
+    pos[s.name]={x:CX+RX*Math.cos(ang),y:CY+RY*Math.sin(ang)};
+  });
+  var anomalyEdges={};
+  for(var i=0;i<data.anomalyPath.length-1;i++)anomalyEdges[data.anomalyPath[i]+'->'+data.anomalyPath[i+1]]=true;
+  data.calls.forEach(function(c){
+    var a=pos[c.src],b=pos[c.tgt];
+    if(!a||!b)return;
+    var anom=anomalyEdges[c.src+'->'+c.tgt];
+    var off=anom?0:20;
+    var dx=b.x-a.x,dy=b.y-a.y;
+    var len=Math.sqrt(dx*dx+dy*dy)||1;
+    var px=-dy/len*off,py=dx/len*off;
+    var d='M'+a.x+' '+a.y+' Q'+( (a.x+b.x)/2+px)+' '+((a.y+b.y)/2+py)+' '+b.x+' '+b.y;
+    var e=document.createElementNS(NS,'path');
+    e.setAttribute('d',d);e.setAttribute('fill','none');
+    e.setAttribute('stroke',anom?'#f43f5e':'#2b3445');
+    e.setAttribute('stroke-width',anom?'2.5':'1.4');
+    e.setAttribute('opacity',anom?'1':'.7');
+    e.setAttribute('marker-end','url(#'+(anom?'arrA':'arr')+')');
+    svg.appendChild(e);
+    var lab=document.createElementNS(NS,'text');
+    lab.setAttribute('x',(a.x+b.x)/2+px);lab.setAttribute('y',(a.y+b.y)/2+py-6);
+    lab.setAttribute('text-anchor','middle');lab.setAttribute('font-size','9');
+    lab.setAttribute('fill',anom?'#f43f5e':'#5e6878');lab.setAttribute('font-family','JetBrains Mono');
+    lab.textContent=(c.latency||'')+'ms';
+    svg.appendChild(lab);
+  });
+  data.contains.forEach(function(ct){
+    var s=pos[ct.service];
+    if(!s)return;
+    ct.functions.forEach(function(fn,fi){
+      var fx=s.x+(fi-(ct.functions.length-1)/2)*150;
+      var fy=s.y+52+fi*14;
+      var ln=document.createElementNS(NS,'line');
+      ln.setAttribute('x1',s.x);ln.setAttribute('y1',s.y+30);
+      ln.setAttribute('x2',fx);ln.setAttribute('y2',fy);
+      ln.setAttribute('stroke','#8b5cf6');ln.setAttribute('stroke-width','1');ln.setAttribute('stroke-dasharray','3 3');ln.setAttribute('opacity','.6');
+      svg.appendChild(ln);
+      var t=document.createElementNS(NS,'text');
+      t.setAttribute('x',fx);t.setAttribute('y',fy+3);t.setAttribute('text-anchor','middle');
+      t.setAttribute('font-size','8');t.setAttribute('fill','#8b5cf6');t.setAttribute('font-family','JetBrains Mono');
+      t.textContent=fn;
+      svg.appendChild(t);
+    });
+  });
+  data.services.forEach(function(s){
+    var p=pos[s.name];
+    var anom=s.status==='anomaly';
+    var g=document.createElementNS(NS,'g');
+    g.setAttribute('transform','translate('+p.x+' '+p.y+')');
+    g.setAttribute('style','cursor:pointer');
+    var ring=document.createElementNS(NS,'circle');
+    ring.setAttribute('r','30');
+    ring.setAttribute('fill',anom?'rgba(244,63,94,.08)':'rgba(45,212,191,.05)');
+    ring.setAttribute('stroke',anom?'#f43f5e':'#2dd4bf');
+    ring.setAttribute('stroke-width',anom?'2.5':'1.5');
+    if(anom){
+      var an=document.createElementNS(NS,'animate');
+      an.setAttribute('attributeName','opacity');an.setAttribute('values','1;.35;1');an.setAttribute('dur','1.6s');an.setAttribute('repeatCount','indefinite');
+      ring.appendChild(an);
+    }
+    g.appendChild(ring);
+    var core=document.createElementNS(NS,'circle');
+    core.setAttribute('r','10');core.setAttribute('fill',anom?'#f43f5e':'#2dd4bf');
+    g.appendChild(core);
+    var t1=document.createElementNS(NS,'text');
+    t1.setAttribute('y','44');t1.setAttribute('text-anchor','middle');t1.setAttribute('font-size','11');
+    t1.setAttribute('fill','#e6ecf3');t1.setAttribute('font-family','Space Grotesk');t1.setAttribute('font-weight','600');
+    t1.textContent=s.name;
+    g.appendChild(t1);
+    var t2=document.createElementNS(NS,'text');
+    t2.setAttribute('y','56');t2.setAttribute('text-anchor','middle');t2.setAttribute('font-size','8');
+    t2.setAttribute('fill','#5e6878');t2.setAttribute('font-family','JetBrains Mono');
+    t2.textContent=(s.owner||'')+' · '+(s.language||'');
+    g.appendChild(t2);
+    g.addEventListener('click',function(){toast(s.name+' · '+s.owner+' · '+s.language+' · status='+s.status);});
+    svg.appendChild(g);
+  });
+  var lg=document.createElementNS(NS,'g');
+  lg.setAttribute('transform','translate(18 22)');
+  var lg1=document.createElementNS(NS,'circle');
+  lg1.setAttribute('cx','6');lg1.setAttribute('cy','6');lg1.setAttribute('r','5');lg1.setAttribute('fill','#2dd4bf');
+  lg.appendChild(lg1);
+  var lt1=document.createElementNS(NS,'text');
+  lt1.setAttribute('x','16');lt1.setAttribute('y','9');lt1.setAttribute('font-size','9');lt1.setAttribute('fill','#9ba6b8');
+  lt1.textContent='正常服务';
+  lg.appendChild(lt1);
+  var lg2=document.createElementNS(NS,'circle');
+  lg2.setAttribute('cx','6');lg2.setAttribute('cy','24');lg2.setAttribute('r','5');lg2.setAttribute('fill','#f43f5e');
+  lg.appendChild(lg2);
+  var lt2=document.createElementNS(NS,'text');
+  lt2.setAttribute('x','16');lt2.setAttribute('y','27');lt2.setAttribute('font-size','9');lt2.setAttribute('fill','#9ba6b8');
+  lt2.textContent='异常服务';
+  lg.appendChild(lt2);
+  var ll=document.createElementNS(NS,'line');
+  ll.setAttribute('x1','6');ll.setAttribute('y1','42');ll.setAttribute('x2','40');ll.setAttribute('y2','42');
+  ll.setAttribute('stroke','#f43f5e');ll.setAttribute('stroke-width','2');
+  lg.appendChild(ll);
+  var lt3=document.createElementNS(NS,'text');
+  lt3.setAttribute('x','46');lt3.setAttribute('y','45');lt3.setAttribute('font-size','9');lt3.setAttribute('fill','#9ba6b8');
+  lt3.textContent='异常传播路径';
+  lg.appendChild(lt3);
+  var ld=document.createElementNS(NS,'line');
+  ld.setAttribute('x1','6');ld.setAttribute('y1','60');ld.setAttribute('x2','40');ld.setAttribute('y2','60');
+  ld.setAttribute('stroke','#8b5cf6');ld.setAttribute('stroke-width','1');ld.setAttribute('stroke-dasharray','3 3');
+  lg.appendChild(ld);
+  var lt4=document.createElementNS(NS,'text');
+  lt4.setAttribute('x','46');lt4.setAttribute('y','63');lt4.setAttribute('font-size','9');lt4.setAttribute('fill','#9ba6b8');
+  lt4.textContent='CONTAINS 下钻 (服务→函数)';
+  lg.appendChild(lt4);
+  svg.appendChild(lg);
+  canvas.innerHTML='';
+  canvas.appendChild(svg);
+  $('#topoNodeBody').innerHTML=data.services.map(function(s){
+    return '<tr><td>'+esc(s.name)+(s.status==='anomaly'?' <span class="chip red">异常</span>':'')+'</td><td>'+esc(s.owner||'')+'</td><td>'+esc(s.language||'')+'</td><td>'+esc(s.status||'')+'</td></tr>';
+  }).join('');
+  $('#topoEdgeBody').innerHTML=data.calls.map(function(c){
+    return '<tr><td>'+esc(c.src)+'</td><td>'+esc(c.tgt)+'</td><td>'+esc(c.type||'')+'</td><td>'+(c.latency||'')+'ms</td></tr>';
+  }).join('');
+  toast('拓扑已渲染 · 异常路径高亮');
+}
+
+function resetTopo(){
+  $('#topoCanvas').innerHTML='<div class="empty" style="color:var(--txt-2);font-size:13px">点击「渲染拓扑」查看服务级拓扑图</div>';
+  $('#topoNodeBody').innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--txt-2)">暂无数据</td></tr>';
+  $('#topoEdgeBody').innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--txt-2)">暂无数据</td></tr>';
+}
+
+function cgNode(){
+  var sym=$('#cgSymbol').value.trim();
+  if(!sym){toast('请输入符号名',true);return;}
+  api('/api/v1/codegraph/node/'+encodeURIComponent(sym)).then(function(node){
+    var rows=[['symbol',node.symbol],['type',node.type],['file',node.file],['line',node.line],['fan_in',node.fan_in],['fan_out',node.fan_out],['complexity',node.complexity],['signature',node.signature]];
+    var h='<table class="cg-table">'+rows.map(function(r){return '<tr><th>'+r[0]+'</th><td>'+esc(r[1]==null?'':r[1])+'</td></tr>'}).join('');
+    if(node.cn_summary)h+='<tr><th>cn_summary</th><td style="white-space:pre-wrap">'+esc(node.cn_summary)+'</td></tr>';
+    h+='</table>';
+    $('#cgNodeInfo').innerHTML=h;
+  }).catch(function(err){$('#cgNodeInfo').innerHTML='<div class="empty" style="color:var(--red)">'+esc(err.message)+'</div>'});
+}
+
+function cgCallers(){
+  var sym=$('#cgSymbol').value.trim();
+  if(!sym){toast('请输入符号名',true);return;}
+  api('/api/v1/codegraph/callers/'+encodeURIComponent(sym)+'?depth=2').then(function(data){
+    var list=data.callers||[];
+    var h=list.length
+      ?'<table class="cg-table"><tr><th>调用者</th><th>类型</th><th>文件</th><th>行</th></tr>'+list.map(function(c){
+        return '<tr><td>'+esc(c.symbol||c.name||c)+'</td><td>'+esc(c.type||'')+'</td><td>'+esc(c.file||'')+'</td><td>'+(c.line||'')+'</td></tr>';
+      }).join('')+'</table>'
+      :'<div class="empty">无调用者</div>';
+    if(data.truncated)h+='<div style="color:var(--txt-2);font-size:10px;margin-top:6px">结果已截断</div>';
+    $('#cgCallers').innerHTML=h;
+  }).catch(function(err){$('#cgCallers').innerHTML='<div class="empty" style="color:var(--red)">'+esc(err.message)+'</div>'});
+}
+
+function cgCallees(){
+  var sym=$('#cgSymbol').value.trim();
+  if(!sym){toast('请输入符号名',true);return;}
+  api('/api/v1/codegraph/callees/'+encodeURIComponent(sym)).then(function(data){
+    var list=data.callees||[];
+    var h=list.length
+      ?'<table class="cg-table"><tr><th>被调用者</th><th>类型</th><th>文件</th><th>行</th></tr>'+list.map(function(c){
+        return '<tr><td>'+esc(c.symbol||c.name||c)+'</td><td>'+esc(c.type||'')+'</td><td>'+esc(c.file||'')+'</td><td>'+(c.line||'')+'</td></tr>';
+      }).join('')+'</table>'
+      :'<div class="empty">无被调用者</div>';
+    $('#cgCallees').innerHTML=h;
+  }).catch(function(err){$('#cgCallees').innerHTML='<div class="empty" style="color:var(--red)">'+esc(err.message)+'</div>'});
+}
+
+function cgExplore(){
+  var sym=$('#cgSymbol').value.trim();
+  if(!sym){toast('请输入符号名',true);return;}
+  api('/api/v1/codegraph/explore/'+encodeURIComponent(sym)+'?hops=2').then(function(data){
+    var nodes=data.nodes||[];
+    var edges=data.edges||[];
+    var h='<div style="font-size:11px;margin-bottom:6px;color:var(--txt-1)">中心: <b style="color:var(--cyan)">'+esc(data.center||sym)+'</b> · 节点 '+nodes.length+' · 边 '+edges.length+'</div>';
+    if(nodes.length){
+      h+='<table class="cg-table"><tr><th>节点</th><th>类型</th><th>文件</th><th>行</th></tr>'+nodes.slice(0,40).map(function(n){
+        return '<tr><td>'+esc(n.symbol||n.name||n)+'</td><td>'+esc(n.type||'')+'</td><td>'+esc(n.file||'')+'</td><td>'+(n.line||'')+'</td></tr>';
+      }).join('')+'</table>';
+    }else{
+      h+='<div class="empty">无节点</div>';
+    }
+    if(edges.length){
+      h+='<div style="font-size:10px;color:var(--txt-2);margin-top:6px">调用边: '+edges.map(function(e){return esc(e.src||e.src_id)+' → '+esc(e.tgt||e.tgt_id)}).join(' · ')+'</div>';
+    }
+    $('#cgExplore').innerHTML=h;
+  }).catch(function(err){$('#cgExplore').innerHTML='<div class="empty" style="color:var(--red)">'+esc(err.message)+'</div>'});
+}
+
+function c2cnGen(){
+  var symbol=$('#c2cnSymbol').value.trim();
+  var file=$('#c2cnFile').value.trim();
+  var source=$('#c2cnSource').value.trim();
+  if(!symbol){toast('请输入符号名',true);return;}
+  api('/api/v1/code2cn/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:symbol,file:file,source_code:source,language:'java'})}).then(function(data){
+    var h='<div class="cn-symbol">'+esc(data.symbol||symbol)+'</div>';
+    h+='<div class="cn-file">'+esc(data.file||file||'')+(data.cached?' · cached':(data.degraded?' · degraded':' · '+esc(data.model||'')))+'</div>';
+    h+='<div class="cn-summary">'+esc(data.cn_summary||'（无摘要）')+'</div>';
+    h+='<div class="c2cn-meta">';
+    h+='<div class="c2cn-meta-card"><h5>外部调用</h5><ul>'+(data.external_calls&&data.external_calls.length?data.external_calls.map(function(c){return '<li>'+esc(c)+'</li>'}).join(''):'<li style="color:var(--txt-2)">无</li>')+'</ul></div>';
+    h+='<div class="c2cn-meta-card"><h5>失败路径</h5><ul>'+(data.failure_paths&&data.failure_paths.length?data.failure_paths.map(function(c){return '<li>'+esc(c)+'</li>'}).join(''):'<li style="color:var(--txt-2)">无</li>')+'</ul></div>';
+    h+='</div>';
+    var t=data.tokens||{};
+    if(Object.keys(t).length){h+='<div class="c2cn-tokens">'+Object.keys(t).map(function(k){return '<span class="c2cn-token">'+esc(k)+': '+esc(t[k])+'</span>'}).join('')+'</div>';}
+    $('#c2cnOutline').innerHTML=h;
+  }).catch(function(err){$('#c2cnOutline').innerHTML='<div style="text-align:center;padding:30px;color:var(--red);font-size:13px">'+esc(err.message)+'</div>'});
+}
+
+function ragSearch(){
+  var q=$('#ragQuery').value.trim();
+  if(!q){toast('请输入查询',true);return;}
+  var intent=$('#ragIntent').value;
+  api('/api/v1/rag/query?query='+encodeURIComponent(q)+'&intent='+encodeURIComponent(intent)+'&top_k=10',{method:'POST'}).then(function(data){
+    var h='<div class="rag-meta">';
+    h+='<span class="rag-meta-item">意图 <b>'+esc(intent)+'</b></span>';
+    h+='<span class="rag-meta-item">模式 <b>'+esc(data.mode||'')+'</b></span>';
+    h+='<span class="rag-meta-item">Top-K <b>'+esc(data.top_k||0)+'</b></span>';
+    h+='<span class="rag-meta-item">耗时 <b>'+(data.elapsed_ms||0)+'ms</b></span>';
+    h+='<span class="rag-meta-item">路由 <b>'+esc(data.route||'')+'</b></span>';
+    if(data.degraded)h+='<span class="rag-meta-item" style="color:var(--amber)"><b>DEGRADED</b></span>';
+    h+='</div>';
+    h+='<div class="rag-content">'+esc(data.content||'（无结果 — LightRAG 不可用时返回降级响应）')+'</div>';
+    $('#ragResult').innerHTML=h;
+  }).catch(function(err){$('#ragResult').innerHTML='<div style="text-align:center;padding:30px;color:var(--red);font-size:13px">'+esc(err.message)+'</div>'});
+}
+
+function kbYunjieImport(){
+  var raw=$('#kbYunjieRefs').value.trim();
+  if(!raw){toast('请输入问题单链接/编号',true);return;}
+  var refs=raw.split(/\n+/).map(function(s){return s.trim()}).filter(Boolean);
+  if(!refs.length){toast('未解析到有效条目',true);return;}
+  $('#kbYunjieBtn').disabled=true;
+  api('/api/v1/yunjie/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket_refs:refs})}).then(function(d){
+    toast('导入 '+d.imported+' 条，知识库共 '+(d.total||0)+' 条'+(d.lightrag_degraded?'（LightRAG 降级）':''));
+    kbList();
+    refreshKb();
+  }).catch(function(err){toast('云捷导入失败：'+err.message,true)}).finally(function(){
+    $('#kbYunjieBtn').disabled=false;
+  });
+}
+
+function kbManualImport(){
+  var tid=$('#kbTicketId').value.trim();
+  if(!tid){toast('问题单号必填',true);return;}
+  var item={
+    ticket_id:tid,
+    title:$('#kbTitle').value.trim(),
+    description:$('#kbDesc').value.trim(),
+    root_cause:$('#kbRootCause').value.trim(),
+    fix_code:$('#kbFixCode').value.trim(),
+    microservice:$('#kbMicroservice').value.trim(),
+    module:$('#kbModule').value.trim(),
+    error_code:$('#kbErrorCode').value.trim(),
+    severity:$('#kbSeverity').value.trim()
+  };
+  api('/api/kb/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:[item]})}).then(function(d){
+    toast('写入成功，知识库共 '+(d.total||0)+' 条');
+    ['kbTicketId','kbTitle','kbDesc','kbRootCause','kbFixCode','kbMicroservice','kbModule','kbErrorCode','kbSeverity'].forEach(function(id){$('#'+id).value=''});
+    kbList();
+    refreshKb();
+  }).catch(function(err){toast('写入失败：'+err.message,true)});
+}
+
+function kbList(){
+  api('/api/kb/tickets?limit=50').then(function(d){renderKbTable(d.items||[],d.kb_count||0)}).catch(function(err){
+    $('#kbTableWrap').innerHTML='<div class="kb-empty" style="color:var(--red)">'+esc(err.message)+'</div>';
+  });
+}
+
+function kbSearch(){
+  var q=$('#kbSearchQ').value.trim();
+  var url='/api/kb/tickets?limit=50'+(q?('&q='+encodeURIComponent(q)):'');
+  api(url).then(function(d){renderKbTable(d.items||[],d.kb_count||0)}).catch(function(err){
+    $('#kbTableWrap').innerHTML='<div class="kb-empty" style="color:var(--red)">'+esc(err.message)+'</div>';
+  });
+}
+
+function renderKbTable(items,total){
+  if(!items.length){$('#kbTableWrap').innerHTML='<div class="kb-empty">知识库为空，请导入或手动写入</div>';return;}
+  var h='<div style="padding:8px 10px;font-size:10px;color:var(--txt-2);font-family:\'JetBrains Mono\'">命中 <b style="color:var(--txt-0)">'+items.length+'</b> 条 · 知识库共 <b style="color:var(--cyan)">'+total+'</b> 条</div>';
+  h+='<table class="cg-table"><thead><tr><th>问题单</th><th>标题</th><th>根因</th><th>微服务</th><th>错误码</th><th>相似度</th><th></th></tr></thead><tbody>';
+  items.forEach(function(it){
+    var sim=it.similarity!=null?fmt(it.similarity):'—';
+    h+='<tr><td>'+esc(it.ticket_id)+'</td><td>'+esc(it.title)+'</td><td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(it.root_cause)+'">'+esc(it.root_cause||'')+'</td><td>'+esc(it.microservice||'')+'</td><td>'+esc(it.error_code||'')+'</td><td>'+sim+'</td><td><button class="kb-row-del" data-id="'+esc(it.ticket_id)+'">删除</button></td></tr>';
+  });
+  h+='</tbody></table>';
+  $('#kbTableWrap').innerHTML=h;
+  $('#kbTableWrap').querySelectorAll('.kb-row-del').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var id=btn.getAttribute('data-id');
+      api('/api/kb/tickets',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids:[id]})}).then(function(d){
+        toast('已删除 '+id+'，剩余 '+(d.total||0)+' 条');
+        kbList();
+        refreshKb();
+      }).catch(function(err){toast('删除失败：'+err.message,true)});
+    });
+  });
+}
+
+function refreshHealth(){
+  api('/api/v1/health').then(function(d){
+    var up=d.status==='up';
+    var label=(up?'在线':'降级')+' · '+esc(d.runtime_mode||'');
+    setHealth(up,label);
+    var comps=d.components||{};
+    $('#kbCount').textContent=comps.lightrag&&comps.lightrag.status!=='down'?'✓':'—';
+  }).catch(function(){
+    setHealth(false,'离线');
+  });
+}
+
+function refreshKb(){
+  api('/api/kb/count').then(function(d){
+    $('#kbCount').textContent=d.count||0;
+  }).catch(function(){});
+}
+
+function refreshHistory(){
+  api('/api/v1/rca/tasks').then(function(d){
+    var statuses=d.statuses||{};
+    var ids=Object.keys(statuses);
+    if(!ids.length){$('#historyList').innerHTML='<div style="color:var(--txt-2);font-size:11px;padding:8px 0">暂无历史任务</div>';return;}
+    var recent=ids.slice(-6).reverse();
+    $('#historyList').innerHTML=recent.map(function(id){
+      var st=statuses[id]||'unknown';
+      var cls=(st==='done'||st==='confirmed'||st==='modified')?'resolved':(st==='running'||st==='queued')?'analyzing':'open';
+      return '<div class="history-item" data-task="'+esc(id)+'"><div class="h-status '+cls+'"></div><div class="h-info"><div class="t">'+esc(id)+'</div><div class="m">'+st+'</div></div></div>';
+    }).join('');
+    $('#historyList').querySelectorAll('.history-item').forEach(function(it){
+      it.addEventListener('click',function(){
+        var tid=it.getAttribute('data-task');
+        api('/api/v1/rca/'+encodeURIComponent(tid)).then(function(state){
+          renderAll(state);
+          switchView('dashboard');
+          toast('已载入任务 '+tid);
+        }).catch(function(){toast('任务 '+tid+' 尚未完成',true)});
+      });
+    });
+  }).catch(function(){});
+}
+
+function resetAll(){
+  $('#bugLink').value='https://issues.example.com/ticket/MSP-2026-0817';
+  $('#repo').value='microservice-order-center';
+  $('#branch').value='release/2026.08';
+  $('#errorType').value='TIMEOUT';
+  $('#suspectService').value='';
+  $('#depth').value='standard';
+  $('#runtimeMode').value='mock_demo';
+  $('#bugId').value='';
+  $('#bugDesc').value='高并发场景下订单创建接口偶发超时，p99 延迟从 200ms 飙升至 3500ms，伴随 Hystrix 熔断告警，重试后数据一致性异常。';
+  if(eventSource){eventSource.close();eventSource=null;}
+  stopPolling();
+  currentTask=null;
+  finished=false;
+  resetResults();
+  setPipeline([{i:0,status:'idle'},{i:1,status:'idle'},{i:2,status:'idle'},{i:3,status:'idle'},{i:4,status:'idle'},{i:5,status:'idle'}]);
+  setLive('● 待命');
+  hideHIL();
+  toast('已重置');
+}
+
+function init(){
+  $$('.nav-btn').forEach(function(b){b.addEventListener('click',function(){switchView(b.dataset.view)})});
+  $$('#results .tab').forEach(function(t){t.addEventListener('click',function(){switchTab(t.dataset.tab)})});
+  $('#runBtn').addEventListener('click',startAnalysis);
+  $('#resetBtn').addEventListener('click',resetAll);
+  $('#refreshKb').addEventListener('click',refreshKb);
+  $('#topoRenderBtn').addEventListener('click',renderTopology);
+  $('#topoResetBtn').addEventListener('click',resetTopo);
+  $('#topoSvcInput').addEventListener('keydown',function(e){if(e.key==='Enter')renderTopology()});
+  $('#cgNodeBtn').addEventListener('click',cgNode);
+  $('#cgCallersBtn').addEventListener('click',cgCallers);
+  $('#cgCalleesBtn').addEventListener('click',cgCallees);
+  $('#cgExploreBtn').addEventListener('click',cgExplore);
+  $('#cgSymbol').addEventListener('keydown',function(e){if(e.key==='Enter')cgNode()});
+  $('#c2cnGenBtn').addEventListener('click',c2cnGen);
+  $('#ragSearchBtn').addEventListener('click',ragSearch);
+  $('#ragQuery').addEventListener('keydown',function(e){if(e.key==='Enter')ragSearch()});
+  $('#kbYunjieBtn').addEventListener('click',kbYunjieImport);
+  $('#kbManualBtn').addEventListener('click',kbManualImport);
+  $('#kbSearchBtn').addEventListener('click',kbSearch);
+  $('#kbListBtn').addEventListener('click',kbList);
+  $('#kbSearchQ').addEventListener('keydown',function(e){if(e.key==='Enter')kbSearch()});
+  $('#hilConfirmBtn').addEventListener('click',function(){sendHilDecision('confirm')});
+  $('#hilModifyBtn').addEventListener('click',function(){sendHilDecision('modify')});
+  $('#hilRejectBtn').addEventListener('click',function(){sendHilDecision('reject')});
+  document.addEventListener('keydown',function(e){
+    if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){
+      e.preventDefault();
+      if(!$('#runBtn').disabled)startAnalysis();
+    }
+  });
+  refreshHealth();
+  refreshKb();
+  refreshHistory();
+}
+
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',init);
+}else{
+  init();
+}
+})();
 </script>
 </body>
 </html>

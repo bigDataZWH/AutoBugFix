@@ -1,0 +1,13 @@
+{
+  "environment_matrix": {
+    "os": {"minimum": "Win11 22H2", "recommended": "Win11 23H2+"},
+    "python": {"minimum": "3.10", "recommended": "3.11"},
+    "node": {"minimum": "18", "recommended": "20"},
+    "postgres": {"minimum": "14", "recommended": "15"},
+    "redis": {"minimum": "6", "recommended": "7"},
+    "memory_gb": {"minimum": 8, "recommended": 16, "codegraph_peak": 3.2},
+    "disk_gb": {"minimum": 2, "recommended": 5},
+    "ports": {"app": 8000, "postgres": 5432, "redis": 6379},
+    "paths": {"venv": ".venv", "repo": "AutoBugFix", "backend": "AutoBugFix/rca-backend"}
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "degradation_matrix": {
+    "online_full": {
+      "RCA_RUNTIME_MODE": "online_full",
+      "RCA_CODEGRAPH_ENABLED": "true",
+      "RCA_LIGHTRAG_ENABLED": "true",
+      "RCA_DUAL_GATE_ENABLED": "true",
+      "RCA_LLM_PROVIDER": "opencode",
+      "RCA_FALLBACK_RETRIEVAL": "dual_graph_cross_validate"
+    },
+    "offline_light": {
+      "RCA_RUNTIME_MODE": "offline_light",
+      "RCA_CODEGRAPH_ENABLED": "degraded",
+      "RCA_LIGHTRAG_ENABLED": "false",
+      "RCA_DUAL_GATE_ENABLED": "false",
+      "RCA_LLM_PROVIDER": "local_small",
+      "RCA_FALLBACK_RETRIEVAL": "bm25_ripgrep"
+    },
+    "mock_demo": {
+      "RCA_RUNTIME_MODE": "mock_demo",
+      "RCA_CODEGRAPH_ENABLED": "false",
+      "RCA_LIGHTRAG_ENABLED": "false",
+      "RCA_DUAL_GATE_ENABLED": "false",
+      "RCA_LLM_PROVIDER": "mock",
+      "RCA_MOCK_DATA_PATH": "./mock_data.py",
+      "RCA_FALLBACK_RETRIEVAL": "mock_data"
+    }
+  }
+}

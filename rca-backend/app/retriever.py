@@ -155,3 +155,39 @@ class Retriever:
                 )
             )
         return matches
+
+    def list_tickets(self, limit: int = 50, q: Optional[str] = None) -> list[dict]:
+        if q and q.strip():
+            ms = self.hybrid_search(q, top_k=limit)
+            return [
+                {
+                    "similarity": m.similarity,
+                    "ticket_id": m.ticket_id,
+                    "title": m.title,
+                    "root_cause": m.root_cause,
+                    "fix_code": m.fix_code,
+                    "microservice": m.microservice,
+                    "error_code": m.error_code,
+                }
+                for m in ms
+            ]
+        n = len(self._metas)
+        out: list[dict] = []
+        for i in range(max(0, n - limit), n):
+            m = self._metas[i]
+            out.append({
+                "ticket_id": self._ids[i],
+                "title": m.get("title", ""),
+                "root_cause": m.get("root_cause", ""),
+                "fix_code": m.get("fix_code", ""),
+                "microservice": m.get("microservice", ""),
+                "error_code": m.get("error_code", ""),
+            })
+        return out[::-1]
+
+    def delete_tickets(self, ids: list[str]) -> int:
+        if not ids:
+            return 0
+        self.col.delete(ids=ids)
+        self._reload_all()
+        return len(ids)

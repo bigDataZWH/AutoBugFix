@@ -1,0 +1,8 @@
+[
+  {"symbol": "OrderController.createOrder", "type": "function", "file": "OrderController.java", "line": 64, "fan_in": 2, "fan_out": 3, "complexity": 5, "cn_summary": "创建订单入口：接收HTTP请求→调用OrderService.submit→返回OrderResult"},
+  {"symbol": "OrderService.submit", "type": "function", "file": "OrderService.java", "line": 92, "fan_in": 1, "fan_out": 4, "complexity": 8, "cn_summary": "订单提交编排：参数校验→库存校验→创建订单→发送Kafka消息"},
+  {"symbol": "OrderLockService.acquire", "type": "function", "file": "OrderLockService.java", "line": 127, "fan_in": 1, "fan_out": 2, "complexity": 6, "cn_summary": "分布式锁获取：Redis SETNX+EXPIRE→重试3次→失败抛OrderLockException"},
+  {"symbol": "JedisPool.getResource", "type": "function", "file": "JedisPool.java", "line": 210, "fan_in": 3, "fan_out": 1, "complexity": 3, "cn_summary": "Redis连接池获取：commons-pool2 GenericObjectPool→超时等待→返回Jedis实例"},
+  {"symbol": "InventoryService.deduct", "type": "function", "file": "InventoryService.java", "line": 48, "fan_in": 2, "fan_out": 2, "complexity": 4, "cn_summary": "库存扣减：查询库存→扣减→记录流水→返回扣减结果"},
+  {"symbol": "PaymentClient.charge", "type": "function", "file": "PaymentClient.java", "line": 35, "fan_in": 1, "fan_out": 2, "complexity": 5, "cn_summary": "支付扣款：调用支付网关→处理回调→更新订单支付状态"}
+]

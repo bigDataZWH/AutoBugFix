@@ -1,0 +1,42 @@
+- [ ] LightRAG 已 `pip install lightrag-hku` 直装部署，单进程启动，无 Docker/WSL2/ES/MinIO/Redis/MySQL 依赖（`docker ps` 无相关容器，无需 vm.max_map_count 调参）
+- [ ] Postgres 一体存储就绪：KV + 向量（pgvector）+ 图状态三域落同一库，`EMBEDDING_DIM=1024` 与 schema 维度一致，无维度不匹配报错
+- [ ] opencode 订阅 LLM/嵌入对接完成：`LLM_BINDING_HOST` / `EMBEDDING_BINDING_HOST` 可达，AK/SK 鉴权通过
+- [ ] 角色级模型切换生效：实体抽取日志显示 `EXTRACT_LLM_MODEL=qwen2.5-coder`，根因推理显示 `QUERY_LLM_MODEL=deepseek-v3`
+- [ ] 嵌入维度恒为 1024（bge-m3），写入向量无维度不匹配报错
+- [ ] 配额受限兜底可用：模拟 429 可指数退避重试/降级备用模型并标注降级标记，AK/SK 失效即中止
+- [ ] 三路检索分层路由实现并验证：
+  - [ ] 历史经验匹配：low-level + hybrid 从历史工单文档向量命中，Top-K 命中率达标
+  - [ ] 根因传播追溯：`QueryParam(mode="hybrid")` 经图谱遍历（含 CodeGraph 调用边）返回传播路径
+  - [ ] 全局架构理解：`QueryParam(mode="high_level")` 返回主题/社区摘要（代码中文大纲聚合）
+- [ ] 路由层 mode 枚举校验生效（hybrid | low_level | high_level），非法值被拒；空结果有回退标注
+- [ ] CodeGraph 真实调用图经 `await rag.ainsert_custom_kg(ast_kg)` 注入：
+  - [ ] 实体 `func:OrderService.create` description 为中文大纲
+  - [ ] 关系 `func:OrderService.create → func:PaymentClient.charge` description=calls weight=8.0
+  - [ ] 抽样核对注入实体可追溯到 CodeGraph 真实调用关系，非 LLM 幻觉
+  - [ ] 重复注入幂等，不产生重复边；空调用图不阻断
+- [ ] 历史问题单文档批量 `await rag.ainsert(docs)` 索引完成，low-level + hybrid 可命中，返回带原工单标识
+- [ ] 批量索引分页/分批与增量追加去重生效，空文档/非法条目跳过并记录
+- [ ] 默认 rerank 开启，相关/模糊/不相关三档打分可用，边界值归档正确（≥阈值=相关，正确率 100%）
+- [ ] 重排器超时/异常可降级返回未重排原始排序并标注
+- [ ] 增量更新生效：飞轮回写后仅受影响社区摘要重算，全量重建触发率为 0
+- [ ] 索引成本 ≤ 1/30 GraphRAG（同语料 GraphRAG 全量索引 LLM token 消耗为基准对比）
+- [ ] Win 原生部署零 Docker 依赖，单进程内存/连接可控
+
+## 测试（UT + E2E）
+- [ ] UT 覆盖率 ≥85%（line + branch，`pytest --cov` 报告达标）
+- [ ] 12 个 UT 用例全部通过（test_ast_kg_schema_validation / test_lightrag_init / test_ainsert_async / test_ainsert_custom_kg / test_aquery_naive / test_aquery_local / test_aquery_hybrid / test_query_param_config / test_embedding_dim / test_postgres_storage / test_retrieval_routing / test_reranker_triage）
+- [ ] 6 个 E2E 场景全部通过（e2e_full_retrieval_flow / e2e_hybrid_query / e2e_custom_kg_inject / e2e_chinese_query_retrieval / e2e_incremental_insert / e2e_reranker_gate）
+- [ ] embedding 维度 dim=1024 校验通过（`len(vec)==1024` 断言，与 pgvector schema 维度一致）
+- [ ] 3 路检索路由 UT 全覆盖（naive/local/hybrid 按 QueryParam.mode 分流断言）
+- [ ] ast_kg JSON schema 校验 UT 通过（entities/edges 必填、实体类型枚举、边方向校验、weight 正浮点，非法样例抛错且不写入）
+- [ ] 重排序三分类 UT 通过（relevant/ambiguous/irrelevant 归档正确率 100%，边界值≥阈值=相关，超时降级返回未重排排序+标注）
+- [ ] CI 流水线集成 pytest 执行（UT + E2E 在 CI 自动运行，testcontainers Postgres 自动起停）
+
+## 跨模块集成测试与 Mock 基础设施
+- [ ] 6 个跨模块集成测试场景全部通过（integ_code2cn_to_lightrag_ainsert / integ_codegraph_astkg_to_lightrag / integ_flywheel_to_lightrag_ainsert / integ_lightrag_to_agent4_aquery / integ_lightrag_to_crag_reranker / integ_full_pipeline_lightrag）
+- [ ] ast_kg/aquery响应/QueryParam/embedding/CRAG/飞轮 6 类 Mock 样本 JSON 就绪
+- [ ] Postgres testcontainers 初始化 + schema DDL 通过（实体/边/社区表 + `vector(1024)` + 向量索引）
+- [ ] BGE-M3 embedding mock 维度 dim=1024 校验通过（`len(vec)==1024`，与 pgvector schema 维度一致）
+- [ ] 上下游数据契约字段映射集成测试通过（CodeOutline→description、ast_kg→实体/边、飞轮→SIMILAR_TO 边、aquery/CRAG 衔接）
+- [ ] Fixture 文件组织符合 tests/fixtures/lightrag/ 约定（含 ast_kg/ 子目录与 *.json 静态样本）
+- [ ] testcontainers 启动/销毁不残留（teardown 验证 `docker rm -f` 无遗留容器）

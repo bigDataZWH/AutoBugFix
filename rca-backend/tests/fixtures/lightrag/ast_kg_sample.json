@@ -1,0 +1,11 @@
+{
+  "entities": [
+    {"entity_name": "func:OrderService.create", "type": "function", "description": "创建订单：参数校验→库存校验→持久化→发送Kafka消息"},
+    {"entity_name": "func:InventoryService.getStock", "type": "function", "description": "查询商品库存数量"},
+    {"entity_name": "func:PaymentClient.charge", "type": "function", "description": "支付扣款：调用支付网关完成扣款"}
+  ],
+  "relationships": [
+    {"src_id": "func:OrderService.create", "tgt_id": "func:InventoryService.getStock", "description": "calls", "weight": 8.0},
+    {"src_id": "func:OrderService.create", "tgt_id": "func:PaymentClient.charge", "description": "calls", "weight": 6.0}
+  ]
+}

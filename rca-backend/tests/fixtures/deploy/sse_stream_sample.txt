@@ -1,0 +1,20 @@
+event: stage
+data: {"stage": 1, "name": "症状确认", "status": "done", "artifact": {"symptom": "POST /order/create 偶发 500"}}
+
+event: stage
+data: {"stage": 2, "name": "链路分析", "status": "done", "artifact": {"trace": ["order-service", "payment-client"]}}
+
+event: stage
+data: {"stage": 3, "name": "代码定位", "status": "done", "artifact": {"files": ["OrderService.java#L42"]}}
+
+event: stage
+data: {"stage": 4, "name": "根因确认", "status": "hil_wait", "top3": [{"id": "rc-1", "cause": "payment-client 返回空指针未校验", "score": 0.92}]}
+
+event: stage
+data: {"stage": 5, "name": "修复方案", "status": "done", "artifact": {"fix": "OrderService 增加空指针校验"}}
+
+event: stage
+data: {"stage": 6, "name": "HIL", "status": "done", "artifact": {"confirmed": "rc-1", "operator": "tester"}}
+
+event: done
+data: {"task_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "total_elapsed_ms": 9650}

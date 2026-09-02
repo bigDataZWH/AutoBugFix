@@ -1,0 +1,70 @@
+{
+  "callers": {
+    "query": "codegraph_callers(OrderLockService.acquire, depth=2)",
+    "response": {
+      "symbol": "OrderLockService.acquire",
+      "callers": [
+        {"symbol": "OrderService.submit", "file": "OrderService.java", "line": 92, "fan_in": 1, "fan_out": 4, "complexity": 8},
+        {"symbol": "OrderController.createOrder", "file": "OrderController.java", "line": 64, "fan_in": 2, "fan_out": 3, "complexity": 5}
+      ],
+      "depth": 2,
+      "total": 2
+    }
+  },
+  "callees": {
+    "query": "codegraph_callees(OrderService.submit)",
+    "response": {
+      "symbol": "OrderService.submit",
+      "callees": [
+        {"symbol": "OrderLockService.acquire", "file": "OrderLockService.java", "line": 127, "complexity": 6},
+        {"symbol": "InventoryService.deduct", "file": "InventoryService.java", "line": 48, "complexity": 4},
+        {"symbol": "PaymentClient.charge", "file": "PaymentClient.java", "line": 35, "complexity": 5}
+      ],
+      "total": 3
+    }
+  },
+  "explore": {
+    "query": "codegraph_explore(OrderService.submit, hops=2)",
+    "response": {
+      "root": "OrderService.submit",
+      "nodes": [
+        {"symbol": "OrderController.createOrder", "type": "function"},
+        {"symbol": "OrderService.submit", "type": "function"},
+        {"symbol": "OrderLockService.acquire", "type": "function"},
+        {"symbol": "JedisPool.getResource", "type": "function"},
+        {"symbol": "InventoryService.deduct", "type": "function"},
+        {"symbol": "PaymentClient.charge", "type": "function"}
+      ],
+      "edges": [
+        {"src": "OrderController.createOrder", "tgt": "OrderService.submit", "type": "call"},
+        {"src": "OrderService.submit", "tgt": "OrderLockService.acquire", "type": "call"},
+        {"src": "OrderService.submit", "tgt": "InventoryService.deduct", "type": "call"},
+        {"src": "OrderService.submit", "tgt": "PaymentClient.charge", "type": "call"},
+        {"src": "OrderLockService.acquire", "tgt": "JedisPool.getResource", "type": "call"}
+      ],
+      "hops": 2
+    }
+  },
+  "taint": {
+    "query": "codegraph_taint(OrderController.createOrder, JedisPool.getResource)",
+    "response": {
+      "entry": "OrderController.createOrder",
+      "sink": "JedisPool.getResource",
+      "path": [
+        {"function": "OrderController.createOrder", "line": 64, "reachable": true},
+        {"function": "OrderService.submit", "line": 92, "reachable": true},
+        {"function": "OrderLockService.acquire", "line": 127, "reachable": true},
+        {"function": "JedisPool.getResource", "line": 210, "reachable": true}
+      ],
+      "total_hops": 4,
+      "fully_reachable": true
+    }
+  },
+  "not_found": {
+    "query": "codegraph_callers(nonexistent_symbol)",
+    "response": {
+      "error": "symbol not found",
+      "suggestions": ["OrderService.submit", "OrderLockService.acquire"]
+    }
+  }
+}
