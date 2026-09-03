@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from .mock_data import SAMPLE_TICKETS
 from .models import (
-    AnalyzeRequest, AnalyzeResponse, AnalysisReport, ConfirmRequest, KBImportRequest, KBImportItem, RCAState,
+    AnalyzeRequest, AnalyzeRequestV2, AnalyzeResponse, AnalysisReport, ConfirmRequest, KBImportRequest, KBImportItem, RCAState,
     Code2CnRequest, CodeOutline, AstKg, AstKgEntity, AstKgRelationship,
 )
 from .opencode_adapter import OpenCodeAdapter
@@ -82,9 +82,9 @@ async def v1_health():
 
 
 @app.post("/api/analyze")
-async def analyze(req: AnalyzeRequest):
-    if not req.bug_link and not req.bug_desc:
-        raise HTTPException(status_code=400, detail="bug_link 或 bug_desc 必填")
+async def analyze(req: AnalyzeRequestV2):
+    if not req.ticket_url and not req.description:
+        raise HTTPException(status_code=400, detail="ticket_url 或 description 必填")
     task_id_ = _generate_task_id()
     queue: asyncio.Queue = asyncio.Queue()
     tasks[task_id_] = {"queue": queue, "report": None, "status": "running"}
@@ -397,6 +397,20 @@ async def codegraph_explore(symbol: str, hops: int = 2):
     if resp is None:
         raise HTTPException(status_code=404, detail=f"符号 {symbol} 不在图谱中")
     return resp.model_dump()
+
+
+@app.get("/api/v1/codegraph/taint")
+async def codegraph_taint(entry: str, sink: str):
+    """污点传播分析：返回 entry 到 sink 的可达路径。"""
+    resp = _codegraph.taint(entry, sink)
+    return resp.model_dump()
+
+
+@app.get("/api/v1/codegraph/search")
+async def codegraph_search(q: str, limit: int = 10):
+    """FTS5 全文搜索：按符号/中文摘要/文件名检索节点。"""
+    results = _codegraph.search(q, limit=limit)
+    return [r.model_dump() for r in results]
 
 
 # ============================================================================

@@ -102,7 +102,23 @@ def process_hil_decision(
         return top3, "confirmed"
     elif decision.action == "modify":
         if decision.modified_top3:
-            return decision.modified_top3, "modified"
+            converted = []
+            for item in decision.modified_top3:
+                if isinstance(item, Candidate):
+                    converted.append(item)
+                elif isinstance(item, dict):
+                    if "function_id" in item or "function_name" in item:
+                        converted.append(Candidate.model_validate(item))
+                    else:
+                        name = item.get("located_function") or item.get("root_cause", "")
+                        converted.append(Candidate(
+                            function_id=name,
+                            function_name=name,
+                            file=item.get("file", ""),
+                            line=item.get("line", 0),
+                            score=item.get("confidence") or item.get("score", 0.0),
+                        ))
+            return converted, "modified"
         picked = getattr(decision, "confirmed_root_cause_id", "") or ""
         if picked and top3:
             matched = [c for c in top3 if c.function_name == picked or c.function_id == picked]

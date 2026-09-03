@@ -151,18 +151,15 @@ class RCAEngine:
         graph = StateGraph(RCAState)
 
         graph.add_node("A1", self._node_a1)
-        graph.add_node("A2", self._node_a2)
-        graph.add_node("A3", self._node_a3)
+        graph.add_node("A2A3", self._node_a2a3)
         graph.add_node("A4", self._node_a4)
         graph.add_node("CRAG", self._node_crag)
         graph.add_node("HIL", self._node_hil)
         graph.add_node("A5", self._node_a5)
 
         graph.add_edge(START, "A1")
-        graph.add_edge("A1", "A2")
-        graph.add_edge("A1", "A3")
-        graph.add_edge("A2", "A4")
-        graph.add_edge("A3", "A4")
+        graph.add_edge("A1", "A2A3")
+        graph.add_edge("A2A3", "A4")
         graph.add_edge("A4", "CRAG")
         graph.add_edge("CRAG", "HIL")
         graph.add_edge("HIL", "A5")
@@ -170,7 +167,44 @@ class RCAEngine:
 
         graph.set_entry_point("A1")
         compiled = graph.compile()
-        return lambda state: compiled.invoke(state)
+
+        def _invoke(state: RCAState) -> RCAState:
+            if not state.task_id:
+                state.task_id = self.generate_task_id()
+            self.store.save(state)
+            result = compiled.invoke(state)
+            final = RCAState.model_validate(result) if isinstance(result, dict) else result
+            if final.gate_status.hil == "pending":
+                self.store.save(final)
+                return final
+            final.stage = Stage(index=6, name="COMPLETED", status="completed")
+            final.gate_status = GateStatus(
+                crag="passed" if final.gate_status.crag == "relevant" else final.gate_status.crag,
+                hil="skipped" if final.gate_status.hil in ("pending", "skipped") else final.gate_status.hil,
+            )
+            self.store.save(final)
+            self.events.publish(final.task_id, "final", {
+                "top3": [r.model_dump() for r in final.top3],
+                "solution": final.solution.model_dump() if final.solution else {},
+                "gate_status": final.gate_status.model_dump(),
+            })
+            try:
+                payload = flywheel.extract_payload(
+                    root_cause=final.top3[0].root_cause if final.top3 else "",
+                    root_cause_function=final.top3[0].located_function if final.top3 else "",
+                    call_path=final.P_runtime.functions,
+                    fix_patch=final.solution.patch_suggestion if final.solution else "",
+                    verify_case="; ".join(final.solution.test_cases) if final.solution else "",
+                    ticket_id=final.bug_info.bug_id,
+                    title=final.bug_info.title,
+                    description=final.bug_info.description,
+                )
+                flywheel.writeback_sync(payload)
+            except Exception:
+                pass
+            return final
+
+        return _invoke
 
     # ------------------------------------------------------------------
     # LangGraph 节点
@@ -198,6 +232,32 @@ class RCAEngine:
         p_runtime = self.a3.run(state.suspect_services)
         self._publish_stage(state, "A3", "complete", {"runtime_anomaly": p_runtime.runtime_anomaly})
         return {"P_runtime": p_runtime, "stage": Stage(index=2, name="A3", status="completed")}
+
+    def _node_a2a3(self, state: RCAState) -> dict[str, Any]:
+        self._publish_stage(state, "A2A3", "start", {})
+        result: dict[str, Any] = {}
+
+        def _a2_worker() -> None:
+            result["S_static"] = self.a2.run(state.suspect_services, state.bug_info.stack)
+
+        def _a3_worker() -> None:
+            result["P_runtime"] = self.a3.run(state.suspect_services)
+
+        t2 = threading.Thread(target=_a2_worker)
+        t3 = threading.Thread(target=_a3_worker)
+        t2.start(); t3.start(); t2.join(); t3.join()
+
+        s_static = result.get("S_static", [])
+        p_runtime = result.get("P_runtime", AnomalyPath())
+        self._publish_stage(state, "A2A3", "complete", {
+            "static_count": len(s_static),
+            "runtime_anomaly": p_runtime.runtime_anomaly,
+        })
+        return {
+            "S_static": s_static,
+            "P_runtime": p_runtime,
+            "stage": Stage(index=2, name="A2A3", status="completed"),
+        }
 
     def _node_a4(self, state: RCAState) -> dict[str, Any]:
         self._publish_stage(state, "A4", "start", {})
