@@ -10,8 +10,8 @@ from pydantic import BaseModel, Field
 # ============================================================================
 
 class AnalyzeRequestV2(BaseModel):
-    ticket_url: str = Field(..., description="问题单链接")
-    repo_url: str = Field(..., description="代码仓库地址")
+    ticket_url: str = Field(default="", description="问题单链接")
+    repo_url: str = Field(default="", description="代码仓库地址")
     branch: str = Field(default="main", description="分支")
     microservice: Optional[str] = Field(default=None, description="微服务模块")
     description: Optional[str] = Field(default=None, description="问题描述(无链接时)")

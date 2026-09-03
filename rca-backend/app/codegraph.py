@@ -291,13 +291,25 @@ class CodeGraph:
         )
 
     def search(self, query: str, limit: int = 10) -> list[CPGNode]:
+        if not query or not query.strip():
+            return []
         with self._conn() as conn:
-            rows = conn.execute("""
-                SELECT n.* FROM nodes_fts f
-                JOIN nodes n ON n.id = f.rowid
-                WHERE nodes_fts MATCH ?
-                LIMIT ?
-            """, (query, limit)).fetchall()
+            try:
+                rows = conn.execute("""
+                    SELECT n.* FROM nodes_fts f
+                    JOIN nodes n ON n.id = f.rowid
+                    WHERE nodes_fts MATCH ?
+                    LIMIT ?
+                """, (query.strip(), limit)).fetchall()
+            except sqlite3.OperationalError:
+                rows = []
+            if not rows:
+                like_pat = f"%{query.strip()}%"
+                rows = conn.execute("""
+                    SELECT * FROM nodes
+                    WHERE symbol LIKE ? OR cn_summary LIKE ? OR file LIKE ?
+                    LIMIT ?
+                """, (like_pat, like_pat, like_pat, limit)).fetchall()
         return [self._build_node(dict(r)) for r in rows]
 
     def build(self, repo_path: str, branch: str = "main") -> None:
