@@ -116,11 +116,20 @@ class TestPortConflict:
     """用例 12: test_port_conflict"""
 
     def test_port_check_detects_occupied(self):
+        import socket
         from app.env_check import check_port
-        # 8000 被测试服务器占用
-        ok, msg = check_port(8000)
-        assert ok is False
-        assert "占用" in msg
+        # 在测试内部绑定一个临时端口，验证 check_port 能检测到占用
+        srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        srv.bind(("127.0.0.1", 0))
+        srv.listen(1)
+        occupied_port = srv.getsockname()[1]
+        try:
+            ok, msg = check_port(occupied_port)
+            assert ok is False
+            assert "占用" in msg
+        finally:
+            srv.close()
 
     def test_port_check_available(self):
         from app.env_check import check_port

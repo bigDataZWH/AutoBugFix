@@ -221,6 +221,9 @@ class RCAEngine:
         top_confidence = state.top3[0].confidence if state.top3 else 0.0
         result = hil_gate(candidates, top_confidence, task_id=state.task_id)
         if result.action == "hang" and result.panel_payload:
+            if state.runtime_mode == "mock_demo":
+                status = GateStatus(crag=state.gate_status.crag, hil="skipped")
+                return {"gate_status": status}
             status = GateStatus(crag=state.gate_status.crag, hil="pending")
             self.events.publish(state.task_id, "gate_pending", {
                 "gate": "HIL",
@@ -369,13 +372,16 @@ class RCAEngine:
         top_confidence = state.top3[0].confidence if state.top3 else 0.0
         hil_result = hil_gate(valid, top_confidence, task_id=state.task_id)
         if hil_result.action == "hang" and hil_result.panel_payload:
-            state.gate_status.hil = "pending"
-            self.events.publish(state.task_id, "gate_pending", {
-                "gate": "HIL",
-                "reason": "low_confidence",
-                "top_confidence": top_confidence,
-                "payload": hil_result.panel_payload.model_dump(),
-            })
+            if state.runtime_mode == "mock_demo":
+                state.gate_status.hil = "skipped"
+            else:
+                state.gate_status.hil = "pending"
+                self.events.publish(state.task_id, "gate_pending", {
+                    "gate": "HIL",
+                    "reason": "low_confidence",
+                    "top_confidence": top_confidence,
+                    "payload": hil_result.panel_payload.model_dump(),
+                })
         else:
             state.gate_status.hil = "skipped"
         self.store.save(state)

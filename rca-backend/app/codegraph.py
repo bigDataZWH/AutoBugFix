@@ -7,7 +7,17 @@ from pathlib import Path
 from typing import Any, Optional
 
 from .config import config
+from .mock_data import MOCK_OPENCODE_OUTPUT
 from .models import CPGEdge, CPGNode, CallersResponse, CalleesResponse, ExploreResponse, TaintResponse
+
+
+def _normalize_symbol(symbol: str) -> str:
+    if symbol.startswith("sym:"):
+        return symbol
+    parts = symbol.rsplit(".", 1)
+    if len(parts) == 2:
+        return f"sym:{parts[0]}:{parts[1]}"
+    return symbol
 
 
 class CodeGraph:
@@ -51,6 +61,36 @@ class CodeGraph:
                 );
             """)
 
+    def seed_mock_data(self) -> int:
+        with self._conn() as conn:
+            count = conn.execute("SELECT COUNT(*) FROM nodes").fetchone()[0]
+        if count > 0:
+            return count
+        symbols = MOCK_OPENCODE_OUTPUT.get("symbols", [])
+        edges = MOCK_OPENCODE_OUTPUT.get("call_edges", [])
+        fan_in: dict[str, int] = {}
+        fan_out: dict[str, int] = {}
+        for e in edges:
+            fan_out[e["src"]] = fan_out.get(e["src"], 0) + 1
+            fan_in[e["dst"]] = fan_in.get(e["dst"], 0) + 1
+        for s in symbols:
+            sym = s["id"]
+            node = CPGNode(
+                symbol=sym,
+                type=s.get("type", "method"),
+                file=s.get("file", ""),
+                line=s.get("line", 0),
+                fan_in=fan_in.get(sym, 0),
+                fan_out=fan_out.get(sym, 0),
+                complexity=max(fan_in.get(sym, 0), 1),
+                cn_summary=s.get("cn_summary"),
+            )
+            self.upsert_node(node)
+        for e in edges:
+            self.upsert_edge(e["src"], e["dst"], e.get("kind", "call"), 1.0)
+        with self._conn() as conn:
+            return conn.execute("SELECT COUNT(*) FROM nodes").fetchone()[0]
+
     def upsert_node(self, node: CPGNode) -> int:
         with self._conn() as conn:
             cursor = conn.execute("""
@@ -81,8 +121,11 @@ class CodeGraph:
             """, (src["id"], tgt["id"], edge_type, weight))
 
     def _get_node_by_symbol(self, symbol: str) -> Optional[dict[str, Any]]:
+        normalized = _normalize_symbol(symbol)
         with self._conn() as conn:
-            row = conn.execute("SELECT * FROM nodes WHERE symbol=?", (symbol,)).fetchone()
+            row = conn.execute("SELECT * FROM nodes WHERE symbol=?", (normalized,)).fetchone()
+            if row is None and normalized != symbol:
+                row = conn.execute("SELECT * FROM nodes WHERE symbol=?", (symbol,)).fetchone()
             return dict(row) if row else None
 
     def _build_node(self, row) -> CPGNode:
@@ -98,10 +141,11 @@ class CodeGraph:
         if node is None:
             return CallersResponse(callers=[], edges=[], truncated=False)
 
+        actual_symbol = node["symbol"]
         seen: set[str] = set()
         callers: list[CPGNode] = []
         edges: list[CPGEdge] = []
-        current_layer = {symbol}
+        current_layer = {actual_symbol}
 
         for _ in range(depth):
             if not current_layer:
@@ -122,7 +166,7 @@ class CodeGraph:
                     seen.add(r["symbol"])
                     callers.append(self._build_node(r))
                     next_layer.add(r["symbol"])
-                edges.append(CPGEdge(src=r["symbol"], tgt=symbol, type="call", weight=r["weight"]))
+                edges.append(CPGEdge(src=r["symbol"], tgt=actual_symbol, type="call", weight=r["weight"]))
             current_layer = next_layer
 
         return CallersResponse(
@@ -136,6 +180,7 @@ class CodeGraph:
         if node is None:
             return CalleesResponse(callees=[], edges=[])
 
+        actual_symbol = node["symbol"]
         callees: list[CPGNode] = []
         edges: list[CPGEdge] = []
         with self._conn() as conn:
@@ -148,7 +193,7 @@ class CodeGraph:
 
         for r in rows:
             callees.append(self._build_node(r))
-            edges.append(CPGEdge(src=symbol, tgt=r["symbol"], type=r["etype"], weight=r["weight"]))
+            edges.append(CPGEdge(src=actual_symbol, tgt=r["symbol"], type=r["etype"], weight=r["weight"]))
 
         return CalleesResponse(
             callees=[c.model_dump() for c in callees],
@@ -160,15 +205,17 @@ class CodeGraph:
         if node is None:
             return ExploreResponse(nodes=[], edges=[], center=symbol)
 
-        seen: set[str] = {symbol}
-        nodes_map: dict[str, CPGNode] = {symbol: self._build_node(node)}
+        actual_symbol = node["symbol"]
+        seen: set[str] = {actual_symbol}
+        nodes_map: dict[str, CPGNode] = {actual_symbol: self._build_node(node)}
         edges: list[CPGEdge] = []
-        current_layer = {symbol}
+        current_layer = {actual_symbol}
 
         for _ in range(hops):
             if not current_layer:
                 break
             placeholders = ",".join("?" for _ in current_layer)
+            params = list(current_layer) * 2
             with self._conn() as conn:
                 rows = conn.execute(f"""
                     SELECT n.*, e.type as etype, e.weight, e.src_id as esrc, e.tgt_id as etgt
@@ -176,7 +223,7 @@ class CodeGraph:
                     JOIN nodes n ON n.id IN (e.src_id, e.tgt_id)
                     WHERE (e.src_id IN (SELECT id FROM nodes WHERE symbol IN ({placeholders}))
                         OR e.tgt_id IN (SELECT id FROM nodes WHERE symbol IN ({placeholders})))
-                """, list(current_layer)).fetchall()
+                """, params).fetchall()
 
             next_layer: set[str] = set()
             for r in rows:
@@ -197,7 +244,7 @@ class CodeGraph:
         return ExploreResponse(
             nodes=[n.model_dump() for n in nodes_map.values()],
             edges=[e.model_dump() for e in edges],
-            center=symbol,
+            center=actual_symbol,
         )
 
     def taint(self, entry: str, sink: str) -> TaintResponse:
