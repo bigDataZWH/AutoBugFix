@@ -361,15 +361,15 @@ async def code2cn_outline(symbol: str):
 
 _codegraph = CodeGraph()
 _codegraph.init_schema()
+_codegraph.seed_mock_data()
 
 @app.get("/api/v1/codegraph/node/{symbol}")
 async def codegraph_node(symbol: str):
     """获取函数节点信息。"""
-    with _codegraph._conn() as conn:
-        row = conn.execute("SELECT * FROM nodes WHERE symbol = ?", (symbol,)).fetchone()
-    if not row:
+    node = _codegraph._get_node_by_symbol(symbol)
+    if node is None:
         raise HTTPException(status_code=404, detail=f"符号 {symbol} 不在图谱中")
-    return dict(row)
+    return node
 
 
 @app.get("/api/v1/codegraph/callers/{symbol}")
