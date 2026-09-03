@@ -104,7 +104,44 @@ class Pipeline:
         )
 
     def _step_synthesize(self, req: AnalyzeRequest, ctx: dict):
-        pass
+        matches: list = ctx.get("kb_matches", [])
+        chain: list[CallStackNode] = ctx.get("chain", [])
+        taint_node = ctx.get("taint_node")
+
+        synthesis: dict = {}
+
+        if matches:
+            top = matches[0]
+            synthesis["root_cause_hint"] = top.root_cause or ""
+            synthesis["patch_suggestion"] = top.fix_code or ""
+            synthesis["historical_cases"] = [
+                m.ticket_id for m in matches if m.ticket_id
+            ]
+            synthesis["best_practice_hints"] = [m.title for m in matches[:3]]
+        elif chain:
+            hotspot = chain[0]
+            synthesis["root_cause_hint"] = (
+                f"{hotspot.symbol} 存在异常热点({hotspot.reason})，"
+                "需关注数据流路径与并发竞争风险。"
+            )
+            synthesis["patch_suggestion"] = ""
+            synthesis["historical_cases"] = []
+            synthesis["best_practice_hints"] = []
+        elif taint_node is not None:
+            synthesis["root_cause_hint"] = (
+                f"{taint_node.symbol} 污染数据直达热点"
+                f"({taint_node.reason})，缺少兜底校验。"
+            )
+            synthesis["patch_suggestion"] = ""
+            synthesis["historical_cases"] = []
+            synthesis["best_practice_hints"] = []
+        else:
+            synthesis["root_cause_hint"] = ""
+            synthesis["patch_suggestion"] = ""
+            synthesis["historical_cases"] = []
+            synthesis["best_practice_hints"] = []
+
+        ctx["synthesis"] = synthesis
 
     STEP_FUNCS = [
         "_step_fetch_ticket", "_step_clone_repo", "_step_opencode_analyze",
@@ -115,6 +152,7 @@ class Pipeline:
         oc = ctx.get("oc", {})
         chain: list[CallStackNode] = ctx.get("chain", [])
         matches: list = ctx.get("kb_matches", [])
+        synthesis: dict = ctx.get("synthesis", {})
 
         if chain:
             hotspot = chain[0]
@@ -175,6 +213,9 @@ class Pipeline:
         solution = Solution(
             diffs=diffs, steps=steps,
             verify_expected={"stock_negative": 0, "rt_p99_ms": "<50", "duplicate": 0},
+            patch_suggestion=synthesis.get("patch_suggestion", ""),
+            historical_cases=synthesis.get("historical_cases", []),
+            best_practices=[p.title for p in practices],
         )
 
         return AnalysisReport(
