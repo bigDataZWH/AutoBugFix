@@ -219,7 +219,7 @@ class AstKg(BaseModel):
 
 
 class RetrievalResult(BaseModel):
-    mode: Literal["low_level", "high_level", "hybrid"] = "hybrid"
+    mode: Literal["naive", "local", "hybrid", "global", "mix", "bypass", "low_level", "high_level"] = "hybrid"
     content: str = ""
     top_k: int = 60
     elapsed_ms: int = 0
