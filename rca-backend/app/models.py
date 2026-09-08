@@ -10,8 +10,8 @@ from pydantic import BaseModel, Field
 # ============================================================================
 
 class AnalyzeRequestV2(BaseModel):
-    ticket_url: str = Field(..., description="问题单链接")
-    repo_url: str = Field(..., description="代码仓库地址")
+    ticket_url: str = Field(default="", description="问题单链接")
+    repo_url: str = Field(default="", description="代码仓库地址")
     branch: str = Field(default="main", description="分支")
     microservice: Optional[str] = Field(default=None, description="微服务模块")
     description: Optional[str] = Field(default=None, description="问题描述(无链接时)")
@@ -219,7 +219,7 @@ class AstKg(BaseModel):
 
 
 class RetrievalResult(BaseModel):
-    mode: Literal["low_level", "high_level", "hybrid"] = "hybrid"
+    mode: Literal["naive", "local", "hybrid", "global", "mix", "bypass", "low_level", "high_level"] = "hybrid"
     content: str = ""
     top_k: int = 60
     elapsed_ms: int = 0
