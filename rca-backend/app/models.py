@@ -148,55 +148,6 @@ class Code2CnRequest(BaseModel):
 
 
 # ============================================================================
-# Spec 2: CodeGraph 代码图谱
-# ============================================================================
-
-class CPGNode(BaseModel):
-    symbol: str
-    type: Literal["function", "class", "method"] = "method"
-    file: str = ""
-    line: int = 0
-    fan_in: int = 0
-    fan_out: int = 0
-    complexity: int = 0
-    cn_summary: Optional[str] = None
-    signature: str = ""
-    source_code: str = ""
-
-
-class CPGEdge(BaseModel):
-    src: str
-    tgt: str
-    type: Literal["call", "inherit", "ref"] = "call"
-    weight: float = 1.0
-    file: str = ""
-    line: int = 0
-
-
-class CallersResponse(BaseModel):
-    callers: list[dict[str, Any]]
-    edges: list[dict[str, Any]]
-    truncated: bool = False
-
-
-class CalleesResponse(BaseModel):
-    callees: list[dict[str, Any]]
-    edges: list[dict[str, Any]]
-
-
-class ExploreResponse(BaseModel):
-    nodes: list[dict[str, Any]]
-    edges: list[dict[str, Any]]
-    center: str
-
-
-class TaintResponse(BaseModel):
-    paths: list[dict[str, Any]]
-    entry_found: bool
-    sink_found: bool
-
-
-# ============================================================================
 # Spec 3: LightRAG 检索引擎
 # ============================================================================
 

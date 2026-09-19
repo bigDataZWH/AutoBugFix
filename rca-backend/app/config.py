@@ -124,13 +124,6 @@ class LightRAGConfig:
 
 
 @dataclass
-class CodeGraphConfig:
-    db_path: str = os.environ.get("CODEGRAPH_DB", ".codegraph/graph.db")
-    cg_init: bool = os.environ.get("CODEGRAPH_INIT", "false").lower() == "true"
-    cg_index: bool = os.environ.get("CODEGRAPH_INDEX", "false").lower() == "true"
-
-
-@dataclass
 class ServerConfig:
     host: str = os.environ.get("RCA_HOST", "0.0.0.0")
     port: int = int(os.environ.get("RCA_PORT", "8000"))
@@ -154,7 +147,6 @@ class AppConfig:
     celery: CeleryConfig = field(default_factory=CeleryConfig)
     postgres: PostgresConfig = field(default_factory=PostgresConfig)
     lightrag: LightRAGConfig = field(default_factory=LightRAGConfig)
-    codegraph: CodeGraphConfig = field(default_factory=CodeGraphConfig)
     server: ServerConfig = field(default_factory=ServerConfig)
 
     def __post_init__(self) -> None:
