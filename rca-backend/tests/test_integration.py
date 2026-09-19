@@ -162,14 +162,14 @@ class TestIntegCiPipeline:
 
 
 class TestIntegDualGraphToA4:
-    """场景 integ_dualgraph_to_agent4 — cross_validate → Candidate Top-3 → A4 消费"""
+    """场景 integ_dualgraph_to_a4 — cross_validate → Candidate Top-3 → _candidates_to_rootcauses"""
 
-    def test_cross_validate_feeds_a4(self):
+    def test_cross_validate_feeds_rootcauses(self):
         from app.dual_graph import cross_validate
+        from app.engine import RCAEngine
         from app.models import (
-            SuspectFunction, AnomalyPath, MetricAnomalies, ChangeRecord, ChangeRecords,
+            SuspectFunction, AnomalyPath,
         )
-        from app.agents import AgentA4
 
         s_static = [
             SuspectFunction(function_id="OrderLockService.acquire", function_name="acquire",
@@ -186,14 +186,8 @@ class TestIntegDualGraphToA4:
         assert len(candidates) >= 1
         assert candidates[0].hit_kind == "intersection"
 
-        # A4 消费 candidates 转换为 RootCause
-        a4 = AgentA4()
-        # 转换 Candidate → SuspectFunction（A4 入参）
-        sf_list = [
-            SuspectFunction(function_id=c.function_id, function_name=c.function_name,
-                            static_depth=c.evidence.static_depth, file=c.file, line=c.line)
-            for c in candidates
-        ]
-        top3 = a4.run(sf_list, p_runtime)
+        # 引擎消费 candidates 转换为 RootCause（原 A4 逻辑现由 _candidates_to_rootcauses 承载）
+        engine = RCAEngine()
+        top3 = engine._candidates_to_rootcauses(candidates)
         assert len(top3) <= 3
         assert top3[0].confidence > 0.0

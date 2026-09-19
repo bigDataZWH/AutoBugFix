@@ -13,7 +13,7 @@ from app.models import (
     RCAState, BugInfo, AnomalyPath, Stage, RootCause,
     Solution, GateStatus, SuspectFunction, HilDecision,
 )
-from app.agents import AgentA1, AgentA2, AgentA3, AgentA4, AgentA5
+from app.agents import AgentA1, AgentA2, AgentA3, AgentA5
 
 FIXTURES = Path(__file__).parent / "fixtures" / "engine"
 
@@ -130,8 +130,8 @@ class TestAgentA1:
         assert out.error_type.lower() in ("unknown", "timeout", "error")
 
 
-class TestAgentA4:
-    """UT 4: A4 根因分析 Agent (score 排序 + Top-3)"""
+class TestRootCauseAnalysis:
+    """UT 4: A4 根因分析阶段 (cross_validate → score 排序 + Top-3)"""
 
     def test_a4_top3_length(self):
         engine = RCAEngine()

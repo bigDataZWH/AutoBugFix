@@ -1,7 +1,6 @@
 """Spec 4: 5-Agent 智能引擎编排器。
 
-拓扑: START->A1->(A2||A3 fan-out)->A4 fan-in->CRAG->HIL->A5->END。
-LangGraph 可用时使用状态机；不可用时回退 SequentialOrchestrator。
+拓扑: START->A1->(A2||A3 fan-out)->A4(cross_validate)->CRAG->HIL->A5->END。
 SSE 事件推送 + Redis 状态持久化 + 断点续跑 + HIL 挂起/回灌。
 """
 
@@ -12,9 +11,9 @@ import threading
 import time
 import uuid
 from datetime import datetime
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
-from .agents import AgentA1, AgentA2, AgentA3, AgentA4, AgentA5, RCAError
+from .agents import AgentA1, AgentA2, AgentA3, AgentA5, RCAError
 from .config import config
 from .dual_graph import cross_validate
 from .flywheel import flywheel
@@ -113,23 +112,13 @@ class RCAEngine:
         self.a1 = AgentA1()
         self.a2 = AgentA2()
         self.a3 = AgentA3()
-        self.a4 = AgentA4()
         self.a5 = AgentA5()
         self.events = SSEEventBus(redis_client)
         self.store = StateStore(redis_client)
-        self._use_langgraph = self._check_langgraph()
 
     def set_redis(self, redis_client: Any) -> None:
         self.events._set_redis(redis_client)
         self.store._set_redis(redis_client)
-
-    @staticmethod
-    def _check_langgraph() -> bool:
-        try:
-            import langgraph.graph  # noqa: F401
-            return True
-        except ImportError:
-            return False
 
     @staticmethod
     def generate_task_id() -> str:
@@ -138,111 +127,7 @@ class RCAEngine:
         return f"rca-{today}-{seq}"
 
     # ------------------------------------------------------------------
-    # 状态机构建
-    # ------------------------------------------------------------------
-    def build_state_machine(self) -> Callable[[RCAState], RCAState]:
-        if self._use_langgraph:
-            return self._build_langgraph()
-        return self.run_sequential
-
-    def _build_langgraph(self) -> Callable[[RCAState], RCAState]:
-        from langgraph.graph import END, START, StateGraph
-
-        graph = StateGraph(RCAState)
-
-        graph.add_node("A1", self._node_a1)
-        graph.add_node("A2", self._node_a2)
-        graph.add_node("A3", self._node_a3)
-        graph.add_node("A4", self._node_a4)
-        graph.add_node("CRAG", self._node_crag)
-        graph.add_node("HIL", self._node_hil)
-        graph.add_node("A5", self._node_a5)
-
-        graph.add_edge(START, "A1")
-        graph.add_edge("A1", "A2")
-        graph.add_edge("A1", "A3")
-        graph.add_edge("A2", "A4")
-        graph.add_edge("A3", "A4")
-        graph.add_edge("A4", "CRAG")
-        graph.add_edge("CRAG", "HIL")
-        graph.add_edge("HIL", "A5")
-        graph.add_edge("A5", END)
-
-        graph.set_entry_point("A1")
-        compiled = graph.compile()
-        return lambda state: compiled.invoke(state)
-
-    # ------------------------------------------------------------------
-    # LangGraph 节点
-    # ------------------------------------------------------------------
-    def _node_a1(self, state: RCAState) -> dict[str, Any]:
-        self._publish_stage(state, "A1", "start", {})
-        a1_out = self.a1.run(state.bug_info)
-        self._publish_stage(state, "A1", "complete", {"suspect_services": a1_out.suspect_services})
-        return {
-            "symptoms": a1_out.symptoms,
-            "error_type": a1_out.error_type,
-            "query": a1_out.query,
-            "suspect_services": a1_out.suspect_services,
-            "stage": Stage(index=1, name="A1", status="completed"),
-        }
-
-    def _node_a2(self, state: RCAState) -> dict[str, Any]:
-        self._publish_stage(state, "A2", "start", {})
-        s_static = self.a2.run(state.suspect_services, state.bug_info.stack)
-        self._publish_stage(state, "A2", "complete", {"static_count": len(s_static)})
-        return {"S_static": s_static, "stage": Stage(index=2, name="A2", status="completed")}
-
-    def _node_a3(self, state: RCAState) -> dict[str, Any]:
-        self._publish_stage(state, "A3", "start", {})
-        p_runtime = self.a3.run(state.suspect_services)
-        self._publish_stage(state, "A3", "complete", {"runtime_anomaly": p_runtime.runtime_anomaly})
-        return {"P_runtime": p_runtime, "stage": Stage(index=2, name="A3", status="completed")}
-
-    def _node_a4(self, state: RCAState) -> dict[str, Any]:
-        self._publish_stage(state, "A4", "start", {})
-        candidates = cross_validate(state.S_static, state.P_runtime, weights=config.score_weights)
-        top3 = self._candidates_to_rootcauses(candidates)
-        top_confidence = top3[0].confidence if top3 else 0.0
-        self._publish_stage(state, "A4", "complete", {"top_confidence": top_confidence, "top3": [r.model_dump() for r in top3]})
-        return {"top3": top3, "stage": Stage(index=4, name="A4", status="completed")}
-
-    def _node_crag(self, state: RCAState) -> dict[str, Any]:
-        evidence_list = [self._rootcause_to_candidate(rc) for rc in state.top3]
-        triage = crag_gate([c.evidence for c in evidence_list if c is not None])
-        status = GateStatus(
-            crag=triage.verdict,
-            hil=state.gate_status.hil,
-        )
-        return {"gate_status": status}
-
-    def _node_hil(self, state: RCAState) -> dict[str, Any]:
-        candidates = [self._rootcause_to_candidate(rc) for rc in state.top3 if self._rootcause_to_candidate(rc) is not None]
-        top_confidence = state.top3[0].confidence if state.top3 else 0.0
-        result = hil_gate(candidates, top_confidence, task_id=state.task_id)
-        if result.action == "hang" and result.panel_payload:
-            if state.runtime_mode == "mock_demo":
-                status = GateStatus(crag=state.gate_status.crag, hil="skipped")
-                return {"gate_status": status}
-            status = GateStatus(crag=state.gate_status.crag, hil="pending")
-            self.events.publish(state.task_id, "gate_pending", {
-                "gate": "HIL",
-                "reason": "low_confidence",
-                "top_confidence": top_confidence,
-                "payload": result.panel_payload.model_dump(),
-            })
-            return {"gate_status": status}
-        status = GateStatus(crag=state.gate_status.crag, hil="skipped")
-        return {"gate_status": status}
-
-    def _node_a5(self, state: RCAState) -> dict[str, Any]:
-        self._publish_stage(state, "A5", "start", {})
-        solution = self.a5.run(state.top3, state.error_type)
-        self._publish_stage(state, "A5", "complete", {"patch_length": len(solution.patch_suggestion)})
-        return {"solution": solution, "stage": Stage(index=5, name="A5", status="completed")}
-
-    # ------------------------------------------------------------------
-    # 顺序编排（LangGraph 不可用时的兜底实现）
+    # 顺序编排
     # ------------------------------------------------------------------
     def run_sequential(self, state: RCAState) -> RCAState:
         try:
@@ -299,8 +184,7 @@ class RCAEngine:
             return self._fail(state, "UNKNOWN", str(exc))
 
     def run(self, state: RCAState) -> RCAState:
-        runner = self.build_state_machine()
-        return runner(state)
+        return self.run_sequential(state)
 
     # ------------------------------------------------------------------
     # 阶段执行

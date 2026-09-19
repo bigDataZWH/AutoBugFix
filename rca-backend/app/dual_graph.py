@@ -120,18 +120,3 @@ def contains_lookup(
     function_map: dict[str, list[SuspectFunction]],
 ) -> list[SuspectFunction]:
     return function_map.get(service_id, [])
-
-
-def rebalance_weights(
-    weights: ScoreWeights,
-    metric_missing: bool = False,
-    change_missing: bool = False,
-) -> ScoreWeights:
-    w = ScoreWeights(
-        w1=weights.w1,
-        w2=weights.w2,
-        w3=0.0 if metric_missing else weights.w3,
-        w4=0.0 if change_missing else weights.w4,
-    )
-    w.normalize()
-    return w

@@ -146,10 +146,17 @@ class AgentA3:
 
     def run(self, suspect_services: list[str]) -> AnomalyPath:
         if config.runtime_mode == "mock_demo":
+            functions = [
+                f"{t['microservice']}::{t['module']}"
+                for t in SAMPLE_TICKETS
+                if t["microservice"] in suspect_services or not suspect_services
+            ]
+            if not functions:
+                functions = [f"{s}::handler" for s in suspect_services]
             return AnomalyPath(
                 span_tree={},
                 propagation_path=suspect_services,
-                functions=[f"{s}::handler" for s in suspect_services],
+                functions=functions,
                 runtime_anomaly=0.8,
             )
         return AnomalyPath(
@@ -158,40 +165,6 @@ class AgentA3:
             functions=[],
             runtime_anomaly=0.0,
         )
-
-
-class AgentA4:
-    def run(self, S_static: list[SuspectFunction], P_runtime: AnomalyPath) -> list[RootCause]:
-        top3: list[RootCause] = []
-        for f in S_static:
-            confidence = self._confidence(f, P_runtime)
-            cause = self._cause_text(f)
-            top3.append(RootCause(
-                root_cause=cause,
-                confidence=confidence,
-                evidence_chain=[
-                    f"静态可达: {f.function_name} (depth={f.static_depth})",
-                    f"运行时异常: {f.function_name in P_runtime.functions}",
-                ],
-                located_function=f.function_name,
-                file=f.file or "",
-                line=f.line or 0,
-            ))
-
-        top3.sort(key=lambda r: r.confidence, reverse=True)
-        return top3[:3]
-
-    def _confidence(self, f: SuspectFunction, P_runtime: AnomalyPath) -> float:
-        base = min(f.static_depth / 5.0, 1.0) * 0.5
-        if f.function_name in [p.rsplit("::", 1)[-1] for p in P_runtime.functions]:
-            base += P_runtime.runtime_anomaly * 0.5
-        return round(min(base + 0.2, 0.98), 2)
-
-    def _cause_text(self, f: SuspectFunction) -> str:
-        for t in SAMPLE_TICKETS:
-            if t["module"] == f.function_name:
-                return t["root_cause"]
-        return f"{f.function_name} 存在潜在根因，需人工确认"
 
 
 class AgentA5:
