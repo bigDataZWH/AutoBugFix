@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from .mock_data import SAMPLE_TICKETS
 from .models import (
-    AnalyzeRequest, AnalyzeRequestV2, AnalyzeResponse, AnalysisReport, ConfirmRequest, KBImportRequest, KBImportItem, RCAState,
+    AnalyzeRequest, AnalyzeRequestV2, AnalyzeResponse, AnalysisReport, ConfirmRequest, HilDecision, KBImportRequest, KBImportItem, RCAState,
 )
 from .opencode_adapter import OpenCodeAdapter
 from .pipeline import Pipeline
@@ -47,7 +47,6 @@ engine.set_serve_adapter(
         base_url=config.opencode_serve.base_url,
         auth_token=config.opencode_serve.auth_token,
         timeout=config.opencode_serve.timeout,
-        poll_interval=config.opencode_serve.poll_interval,
     )
 )
 
@@ -220,7 +219,23 @@ async def v3_analyze(req: AnalyzeRequest) -> AnalyzeResponse:
     queue: asyncio.Queue = asyncio.Queue()
     v3_tasks[task_id_] = {"queue": queue, "state": None, "status": "running"}
 
+    async def _relay_events():
+        """将 SSEEventBus 事件中继到 asyncio.Queue，实现实时进度透传。"""
+        offset = 0
+        while True:
+            events, offset = await asyncio.to_thread(engine.drain_events, task_id_, offset)
+            for evt in events:
+                await queue.put({
+                    "type": evt.get("event", "stage"),
+                    "data": evt.get("data", {}),
+                    "ts": evt.get("ts"),
+                })
+            if v3_tasks[task_id_]["status"] != "running":
+                break
+            await asyncio.sleep(0.1)
+
     async def _run():
+        relay = asyncio.create_task(_relay_events())
         try:
             result = await asyncio.to_thread(engine.run_sequential, state)
             v3_tasks[task_id_]["state"] = result
@@ -229,6 +244,9 @@ async def v3_analyze(req: AnalyzeRequest) -> AnalyzeResponse:
         except Exception as e:
             await queue.put({"type": "error", "data": {"message": str(e)}})
             v3_tasks[task_id_]["status"] = "error"
+        finally:
+            await relay
+            await queue.put(None)
 
     asyncio.create_task(_run())
     return AnalyzeResponse(task_id=task_id_, status="queued", runtime_mode=req.runtime_mode)
@@ -285,7 +303,14 @@ async def v3_confirm(task_id: str, decision: ConfirmRequest):
     record = v3_tasks.get(task_id, {})
     record["status"] = "confirmed"
     try:
-        result = engine.resume(task_id, decision)
+        hil = HilDecision(
+            task_id=task_id,
+            action=decision.action,
+            confirmed_root_cause_id=decision.confirmed_root_cause_id,
+            modified_top3=decision.modified_top3,
+            feedback=decision.feedback,
+        )
+        result = await asyncio.to_thread(engine.resume, task_id, hil)
         v3_tasks[task_id] = {"state": result, "status": "done" if result.stage.status == "completed" else "rejected", "queue": asyncio.Queue()}
         return _state_summary(result)
     except Exception as e:
@@ -295,7 +320,7 @@ async def v3_confirm(task_id: str, decision: ConfirmRequest):
 @app.post("/api/v1/rca/{task_id}/resume")
 async def v3_resume(task_id: str):
     try:
-        result = engine.resume_from_checkpoint(task_id)
+        result = await asyncio.to_thread(engine.resume_from_checkpoint, task_id)
         v3_tasks[task_id] = {"state": result, "status": "done" if result.stage.status == "completed" else "failed", "queue": asyncio.Queue()}
         return _state_summary(result)
     except Exception as e:

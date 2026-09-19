@@ -10,9 +10,10 @@ serve 不可用时 ``available=False``，调用方据此降级到 mock_demo 路�
 
 from __future__ import annotations
 
+import atexit
+import contextlib
 import json
 import logging
-import re
 from collections.abc import Callable
 from typing import Any
 
@@ -46,28 +47,25 @@ class OpenCodeServeAdapter:
         base_url: str = "http://localhost:4096",
         auth_token: str = "",
         timeout: int = 300,
-        poll_interval: float = 0.5,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.auth_token = auth_token
         self.timeout = timeout
-        self.poll_interval = poll_interval
         self._headers: dict[str, str] = {"Content-Type": "application/json"}
         if auth_token:
             self._headers["Authorization"] = f"Bearer {auth_token}"
-        self.available = self._health()
-
-    def _client(self) -> httpx.Client:
-        return httpx.Client(
+        self._client: httpx.Client = httpx.Client(
             base_url=self.base_url,
             headers=self._headers,
             timeout=self.timeout,
         )
+        self._active_sessions: set[str] = set()
+        self.available = self._health()
+        atexit.register(self._cleanup_atexit)
 
     def _health(self) -> bool:
         try:
-            with self._client() as c:
-                r = c.get("/health")
+            r = self._client.get("/health")
             return r.status_code < 500
         except Exception as e:  # noqa: BLE001
             logger.info("opencode serve 不可用，降级 mock: %s", e)
@@ -77,8 +75,7 @@ class OpenCodeServeAdapter:
         headers = dict(self._headers)
         headers["x-opencode-directory"] = directory
         try:
-            with httpx.Client(base_url=self.base_url, headers=headers, timeout=self.timeout) as c:
-                r = c.post("/session", params={"directory": directory})
+            r = self._client.post("/session", params={"directory": directory}, headers=headers)
         except Exception as e:
             raise OpenCodeServeError("SERVE_UNREACHABLE", f"创建会话失败: {e}") from e
         if r.status_code >= 400:
@@ -87,7 +84,9 @@ class OpenCodeServeAdapter:
         sid = data.get("id") or data.get("sessionID") or data.get("session_id")
         if not sid:
             raise OpenCodeServeError("SESSION_CREATE", f"会话响应缺 id 字段: {data}")
-        return str(sid)
+        sid_str = str(sid)
+        self._active_sessions.add(sid_str)
+        return sid_str
 
     def prompt_async(
         self,
@@ -99,7 +98,7 @@ class OpenCodeServeAdapter:
         body = {"prompt": prompt, "stream": True}
         final_text = ""
         try:
-            with self._client() as c, c.stream("POST", url, json=body) as resp:
+            with self._client.stream("POST", url, json=body) as resp:
                 if resp.status_code >= 400:
                     text = resp.read().decode("utf-8", "replace")
                     raise OpenCodeServeError("PROMPT_ASYNC", f"prompt_async HTTP {resp.status_code}: {text}")
@@ -194,11 +193,19 @@ class OpenCodeServeAdapter:
         return ""
 
     def close_session(self, session_id: str) -> None:
+        self._active_sessions.discard(session_id)
         try:
-            with self._client() as c:
-                c.delete(f"/session/{session_id}")
+            self._client.delete(f"/session/{session_id}")
         except Exception as e:  # noqa: BLE001
             logger.debug("关闭会话 %s 失败（已忽略）: %s", session_id, e)
+
+    def _cleanup_atexit(self) -> None:
+        for sid in list(self._active_sessions):
+            with contextlib.suppress(Exception):
+                self._client.delete(f"/session/{sid}")
+        self._active_sessions.clear()
+        with contextlib.suppress(Exception):
+            self._client.close()
 
     @staticmethod
     def _safe_json(resp: httpx.Response) -> dict[str, Any]:
@@ -215,13 +222,59 @@ class OpenCodeServeAdapter:
 
     @staticmethod
     def _extract_json(text: str) -> dict[str, Any]:
+        """从 LLM 输出文本中提取 JSON 对象。
+
+        优先尝试直接解析整段文本；失败后用字符串感知的平衡括号计数遍历
+        每一个 ``{`` 起点，收集所有可解析的候选对象，返回最长（最完整）的那个。
+        这样既能跳过解释文本中出现的小段示例 JSON（如 ``{"foo": 1}``），
+        也能在首段大括号因字符串未闭合而无法解析时回退到后续有效对象，
+        避免贪婪正则 ``\\{[\\s\\S]*\\}`` 或“首个命中即返回”策略误捕获。
+        """
         if not text:
             return {}
-        m = re.search(r"\{[\s\S]*\}", text)
-        if not m:
-            return {}
+        text = text.strip()
         try:
-            data = json.loads(m.group(0))
+            data = json.loads(text)
             return data if isinstance(data, dict) else {}
-        except Exception:  # noqa: BLE001
-            return {}
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+        best: dict[str, Any] | None = None
+        best_len = -1
+        n = len(text)
+        for start in range(n):
+            if text[start] != "{":
+                continue
+            depth = 0
+            in_string = False
+            escape = False
+            for i in range(start, n):
+                ch = text[i]
+                if in_string:
+                    if escape:
+                        escape = False
+                    elif ch == "\\":
+                        escape = True
+                    elif ch == '"':
+                        in_string = False
+                else:
+                    if ch == '"':
+                        in_string = True
+                    elif ch == "{":
+                        depth += 1
+                    elif ch == "}":
+                        depth -= 1
+                        if depth == 0:
+                            candidate = text[start:i + 1]
+                            try:
+                                data = json.loads(candidate)
+                            except (json.JSONDecodeError, ValueError):
+                                data = None
+                            if (
+                                isinstance(data, dict)
+                                and len(candidate) > best_len
+                            ):
+                                best = data
+                                best_len = len(candidate)
+                            break
+        return best if best is not None else {}

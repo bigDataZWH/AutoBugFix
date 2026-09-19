@@ -21,7 +21,7 @@ from typing import Any, Optional
 from .agents import RCAError
 from .config import config
 from .flywheel import flywheel
-from .gates import hil_gate, process_hil_decision
+from .gates import crag_gate, hil_gate, process_hil_decision
 from .mock_data import SAMPLE_TICKETS
 from .models import (
     AnomalyPath, Candidate, Evidence, GateStatus, HilDecision, HilResult,
@@ -222,6 +222,7 @@ class RCAEngine:
                     on_event=lambda e: self._proxy_event(state, e),
                 )
                 self._map_opencode_output(raw, state)
+                state = self._crag_retry_if_needed(state, repo_path)
             except OpenCodeServeError as e:
                 logger.warning("opencode serve 会话失败，降级 mock: task_id=%s code=%s", state.task_id, e.code)
                 self._fallback_mock(state)
@@ -268,11 +269,22 @@ class RCAEngine:
 
     def _apply_patch_session(self, state: RCAState, modified_top3: list[dict[str, Any]]) -> RCAState:
         if not self.serve or not self.serve.available:
+            self.events.publish(state.task_id, "patch_skipped", {
+                "reason": "serve_unavailable",
+                "message": "opencode serve 不可用，保留原方案",
+            })
+            return state
+        repo = self._resolve_repo_path(state)
+        if not repo:
+            self.events.publish(state.task_id, "patch_skipped", {
+                "reason": "no_repo_path",
+                "message": "未提供 repo_path，跳过 patch 会话",
+            })
             return state
         sid: Optional[str] = None
         try:
             prompt = build_patch_prompt(modified_top3, state.bug_info)
-            sid = self.serve.create_session(self._resolve_repo_path(state))
+            sid = self.serve.create_session(repo)
             raw = self.serve.prompt_async(
                 sid, prompt,
                 on_event=lambda e: self._proxy_event(state, e),
@@ -282,9 +294,45 @@ class RCAEngine:
                 state.solution = self._map_solution(sol)
         except Exception as e:  # noqa: BLE001
             logger.warning("patch 会话失败，保留原 solution: task_id=%s err=%s", state.task_id, e)
+            self.events.publish(state.task_id, "patch_skipped", {
+                "reason": "patch_session_failed",
+                "message": str(e),
+            })
         finally:
             if sid:
                 self.serve.close_session(sid)
+        return state
+
+    def _crag_retry_if_needed(self, state: RCAState, repo_path: str) -> RCAState:
+        """CRAG 自评 Python 兜底：若 verdict 为 irrelevant/ambiguous，追加补充 prompt 重发会话。"""
+        max_rounds = config.gate.max_rewrite_rounds
+        for attempt in range(1, max_rounds + 1):
+            if state.gate_status.crag == "relevant":
+                break
+            if not self.serve or not self.serve.available:
+                break
+            logger.info("CRAG 补强第 %d 轮: task_id=%s verdict=%s", attempt, state.task_id, state.gate_status.crag)
+            self.events.publish(state.task_id, "crag_retry", {
+                "attempt": attempt,
+                "verdict": state.gate_status.crag,
+                "max_rounds": max_rounds,
+            })
+            sid: str | None = None
+            try:
+                retry_prompt = (
+                    f"上一轮 CRAG verdict={state.gate_status.crag}，证据不充分。\n"
+                    f"请补充 codegraph 分析，重新评估四维证据并更新 crag_verdict 与 top3/solution。\n"
+                    f"只输出严格 JSON，schema 同前。"
+                )
+                sid = self.serve.create_session(repo_path)
+                raw = self.serve.prompt_async(sid, retry_prompt)
+                self._map_opencode_output(raw, state)
+            except Exception as e:  # noqa: BLE001
+                logger.warning("CRAG 补强第 %d 轮失败: task_id=%s err=%s", attempt, state.task_id, e)
+                break
+            finally:
+                if sid and self.serve is not None:
+                    self.serve.close_session(sid)
         return state
 
     # ------------------------------------------------------------------
@@ -319,11 +367,6 @@ class RCAEngine:
             state = self._apply_patch_session(state, decision.modified_top3)
 
         result = self.run_sequential(state)
-        self.events.publish(result.task_id, "final", {
-            "top3": [r.model_dump() for r in result.top3],
-            "solution": result.solution.model_dump() if result.solution else {},
-            "gate_status": result.gate_status.model_dump(),
-        })
         return result
 
     def resume_from_checkpoint(self, task_id: str) -> RCAState:
@@ -336,6 +379,15 @@ class RCAEngine:
 
     def get_state(self, task_id: str) -> Optional[RCAState]:
         return self.store.load(task_id)
+
+    def drain_events(self, task_id: str, last_event_id: int = 0) -> tuple[list[dict[str, Any]], int]:
+        """拉取 SSEEventBus 中该 task 的增量事件，返回 (events, next_offset)。
+
+        供 main.py 的 _run() 协程在 engine.run_sequential 执行期间轮询中继到 asyncio.Queue，
+        实现 opencode 实时进度/阶段切换/HIL pending 等事件透传到前端 SSE 流。
+        """
+        events = self.events.replay(task_id, last_event_id)
+        return events, last_event_id + len(events)
 
     # ------------------------------------------------------------------
     # opencode 输出映射 / 事件代理
@@ -428,6 +480,8 @@ class RCAEngine:
             verify_expected=dict(sol.get("verify_expected") or {}),
             patch_suggestion=str(sol.get("patch_suggestion", "")),
             test_cases=[str(t) for t in (sol.get("test_cases") or [])],
+            historical_cases=[str(c) for c in (sol.get("historical_cases") or [])],
+            best_practices=[str(p) for p in (sol.get("best_practices") or [])],
         )
 
     # ------------------------------------------------------------------
@@ -464,7 +518,9 @@ class RCAEngine:
         state.symptoms = [t.get("title", "") for t in tickets] or ["insufficient_symptoms"]
         state.error_type = SAMPLE_TICKETS[0].get("error_code", "") if SAMPLE_TICKETS else ""
         state.suspect_services = [t.get("microservice", "") for t in tickets]
-        state.gate_status.crag = "relevant"
+        mock_evidence = [r.evidence for r in top3 if r.evidence is not None]
+        crag_result = crag_gate(mock_evidence)
+        state.gate_status.crag = crag_result.verdict
         state.P_runtime = AnomalyPath(functions=[r.located_function for r in top3 if r.located_function])
         state.solution = self._mock_solution()
 
@@ -492,7 +548,7 @@ class RCAEngine:
     # ------------------------------------------------------------------
     def _resolve_repo_path(self, state: RCAState) -> str:
         env = state.bug_info.environment or {}
-        return str(env.get("repo_path", "") or state.bug_info.link or "")
+        return str(env.get("repo_path", "") or "")
 
     @staticmethod
     def _as_float(v: Any) -> float:

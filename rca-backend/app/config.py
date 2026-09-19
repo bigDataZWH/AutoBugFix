@@ -128,7 +128,6 @@ class OpenCodeServeConfig:
     base_url: str = os.environ.get("OPENCODE_SERVE_URL", "http://localhost:4096")
     auth_token: str = os.environ.get("OPENCODE_SERVE_TOKEN", "")
     timeout: int = int(os.environ.get("OPENCODE_SERVE_TIMEOUT", "300"))
-    poll_interval: float = float(os.environ.get("OPENCODE_SERVE_POLL_INTERVAL", "0.5"))
 
 
 @dataclass

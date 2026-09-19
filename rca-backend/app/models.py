@@ -269,8 +269,9 @@ class HilResult(BaseModel):
 
 
 class HilDecision(BaseModel):
-    task_id: str
+    task_id: str = ""
     action: Literal["confirm", "modify", "reject"] = "confirm"
+    confirmed_root_cause_id: str = ""
     modified_top3: Optional[list[dict[str, Any]]] = None
     feedback: Optional[str] = None
 

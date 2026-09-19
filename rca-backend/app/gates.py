@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 from .config import config
 from .models import (
@@ -104,13 +104,13 @@ def semantic_gate(top3: list[Candidate]) -> bool:
 def process_hil_decision(
     decision: HilDecision,
     top3: list[Candidate],
-) -> tuple[list[Candidate], str]:
+) -> tuple[list[Any], str]:
     if decision.action == "confirm":
         return top3, "confirmed"
     elif decision.action == "modify":
         if decision.modified_top3:
             return decision.modified_top3, "modified"
-        picked = getattr(decision, "confirmed_root_cause_id", "") or ""
+        picked = decision.confirmed_root_cause_id or ""
         if picked and top3:
             matched = [c for c in top3 if c.function_name == picked or c.function_id == picked]
             others = [c for c in top3 if not (c.function_name == picked or c.function_id == picked)]

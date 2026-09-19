@@ -128,6 +128,21 @@ class TestHILDecision:
         else:
             assert result_top3[0].function_id == "fn_new"
 
+    def test_modify_with_confirmed_root_cause_id_reorders(self):
+        """action=modify 且无 modified_top3 时，按 confirmed_root_cause_id 重排 top3。"""
+        candidates = _make_candidates(n=3)
+        decision = HilDecision(
+            task_id="t1",
+            action="modify",
+            confirmed_root_cause_id="fn2",
+        )
+        result_top3, status = process_hil_decision(decision, candidates)
+        assert status == "modified"
+        assert len(result_top3) == 3
+        first = result_top3[0]
+        first_id = first["function_id"] if isinstance(first, dict) else first.function_id
+        assert first_id == "fn2"
+
     def test_reject(self):
         candidates = _make_candidates()
         decision = HilDecision(task_id="t1", action="reject", feedback="错误")
