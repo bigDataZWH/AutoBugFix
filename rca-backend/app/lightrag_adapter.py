@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import time
 from pathlib import Path
 from typing import Any, Callable, Optional
 
 from .config import config
 from .models import AstKg, AstKgEntity, AstKgRelationship, RetrievalResult
+
+logger = logging.getLogger(__name__)
 
 # LightRAG 1.5.6 存储类名映射（config 中存储的是友好名）
 # 同一友好名在不同存储类型下对应不同类名
@@ -106,7 +109,8 @@ class LightRAGAdapter:
             )
             self._QueryParam = QueryParam
             self._available = True
-        except Exception:
+        except Exception as e:
+            logger.info("LightRAG 初始化失败，降级模式: %s", e)
             self._available = False
 
     @property
@@ -119,7 +123,8 @@ class LightRAGAdapter:
         try:
             await self._rag.ainsert(text, ids=ids)
             return True
-        except Exception:
+        except Exception as e:
+            logger.warning("LightRAG ainsert 失败: ids=%s err=%s", ids, e)
             return False
 
     async def ainsert_custom_kg(self, ast_kg: AstKg) -> bool:
@@ -139,7 +144,8 @@ class LightRAGAdapter:
             ]
             await self._rag.ainsert_custom_kg(entities, relationships)
             return True
-        except Exception:
+        except Exception as e:
+            logger.warning("LightRAG ainsert_custom_kg 失败: entities=%d err=%s", len(ast_kg.entities), e)
             return False
 
     async def aquery(
@@ -166,6 +172,7 @@ class LightRAGAdapter:
             )
         except Exception as e:
             elapsed = int((time.monotonic() - start) * 1000)
+            logger.warning("LightRAG aquery 失败: mode=%s query=%s err=%s", mode, query[:80], e)
             return RetrievalResult(
                 mode=mode,
                 content="",

@@ -7,9 +7,11 @@ SSE 事件推送 + Redis 状态持久化 + 断点续跑 + HIL 挂起/回灌。
 from __future__ import annotations
 
 import json
+import logging
 import threading
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any, Optional
 
@@ -20,10 +22,12 @@ from .flywheel import flywheel
 from .gates import crag_gate, hil_gate, process_hil_decision
 from .lightrag_adapter import lightrag
 from .models import (
-    A1Output, AnomalyPath, BugInfo, Candidate, Evidence, GateStatus,
-    HilDecision, HilResult, RCAState, RootCause, Solution, Stage,
-    SuspectFunction,
+    A1Output, AnomalyPath, BugInfo, Candidate, ChangeRecord, ChangeRecords,
+    CragTriage, Evidence, GateStatus, HilDecision, HilResult, MetricAnomalies,
+    RCAState, RootCause, Solution, Stage, SuspectFunction,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class SSEEventBus:
@@ -50,8 +54,8 @@ class SSEEventBus:
                 self._redis.rpush(f"{self.PREFIX}{task_id}", json.dumps(payload, ensure_ascii=False, default=str))
                 self._redis.expire(f"{self.PREFIX}{task_id}", self.TTL)
                 return
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("SSE publish Redis 失败，回退内存: task_id=%s event=%s err=%s", task_id, event, e)
         with self._lock:
             self._memory.setdefault(task_id, []).append(payload)
 
@@ -60,8 +64,8 @@ class SSEEventBus:
             try:
                 raw = self._redis.lrange(f"{self.PREFIX}{task_id}", last_event_id, -1)
                 return [json.loads(r) for r in raw]
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("SSE replay Redis 失败，回退内存: task_id=%s err=%s", task_id, e)
         with self._lock:
             return self._memory.get(task_id, [])[last_event_id:]
 
@@ -85,15 +89,16 @@ class StateStore:
             try:
                 self._redis.set(f"{self.PREFIX}{state.task_id}", serialized, ex=self.TTL)
                 return
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("StateStore save Redis 失败，回退内存: task_id=%s err=%s", state.task_id, e)
         self._memory[state.task_id] = serialized
 
     def load(self, task_id: str) -> Optional[RCAState]:
         if self._redis is not None:
             try:
                 raw = self._redis.get(f"{self.PREFIX}{task_id}")
-            except Exception:
+            except Exception as e:
+                logger.warning("StateStore load Redis 失败，回退内存: task_id=%s err=%s", task_id, e)
                 raw = None
         else:
             raw = self._memory.get(task_id)
@@ -101,7 +106,8 @@ class StateStore:
             return None
         try:
             return RCAState.model_validate_json(raw)
-        except Exception:
+        except Exception as e:
+            logger.warning("StateStore 反序列化失败: task_id=%s err=%s", task_id, e)
             return None
 
 
@@ -209,34 +215,33 @@ class RCAEngine:
 
     def _apply_a2a3_parallel(self, state: RCAState) -> RCAState:
         self._publish_stage(state, "A2A3", "start", {})
-        result: dict[str, Any] = {}
 
-        def _a2_worker() -> None:
-            result["S_static"] = self.a2.run(state.suspect_services, state.bug_info.stack)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            future_a2 = pool.submit(self.a2.run, state.suspect_services, state.bug_info.stack)
+            future_a3 = pool.submit(self.a3.run, state.suspect_services)
+            state.S_static = future_a2.result()
+            state.P_runtime = future_a3.result()
 
-        def _a3_worker() -> None:
-            result["P_runtime"] = self.a3.run(state.suspect_services)
-
-        t2 = threading.Thread(target=_a2_worker)
-        t3 = threading.Thread(target=_a3_worker)
-        t2.start()
-        t3.start()
-        t2.join()
-        t3.join()
-
-        state.S_static = result.get("S_static", [])
-        state.P_runtime = result.get("P_runtime", AnomalyPath())
+        state.metric_anomalies, state.change_records = self._collect_supplementary_data(state)
         state.stage = Stage(index=2, name="A2A3", status="completed")
         self.store.save(state)
         self._publish_stage(state, "A2A3", "complete", {
             "static_count": len(state.S_static),
             "runtime_anomaly": state.P_runtime.runtime_anomaly,
+            "has_metrics": state.metric_anomalies is not None,
+            "has_changes": state.change_records is not None,
         })
         return state
 
     def _apply_a4(self, state: RCAState) -> RCAState:
         self._publish_stage(state, "A4", "start", {})
-        candidates = cross_validate(state.S_static, state.P_runtime, weights=config.score_weights)
+        candidates = cross_validate(
+            state.S_static,
+            state.P_runtime,
+            metric_anomalies=state.metric_anomalies,
+            change_records=state.change_records,
+            weights=config.score_weights,
+        )
         state.top3 = self._candidates_to_rootcauses(candidates)
         top_confidence = state.top3[0].confidence if state.top3 else 0.0
         state.stage = Stage(index=4, name="A4", status="completed")
@@ -252,8 +257,31 @@ class RCAEngine:
             return state
         candidates = [self._rootcause_to_candidate(rc) for rc in state.top3]
         valid = [c for c in candidates if c is not None]
+
         triage = crag_gate([c.evidence for c in valid])
+        rewrite_rounds = 0
+
+        while triage.verdict != "relevant" and rewrite_rounds < config.gate.max_rewrite_rounds:
+            rewrite_rounds += 1
+            hint = triage.rewritten_query or ""
+            logger.info(
+                "CRAG rewrite round %d/%d: verdict=%s hint=%s task_id=%s",
+                rewrite_rounds, config.gate.max_rewrite_rounds,
+                triage.verdict, hint, state.task_id,
+            )
+            supplemented, did_supplement = self._supplement_evidence(state, hint)
+            if not did_supplement:
+                break
+            valid = supplemented
+            state.top3 = self._candidates_to_rootcauses(valid)
+            triage = crag_gate([c.evidence for c in valid if c is not None])
+
         state.gate_status.crag = triage.verdict
+        if rewrite_rounds > 0:
+            logger.info(
+                "CRAG rewrite 完成: rounds=%d final_verdict=%s task_id=%s",
+                rewrite_rounds, triage.verdict, state.task_id,
+            )
 
         top_confidence = state.top3[0].confidence if state.top3 else 0.0
         hil_result = hil_gate(valid, top_confidence, task_id=state.task_id)
@@ -329,6 +357,96 @@ class RCAEngine:
     # ------------------------------------------------------------------
     # 辅助方法
     # ------------------------------------------------------------------
+    def _collect_supplementary_data(
+        self, state: RCAState
+    ) -> tuple[Optional[MetricAnomalies], Optional[ChangeRecords]]:
+        """采集指标异常 + 变更记录，供 cross_validate 的 w3/w4 维度使用。
+
+        mock_demo 模式：基于 P_runtime.functions 生成模拟数据。
+        online_full / offline_light：暂无监控/CI 集成，返回 None（降级）。
+        """
+        func_ids = state.P_runtime.functions or [f.function_id for f in state.S_static]
+        if not func_ids:
+            return None, None
+
+        if state.runtime_mode != "mock_demo":
+            logger.info("supplementary data 跳过（非 mock_demo 模式）: task_id=%s", state.task_id)
+            return None, None
+
+        metrics = self._generate_fallback_metrics(state, func_ids)
+        changes = self._generate_fallback_changes(state, func_ids)
+
+        logger.debug(
+            "supplementary data 采集完成: task_id=%s metrics_funcs=%d change_records=%d",
+            state.task_id, len(metrics.functions), len(changes.records),
+        )
+        return metrics, changes
+
+    def _generate_fallback_metrics(
+        self, state: RCAState, func_ids: list[str]
+    ) -> MetricAnomalies:
+        """生成兜底指标异常数据（mock / CRAG 重写补充场景）。"""
+        return MetricAnomalies(
+            functions={fid: round(0.60 + 0.30 * (1.0 - i * 0.15), 2) for i, fid in enumerate(func_ids[:5])},
+            services={svc: 0.80 for svc in state.suspect_services[:3]},
+        )
+
+    def _generate_fallback_changes(
+        self, state: RCAState, func_ids: list[str]
+    ) -> ChangeRecords:
+        """生成兜底变更记录（mock / CRAG 重写补充场景）。"""
+        now = time.time()
+        return ChangeRecords(records=[
+            ChangeRecord(function_id=fid, timestamp=now - 2 * 86400, commits=3 + i)
+            for i, fid in enumerate(func_ids[:5])
+        ])
+
+    def _supplement_evidence(
+        self, state: RCAState, hint: str
+    ) -> tuple[list[Candidate], bool]:
+        """根据 CRAG 重写提示补充弱维度证据，重新 cross_validate。
+
+        hint="broaden": 全维度补充（irrelevant 场景）。
+        hint 含 "metric_corr": 补充指标关联数据。
+        hint 含 "change_recency": 补充变更时效数据。
+        返回 (补充后的候选列表, 是否实际补充)。
+        """
+        func_ids = state.P_runtime.functions or [f.function_id for f in state.S_static]
+        if not func_ids:
+            return [], False
+
+        need_metrics = hint == "broaden" or "metric_corr" in hint
+        need_changes = hint == "broaden" or "change_recency" in hint
+
+        metrics = state.metric_anomalies
+        changes = state.change_records
+        supplemented = False
+
+        if need_metrics and (metrics is None or not metrics.functions):
+            metrics = self._generate_fallback_metrics(state, func_ids)
+            supplemented = True
+            logger.info(
+                "CRAG 补充 metric_corr: funcs=%d task_id=%s",
+                len(metrics.functions), state.task_id,
+            )
+        if need_changes and (changes is None or not changes.records):
+            changes = self._generate_fallback_changes(state, func_ids)
+            supplemented = True
+            logger.info(
+                "CRAG 补充 change_recency: records=%d task_id=%s",
+                len(changes.records), state.task_id,
+            )
+
+        if not supplemented:
+            return [], False
+
+        candidates = cross_validate(
+            state.S_static, state.P_runtime,
+            metric_anomalies=metrics, change_records=changes,
+            weights=config.score_weights,
+        )
+        return candidates, True
+
     def _publish_stage(self, state: RCAState, stage: str, status: str, summary: dict[str, Any]) -> None:
         if status == "start":
             self.events.publish(state.task_id, "stage_start", {"stage": stage, "ts": time.time()})

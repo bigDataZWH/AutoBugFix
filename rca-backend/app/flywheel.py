@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Optional
 
 from .config import config
@@ -8,6 +9,8 @@ from .lightrag_adapter import lightrag
 from .models import (
     FlywheelPayload, SimilarToEdge, WritebackResult,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _hash_payload(payload: FlywheelPayload) -> str:
@@ -71,7 +74,8 @@ class Flywheel:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                     return pool.submit(asyncio.run, coro).result()
             return asyncio.run(coro)
-        except Exception:
+        except Exception as e:
+            logger.warning("flywheel writeback_sync 失败: ticket_id=%s err=%s", payload.ticket_id, e)
             try:
                 coro.close()
             except Exception:

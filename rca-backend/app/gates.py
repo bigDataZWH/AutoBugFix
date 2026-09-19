@@ -44,18 +44,25 @@ def crag_gate(evidence_list: list[Evidence]) -> CragTriage:
             rewritten_query=None,
         )
     elif avg_confidence >= config.gate.confidence_threshold * 0.5:
+        weak_dims = []
+        for ev in evidence_list:
+            if ev.metric_corr < config.gate.confidence_threshold:
+                weak_dims.append("metric_corr")
+            if ev.change_recency < config.gate.confidence_threshold:
+                weak_dims.append("change_recency")
+        rewrite_hint = ",".join(sorted(set(weak_dims))) or "supplement"
         return CragTriage(
             verdict="ambiguous",
             refined_evidence=[ev.model_dump() for ev in evidence_list],
-            augmented_query="",
-            rewritten_query=None,
+            augmented_query=None,
+            rewritten_query=rewrite_hint,
         )
     else:
         return CragTriage(
             verdict="irrelevant",
             refined_evidence=[],
-            augmented_query=None,
-            rewritten_query="",
+            augmented_query="broaden",
+            rewritten_query="broaden",
         )
 
 

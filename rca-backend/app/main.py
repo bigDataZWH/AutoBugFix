@@ -1,10 +1,13 @@
 from __future__ import annotations
 import asyncio
 import json
+import logging
 import os
 import time
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
@@ -164,7 +167,8 @@ async def yunjie_import(req: YunjieImportRequest):
         )
         try:
             await lightrag.ainsert(text, ids=f"yunjie:{it.ticket_id}")
-        except Exception:
+        except Exception as e:
+            logger.warning("yunjie lightrag.ainsert 失败: ticket_id=%s err=%s", it.ticket_id, e)
             failed.append(it.ticket_id)
     return {"imported": n, "total": retriever.count(), "lightrag_degraded": not lightrag.available, "lightrag_failed_ids": failed}
 

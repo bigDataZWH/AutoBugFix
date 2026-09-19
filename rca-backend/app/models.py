@@ -349,6 +349,8 @@ class RCAState(BaseModel):
     suspect_services: list[str] = Field(default_factory=list)
     S_static: list[SuspectFunction] = Field(default_factory=list)
     P_runtime: AnomalyPath = Field(default_factory=AnomalyPath)
+    metric_anomalies: Optional[MetricAnomalies] = None
+    change_records: Optional[ChangeRecords] = None
     top3: list[RootCause] = Field(default_factory=list)
     gate_status: GateStatus = Field(default_factory=GateStatus)
     solution: Solution = Field(default_factory=Solution)
