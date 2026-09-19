@@ -1,20 +1,20 @@
 # RCA 智能根因分析系统 · 架构文档
 
-> 版本：v4.0（E1-E4 长期演进完成）　|　更新日期：2026-09-19
+> 版本：v5.0（opencode serve headless 架构）　|　更新日期：2026-09-20
 > 本文档描述系统当前架构与核心能力，作为后续开发与运维的权威参考。
 
 ---
 
 ## 1. 概述
 
-RCA 系统是一个基于 **5-Agent 流水线**的智能根因分析平台，核心使命是：**给定一个故障单（Bug Link / 描述），自动定位根因函数并给出修复建议**。
+RCA 系统是一个基于 **opencode serve headless 会话**的智能根因分析平台，核心使命是：**给定一个故障单（Bug Link / 描述）与本地代码仓路径，自动定位根因函数并给出修复建议**。
 
 系统聚焦两大核心能力：
 
-- **根因分析**：`A1 → A2‖A3 → A4 交叉验证 → 双闸门 → A5 方案生成` 的智能流水线
+- **根因分析**：`opencode serve 单会话（理解→codegraph 分析→Top-3→CRAG 自评迭代→方案生成） → HIL 人工闸门` 的端到端编排
 - **知识库**：基于 ChromaDB 向量库的工单导入、检索、删除全生命周期管理
 
-5-Agent 编排由 [engine.py](file:///workspace/rca-backend/app/engine.py) 的 `RCAEngine` 统一调度，4 个 Agent 定义于 [agents.py](file:///workspace/rca-backend/app/agents.py)，A4 交叉验证由 [dual_graph.py](file:///workspace/rca-backend/app/dual_graph.py) 的 `cross_validate` 直接承担。
+V3 根因分析由 [engine.py](file:///workspace/rca-backend/app/engine.py) 的 `RCAEngine` 统一编排，opencode serve 通信由 [opencode_serve_adapter.py](file:///workspace/rca-backend/app/opencode_serve_adapter.py) 的 `OpenCodeServeAdapter` 承担，会话 prompt 模板集中于 [rca_prompt.py](file:///workspace/rca-backend/app/rca_prompt.py)。Python 层保留 HIL 人工闸门、SSE 事件代理、RCAState 状态持久化与断点续跑；CRAG 自评估逻辑嵌入 prompt，由 LLM 在会话内自行迭代完成。
 
 ---
 
@@ -34,28 +34,27 @@ flowchart TB
     subgraph ENG["引擎层 · engine.py"]
         BUS["SSEEventBus 事件总线"]
         STORE["StateStore 状态存储"]
-        RUN["RCAEngine 流水线编排"]
+        RUN["RCAEngine 会话编排"]
     end
 
-    subgraph PIPE["5-Agent 流水线 · agents.py"]
-        A1["A1 故障接入"]
-        A2["A2 静态可疑函数"]
-        A3["A3 运行时异常路径"]
-        A4["A4 双图谱交叉验证"]
-        A5["A5 修复方案生成"]
+    subgraph SESSION["opencode serve 会话 · opencode_serve_adapter.py + rca_prompt.py"]
+        PROMPT["build_rca_prompt<br/>理解→codegraph→Top3→CRAG自评→方案"]
+        SSE["SSE 事件流消费"]
     end
 
-    subgraph GATE["双闸门 · gates.py"]
-        CRAG["CRAG 置信闸门 + 重写循环"]
+    subgraph GATE["闸门 · gates.py"]
         HIL["HIL 人工确认闸门"]
     end
 
     subgraph CORE["核心计算模块（进程内调用 · 非 REST）"]
         DG["dual_graph.py 四维评分"]
-        SUPP["supplementary data 指标+变更采集"]
         C2CN["code2cn.py 代码中文化"]
         LR["lightrag_adapter.py 检索增强"]
         RET["retriever.py 知识检索"]
+    end
+
+    subgraph OC["opencode serve · headless HTTP server"]
+        OCS["长驻 server<br/>POST /session<br/>POST /session/:id/prompt_async"]
     end
 
     subgraph KB["知识库 · ChromaDB"]
@@ -71,143 +70,166 @@ flowchart TB
     API --> RUN
     RUN --> BUS
     RUN --> STORE
-    RUN --> A1
-    A1 --> A2
-    A1 --> A3
-    A2 --> A4
-    A3 --> A4
-    A4 --> CRAG
-    CRAG -->|低置信 + 重写| SUPP
-    SUPP --> A4
-    CRAG -->|低置信| HIL
-    CRAG -->|高置信| A5
-    HIL -->|确认| A5
-    A4 -.调用.-> DG
-    A5 -.调用.-> RET
-    A5 -.调用.-> LR
-    RET --> DB
-    LR --> DB
-    A5 --> WB
+    RUN -->|create_session + prompt_async| OCS
+    OCS -->|text/event-stream| SSE
+    SSE -->|on_event 代理| BUS
+    SSE -->|final JSON| RUN
+    RUN --> HIL
+    HIL -->|低置信 pending| UI1
+    HIL -->|确认/修改| RUN
+    RUN -.调用.-> DG
+    RUN --> WB
     WB --> DB
+    LR --> DB
+    RET --> DB
     BUS -.SSE.-> UI1
 ```
 
 ---
 
-## 3. 根因分析引擎（5-Agent 流水线）
+## 3. 根因分析引擎（opencode serve 会话编排）
 
-流水线由 [engine.py](file:///workspace/rca-backend/app/engine.py) 的 `RCAEngine.run()` 编排：
+流水线由 [engine.py](file:///workspace/rca-backend/app/engine.py) 的 `RCAEngine.run_sequential()` 编排，拓扑为 **START → OPENCODE_SESSION → HIL → END**：
 
 ```mermaid
 flowchart LR
-    A1["A1 故障接入<br/>拉单·症状·错误类型·可疑服务"] --> A2
-    A1 --> A3
-    A2["A2 静态分析<br/>SAMPLE_TICKETS → S_static"] --> A4
-    A3["A3 运行时分析<br/>mock 异常路径 P_runtime"] --> A4
-    A4["A4 交叉验证<br/>四维融合 → Top3 根因"] --> G{"CRAG 闸门"}
-    G -->|conf ≥ 0.6| A5["A5 方案生成<br/>历史修复+最佳实践"]
-    G -->|0.3 ≤ conf < 0.6| HIL["HIL 人工确认"]
-    HIL -->|确认/修改| A5
-    A5 --> WB["知识飞轮回写"]
+    START["START<br/>接收 BugInfo + repo_path"] --> SESS["OPENCODE_SESSION<br/>opencode serve 单会话"]
+    SESS --> MAP{"输出映射<br/>_map_opencode_output"}
+    MAP -->|可用| TOP3["Top3 根因 + Solution"]
+    MAP -->|不可用/异常| MOCK["_fallback_mock 降级"]
+    MOCK --> TOP3
+    TOP3 --> HIL{"HIL 闸门<br/>confidence < 0.7?"}
+    HIL -->|是| PEND["pending 挂起<br/>等待人工确认"]
+    HIL -->|否| SKIP["skipped 直通"]
+    PEND -->|confirm/modify/reject| RESUME["resume 断点续跑"]
+    RESUME --> END["COMPLETED + 飞轮回写"]
+    SKIP --> END
 ```
 
-| 阶段 | 实现 | 职责 | 输入 → 输出 |
-|------|------|------|------------|
-| A1 | [AgentA1](file:///workspace/rca-backend/app/agents.py#L24) | 故障接入：拉取工单、提取症状、推断错误类型、构建查询、定位可疑服务 | BugInfo → A1Output |
-| A2 | [AgentA2](file:///workspace/rca-backend/app/agents.py#L116) | 静态分析：基于 `SAMPLE_TICKETS` 生成静态可疑函数集（mock_demo 模式） | suspect_services → S_static |
-| A3 | [AgentA3](file:///workspace/rca-backend/app/agents.py#L142) | 运行时分析：mock_demo 模式返回硬编码异常传播路径 | suspect_services → AnomalyPath |
-| A4 | [engine._apply_a4](file:///workspace/rca-backend/app/engine.py#L236) + [dual_graph.cross_validate](file:///workspace/rca-backend/app/dual_graph.py#L70) | 双图谱交叉验证：四维加权融合静态与运行时，输出 Top3 根因 | S_static + P_runtime + 指标 + 变更 → Top3 |
-| A5 | [AgentA5](file:///workspace/rca-backend/app/agents.py#L170) | 修复方案生成：检索历史修复 + 最佳实践，组装解决方案 | Top3 → Solution |
+| 阶段 | 实现方法 | 职责 | 输入 → 输出 |
+|------|---------|------|------------|
+| OPENCODE_SESSION | [\_apply_opencode_session](file:///workspace/rca-backend/app/engine.py#L204) | 调用 opencode serve 单会话完成端到端分析：理解症状→codegraph 分析→Top-3 定位→CRAG 自评迭代→方案生成 | BugInfo + repo_path → Top3 + Solution |
+| HIL | [\_apply_hil](file:///workspace/rca-backend/app/engine.py#L245) | Python 后置闸门：Top-1 置信度 < 0.7 挂起等待人工确认 | Top3 → pending/skipped |
+| PATCH_SESSION | [\_apply_patch_session](file:///workspace/rca-backend/app/engine.py#L269) | HIL modify 后的轻量补丁会话：基于确认 Top3 重生成 patch/steps | modified_top3 → Solution |
+| 降级 | [\_fallback_mock](file:///workspace/rca-backend/app/engine.py#L436) | serve 不可用 / mock_demo 模式时的降级路径：SAMPLE_TICKETS 派生 Top3 + Solution | → Top3 + Solution |
 
-**编排特性**：A2 与 A3 **并行执行**（无数据依赖），A4 汇聚两者结果，形成 `A1 → A2‖A3 → A4 → 闸门 → A5` 的拓扑。
+### 3.1 opencode serve 会话生命周期
 
-### 3.1 并行执行（ThreadPoolExecutor）
+[OpenCodeServeAdapter](file:///workspace/rca-backend/app/opencode_serve_adapter.py#L33) 封装 opencode serve 长驻 server 的会话生命周期：
 
-A2/A3 并行 fan-out 由 [engine.py:_apply_a2a3_parallel](file:///workspace/rca-backend/app/engine.py#L216) 实现，采用 `concurrent.futures.ThreadPoolExecutor`：
+```mermaid
+sequenceDiagram
+    participant E as RCAEngine
+    participant A as OpenCodeServeAdapter
+    participant S as opencode serve
 
-```python
-with ThreadPoolExecutor(max_workers=2) as pool:
-    future_a2 = pool.submit(self.a2.run, state.suspect_services, state.bug_info.stack)
-    future_a3 = pool.submit(self.a3.run, state.suspect_services)
-    state.S_static = future_a2.result()
-    state.P_runtime = future_a3.result()
+    E->>A: create_session(repo_path)
+    A->>S: POST /session?directory=<repo_path>
+    S-->>A: { id: sessionID }
+    A-->>E: session_id
+
+    E->>A: prompt_async(sid, prompt, on_event)
+    A->>S: POST /session/:id/prompt_async (stream)
+    loop SSE 事件流
+        S-->>A: data: { event, info.parts[].text }
+        A->>E: on_event(evt) → _proxy_event → SSEEventBus
+    end
+    S-->>A: [DONE] / message.completed
+    A-->>E: { parsed JSON: top3 + solution + crag_verdict }
+
+    E->>A: close_session(sid)
+    A->>S: DELETE /session/:id
 ```
 
-`max_workers=2`，上下文管理器自动回收线程池，`future.result()` 自动传播子线程异常。
+**会话参数**：
 
-### 3.2 四维融合评分（dual_graph.py）
+| 参数 | 来源 | 说明 |
+|------|------|------|
+| `directory` / `x-opencode-directory` | `AnalyzeRequest.repo_path` | 用户指定本地代码仓路径，opencode 在此仓内分析 |
+| `prompt` | [build_rca_prompt](file:///workspace/rca-backend/app/rca_prompt.py#L61) | 主会话 prompt，含 CRAG 自评指令 + JSON schema |
+| `stream` | `True` | 启用 `text/event-stream` 流式输出 |
 
-[dual_graph.py](file:///workspace/rca-backend/app/dual_graph.py) 是 A4 的核心算法，`compute_score` 对每个候选函数计算四维加权分：
+### 3.2 CRAG 自评估（嵌入 prompt）
 
-| 权重 | 维度 | 含义 | 数据来源 | 默认值 |
-|------|------|------|---------|--------|
-| `w1` | `static_depth` | 静态调用可达深度 | A2 的 `SuspectFunction.static_depth` | 0.3 |
-| `w2` | `runtime_anomaly` | 运行时异常度 | A3 的 `AnomalyPath.runtime_anomaly` | 0.3 |
-| `w3` | `metric_corr` | 指标相关性 | `MetricAnomalies.functions[func_id]` | 0.2 |
-| `w4` | `change_recency` | 变更近因 | `ChangeRecords`（7 日内归一化） | 0.2 |
+CRAG 自评估逻辑嵌入 [rca_prompt.py:build_rca_prompt](file:///workspace/rca-backend/app/rca_prompt.py#L61)，由 LLM 在会话内自行迭代，Python 层不做 fallback 补强：
 
-评分公式（[dual_graph.py:53](file:///workspace/rca-backend/app/dual_graph.py#L53)）：
+| 判定 | 触发条件 | LLM 行为 |
+|------|---------|---------|
+| `relevant` | 四维证据齐全且均分 ≥ 0.6 | 直接输出最终结果 |
+| `ambiguous` | 部分维度缺失或偏弱（均分 0.3~0.6） | 会话内调用 codegraph 工具补强弱维度，重评 |
+| `irrelevant` | 证据不足或方向错误（均分 < 0.3） | 全维度补强，重评 |
 
-```
-score = w1·static_depth + w2·runtime_anomaly + w3·metric_corr + w4·change_recency
-```
+迭代上限由 `config.gate.max_rewrite_rounds`（默认 3）控制，写入 prompt 指导 LLM。最终 verdict 写入 JSON 的 `crag_verdict` 字段，由 [\_map_opencode_output](file:///workspace/rca-backend/app/engine.py#L354) 映射到 `RCAState.gate_status.crag`。
 
-`cross_validate` 对静态可达函数集与运行时异常路径取交集，按 score 降序输出最多 3 个 `Candidate`。权重配置见 [config.py:ScoreWeights](file:///workspace/rca-backend/app/config.py#L43)。
+### 3.3 输出映射
 
-### 3.3 指标 + 变更数据采集（E2 演进）
+[\_map_opencode_output](file:///workspace/rca-backend/app/engine.py#L354) 将 opencode 会话的严格 JSON 输出映射到 [RCAState](file:///workspace/rca-backend/app/models.py#L344)：
 
-[engine.py:_collect_supplementary_data](file:///workspace/rca-backend/app/engine.py#L360) 在 A2A3 完成后采集 `metric_anomalies` 与 `change_records`，供 A4 的 w3/w4 维度使用：
+| JSON 字段 | 映射目标 | 说明 |
+|-----------|---------|------|
+| `symptoms` | `state.symptoms` | 症状列表 |
+| `error_type` | `state.error_type` | 错误类型 |
+| `query` | `state.query` | 检索查询语句 |
+| `suspect_services` | `state.suspect_services` | 嫌疑微服务 |
+| `crag_verdict` | `state.gate_status.crag` | CRAG 自评结果 |
+| `top3[]` | `state.top3` | Top-3 根因（含四维证据） |
+| `solution` | `state.solution` | 修复方案 |
 
-| 模式 | 采集行为 |
-|------|---------|
-| `mock_demo` | 基于 `P_runtime.functions` 生成兜底指标 + 变更数据（`_generate_fallback_metrics` / `_generate_fallback_changes`） |
-| `online_full` / `offline_light` | 暂无监控/CI 集成，返回 `None`（降级，w3/w4 记 0） |
+若 opencode 输出无效（空 dict / 非字典），自动降级到 [\_fallback_mock](file:///workspace/rca-backend/app/engine.py#L436)。
 
-采集结果写入 [RCAState.metric_anomalies](file:///workspace/rca-backend/app/models.py#L352) 与 [RCAState.change_records](file:///workspace/rca-backend/app/models.py#L353)，由 `_apply_a4` 传入 `cross_validate`。
+### 3.4 降级策略
+
+当满足以下任一条件时，引擎降级到 mock 路径：
+
+| 条件 | 场景 |
+|------|------|
+| `runtime_mode == "mock_demo"` | 演示模式，不调用真实 serve |
+| `serve is None` | 未注入适配器 |
+| `serve.available == False` | serve 健康检查失败 |
+| `repo_path` 为空 | 未提供本地代码仓路径 |
+| 会话抛出 `OpenCodeServeError` | 创建/消费/关闭会话失败 |
+| 会话抛出未知异常 | 网络超时等 |
+
+降级路径 [\_fallback_mock](file:///workspace/rca-backend/app/engine.py#L436) 基于 `SAMPLE_TICKETS` 派生 Top3（置信度递减 0.65→0.55→0.45）与 [\_mock_solution](file:///workspace/rca-backend/app/engine.py#L471)，保证 mock_demo 模式可用。降级时 `state.degraded = True`。
 
 ---
 
-## 4. 双闸门机制
+## 4. HIL 人工确认闸门
 
 定义于 [gates.py](file:///workspace/rca-backend/app/gates.py)，阈值配置于 [config.py:GateConfig](file:///workspace/rca-backend/app/config.py#L63)：
 
 | 闸门 | 函数 | 阈值 | 作用 |
 |------|------|------|------|
-| CRAG | [crag_gate](file:///workspace/rca-backend/app/gates.py#L12) | `GATE_CONFIDENCE_THRESHOLD = 0.6` | 置信度分级：≥0.6 直通；≥0.3×阈值 触发重写；更低降级 |
-| HIL | `hil_gate` | `HIL_CONFIDENCE_THRESHOLD = 0.7` | 低置信触发人工确认，支持 `resume` 恢复 |
+| HIL | [hil_gate](file:///workspace/rca-backend/app/gates.py#L69) | `HIL_CONFIDENCE_THRESHOLD = 0.7` | Top-1 置信度 < 0.7 挂起人工确认，支持 `resume` 恢复 |
 
-### 4.1 CRAG 评估 → 重写循环（E3 演进）
+### 4.1 HIL 判定逻辑
 
-[engine.py:_apply_gates](file:///workspace/rca-backend/app/engine.py#L255) 实现评估→重写循环，上限由 `config.gate.max_rewrite_rounds`（默认 3）控制：
+[engine._apply_hil](file:///workspace/rca-backend/app/engine.py#L245) 在 OPENCODE_SESSION 完成后执行：
 
 ```mermaid
 flowchart TB
-    S["crag_gate(evidence)"] --> V{"verdict"}
-    V -->|relevant| PASS["直通 A5"]
-    V -->|ambiguous / irrelevant| R["rewrite_round += 1"]
-    R --> SUP["_supplement_evidence(hint)"]
-    SUP --> D{"已补充?"}
-    D -->|是| RE["重新 cross_validate + crag_gate"]
-    RE --> V
-    D -->|否| STOP["终止循环，按当前结果继续"]
-    R --> MAX{"round ≥ max?"}
-    MAX -->|是| STOP
-    MAX -->|否| SUP
+    TOP3["Top3 根因"] --> CONV["_rootcause_to_candidate"]
+    CONV --> HIL["hil_gate(valid, top_confidence)"]
+    HIL --> ACT{"action"}
+    ACT -->|pass| SKIP["gate_status.hil = skipped"]
+    ACT -->|hang| MODE{"runtime_mode"}
+    MODE -->|mock_demo| SKIP2["skipped（演示不挂起）"]
+    MODE -->|online_full / offline_light| PEND["pending<br/>SSE: gate_pending"]
 ```
 
-`crag_gate` 在每个判定分支产出重写信号，驱动 `_supplement_evidence` 的补充策略：
+`mock_demo` 模式下即使触发 `hang` 也直接 `skipped`（演示不阻塞）；其他模式触发 `pending`，通过 SSEEventBus 推送 `gate_pending` 事件，前端展示确认面板。
 
-| 判定 | 触发条件 | `rewritten_query` | 补充策略 |
-|------|---------|------------------|---------|
-| `relevant` | `avg_confidence ≥ 0.6` | `None` | 无需补充，直通 |
-| `ambiguous` | `0.6 × 0.5 ≤ avg < 0.6` | 弱维度组合，如 `"metric_corr,change_recency"` | 按弱维度补充对应数据 |
-| `irrelevant` | `avg < 0.3` 或证据为空 | `"broaden"` | 全维度补充 |
+### 4.2 断点续跑
 
-`_supplement_evidence` 根据 hint 识别需补充的维度（`metric_corr` / `change_recency` / `broaden`），调用兜底生成器补充缺失数据后重新 `cross_validate` 与 `crag_gate`，直至 verdict 为 relevant 或达到轮次上限。
+人工确认后通过 [engine.resume](file:///workspace/rca-backend/app/engine.py#L293) 恢复执行，无需重跑 opencode 会话：
 
-### 4.2 HIL 人工确认
+| 决策动作 | 处理 |
+|---------|------|
+| `confirm` | 采纳 Top3 原样，`hil = confirmed` |
+| `modify` | 应用 `modified_top3`，`hil = modified`，触发 [\_apply_patch_session](file:///workspace/rca-backend/app/engine.py#L269) 重生成方案 |
+| `reject` | `hil = rejected`，`stage = REJECTED`，终止 |
 
-低置信触发 HIL 后，流水线在检查点挂起。人工确认后通过 [engine.py:resume_from_checkpoint](file:///workspace/rca-backend/app/engine.py#L346) 恢复执行，无需重跑 A1–A4。
+resume 后重新进入 `run_sequential`，因 `stage.index >= 4` 跳过 OPENCODE_SESSION，直接到 COMPLETED + 飞轮回写。
 
 ---
 
@@ -215,21 +237,22 @@ flowchart TB
 
 ### 5.1 知识库管理
 
-基于 ChromaDB 向量库（[retriever.py](file:///workspace/rca-backend/app/retriever.py)），提供工单导入、检索、删除全生命周期管理，是 A5 历史修复检索与飞轮回写的数据底座。
+基于 ChromaDB 向量库（[retriever.py](file:///workspace/rca-backend/app/retriever.py)），提供工单导入、检索、删除全生命周期管理，是 LightRAG 检索增强与飞轮回写的数据底座。
 
 ### 5.2 知识飞轮
 
-定义于 [flywheel.py](file:///workspace/rca-backend/app/flywheel.py)（`Flywheel` 类）：A5 产出的修复方案经去重（cosine ≥ `GATE_DEDUP_COSINE_THRESHOLD`，默认 0.95 视为重复）后**闭环回写知识库**，形成「分析 → 修复 → 沉淀 → 再分析」的飞轮。
+定义于 [flywheel.py](file:///workspace/rca-backend/app/flywheel.py)（`Flywheel` 类）：会话产出的修复方案经去重（cosine ≥ `GATE_DEDUP_COSINE_THRESHOLD`，默认 0.95 视为重复）后**闭环回写知识库**，形成「分析 → 修复 → 沉淀 → 再分析」的飞轮。回写在 COMPLETED 阶段自动触发（[engine.py:172](file:///workspace/rca-backend/app/engine.py#L172)），去重命中则推送 `flywheel_skipped` 事件。
 
 ---
 
-## 6. 可观测性（E1 演进）
+## 6. 可观测性
 
 全链路采用结构化日志，消除静默异常吞噬。所有 `except` 分支均带上下文 `logger.warning`：
 
 | 文件 | 覆盖场景 |
 |------|---------|
-| [engine.py](file:///workspace/rca-backend/app/engine.py) | 流水线异常、CRAG 重写轮次、补充数据采集 |
+| [engine.py](file:///workspace/rca-backend/app/engine.py) | 会话异常降级、HIL 判定、飞轮回写、patch 会话失败 |
+| [opencode_serve_adapter.py](file:///workspace/rca-backend/app/opencode_serve_adapter.py) | serve 不可用、会话创建/消费/关闭异常、on_event 回调异常 |
 | [flywheel.py](file:///workspace/rca-backend/app/flywheel.py) | 回写同步失败 |
 | [lightrag_adapter.py](file:///workspace/rca-backend/app/lightrag_adapter.py) | `ainsert` / `ainsert_custom_kg` / `aquery` 失败 |
 | [main.py](file:///workspace/rca-backend/app/main.py) | API 层异常 |
@@ -238,19 +261,19 @@ flowchart TB
 
 ## 7. 实时通信与状态
 
-- **SSE 流式推送**：[SSEEventBus](file:///workspace/rca-backend/app/engine.py#L33) 在每个 Agent 阶段实时推送进度，Redis list 持久化 + 内存回退，前端分析台订阅展示
-- **状态持久化**：[StateStore](file:///workspace/rca-backend/app/engine.py#L73) 保存 [RCAState](file:///workspace/rca-backend/app/models.py#L344)，支持 HIL 检查点恢复
+- **SSE 流式推送**：[SSEEventBus](file:///workspace/rca-backend/app/engine.py#L36) 在每个阶段实时推送进度（`stage_start` / `stage_complete` / `opencode_event` / `gate_pending` / `gate_resolved` / `final` / `error`），Redis list 持久化 + 内存回退，前端分析台订阅展示
+- **opencode 事件代理**：[\_proxy_event](file:///workspace/rca-backend/app/engine.py#L343) 将 opencode serve 的 SSE 事件透传到 SSEEventBus，前端可实时看到 codegraph 查询、CRAG 迭代等会话内进度
+- **状态持久化**：[StateStore](file:///workspace/rca-backend/app/engine.py#L76) 保存 [RCAState](file:///workspace/rca-backend/app/models.py#L344)，支持 HIL 检查点恢复（key = `rca:state:{task_id}`，TTL 24h）
 
 [RCAState](file:///workspace/rca-backend/app/models.py#L344) 携带 16 个字段，关键流转字段：
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `S_static` | `list[SuspectFunction]` | A2 静态可疑函数集 |
-| `P_runtime` | `AnomalyPath` | A3 运行时异常路径 |
-| `metric_anomalies` | `Optional[MetricAnomalies]` | E2 指标异常（w3 维度数据源） |
-| `change_records` | `Optional[ChangeRecords]` | E2 变更记录（w4 维度数据源） |
-| `top3` | `list[RootCause]` | A4 输出的 Top3 根因 |
+| `top3` | `list[RootCause]` | 会话输出的 Top-3 根因（含四维证据） |
 | `gate_status` | `GateStatus` | 闸门状态（crag / hil） |
+| `solution` | `Solution` | 修复方案（diffs/steps/test_cases） |
+| `P_runtime` | `AnomalyPath` | 运行时异常路径（从 Top3 的 located_function 派生） |
+| `degraded` | `bool` | 是否降级到 mock 路径 |
 | `runtime_mode` | `Literal[...]` | 运行模式：`online_full` / `offline_light` / `mock_demo` |
 
 ---
@@ -262,44 +285,38 @@ sequenceDiagram
     participant U as 用户/前端
     participant API as FastAPI
     participant E as RCAEngine
-    participant A1 as A1
-    participant A2 as A2
-    participant A3 as A3
-    participant A4 as A4
-    participant G as 闸门
-    participant A5 as A5
+    participant A as OpenCodeServeAdapter
+    participant S as opencode serve
+    participant H as HIL 闸门
     participant KB as 知识库
 
-    U->>API: POST /api/v1/rca/analyze (bug_link)
-    API->>E: engine.run(state)
-    E->>A1: 故障接入
-    A1-->>U: SSE stage: A1 完成
-    par 并行（ThreadPoolExecutor）
-        E->>A2: 静态分析
-        A2-->>U: SSE stage: A2 完成
-    and
-        E->>A3: 运行时分析
-        A3-->>U: SSE stage: A3 完成
+    U->>API: POST /api/v1/rca/analyze (bug_link, repo_path)
+    API->>E: engine.run_sequential(state)
+    E->>A: create_session(repo_path)
+    A->>S: POST /session?directory=<repo>
+    S-->>A: session_id
+    E->>A: prompt_async(sid, rca_prompt, on_event)
+    A->>S: POST /session/:id/prompt_async (stream)
+    loop SSE 流式推送
+        S-->>A: event: message.parts / tool_call / crag_iter
+        A-->>U: SSE opencode_event（透传）
     end
-    E->>A4: 采集指标+变更 → cross_validate
-    A4-->>U: SSE stage: A4 Top3
-    A4->>G: CRAG 闸门
-    alt conf ≥ 0.6
-        G-->>E: 直通
-    else 低置信
-        loop 重写循环（≤3 轮）
-            G->>E: 补充弱维度证据
-            E->>A4: 重新 cross_validate
-            A4->>G: 重新 CRAG 评估
+    S-->>A: final JSON (top3 + solution + crag_verdict)
+    A-->>E: parsed dict
+    E->>E: _map_opencode_output → RCAState
+    E->>H: hil_gate(top3, top_confidence)
+    alt confidence < 0.7 且非 mock_demo
+        H-->>U: SSE gate_pending（等待确认）
+        U->>API: POST /confirm (confirm/modify/reject)
+        API->>E: resume(task_id, decision)
+        opt modify
+            E->>A: create_session + prompt_async (patch_prompt)
+            A-->>E: updated solution
         end
-        G->>U: SSE HIL 请求确认
-        U->>API: POST /confirm
-        API->>E: resume_from_checkpoint
+    else confidence ≥ 0.7 或 mock_demo
+        H-->>E: skipped 直通
     end
-    E->>A5: 方案生成
-    A5->>KB: 检索历史修复
-    A5-->>U: SSE stage: A5 完成
-    A5->>KB: 飞轮回写
+    E->>KB: 飞轮回写 (去重)
     E-->>U: SSE done + 最终报告
 ```
 
@@ -314,7 +331,7 @@ sequenceDiagram
 | `/api/analyze` | POST | V2 分析触发（兼容） | 根因分析 |
 | `/api/analyze/{task_id}/stream` | GET | V2 SSE 流 | 根因分析 |
 | `/api/analyze/{task_id}` | GET | V2 报告查询 | 根因分析 |
-| `/api/v1/rca/analyze` | POST | V3 分析触发 | 根因分析 |
+| `/api/v1/rca/analyze` | POST | V3 分析触发（含 repo_path） | 根因分析 |
 | `/api/v1/rca/tasks` | GET | 任务列表 | 根因分析 |
 | `/api/v1/rca/{task_id}/stream` | GET | V3 SSE 流 | 根因分析 |
 | `/api/v1/rca/{task_id}` | GET | V3 结果查询 | 根因分析 |
@@ -343,10 +360,19 @@ flowchart LR
         E[engine.py]
     end
 
-    subgraph PIPE["流水线"]
-        A[agents.py]
+    subgraph SESSION["opencode serve 会话"]
+        OCS[opencode_serve_adapter.py]
+        RP[rca_prompt.py]
+    end
+
+    subgraph GATE["闸门"]
         G[gates.py]
+    end
+
+    subgraph V2["V2 Pipeline"]
         P[pipeline.py]
+        OC[opencode_adapter.py]
+        CG[callgraph.py]
     end
 
     subgraph CORE["核心计算（进程内调用）"]
@@ -355,8 +381,6 @@ flowchart LR
         LR[lightrag_adapter.py]
         RET[retriever.py]
         FW[flywheel.py]
-        OC[opencode_adapter.py]
-        CG[callgraph.py]
     end
 
     subgraph SUPP["支撑"]
@@ -365,18 +389,19 @@ flowchart LR
         MD[mock_data.py]
         RM[runtime_mode.py]
         EV[env_check.py]
+        A[agents.py]
     end
 
     M --> E
     M --> P
-    E --> A
+    E --> OCS
+    E --> RP
     E --> G
     E --> DG
     E --> FW
-    A -->|A4| DG
-    A -->|A5| RET
-    A -->|A5| LR
-    A -->|A5| C2
+    E --> A
+    E --> MD
+    OCS --> CFG
     P --> RET
     P --> OC
     P --> CG
@@ -384,7 +409,7 @@ flowchart LR
     LR --> RET
 ```
 
-**核心调用链**：A2/A3 并行产出 → A4 经 `cross_validate` 四维融合 → CRAG 评估→重写循环 → A5 经 retriever / lightrag_adapter 检索 → flywheel 回写。
+**核心调用链**：`RCAEngine._apply_opencode_session` → `OpenCodeServeAdapter.create_session + prompt_async`（SSE 流消费 + 事件代理）→ `_map_opencode_output` → `_apply_hil`（hil_gate）→ COMPLETED + `flywheel.writeback_sync`。
 
 ---
 
@@ -396,42 +421,44 @@ flowchart LR
 ├── rca-solution-summary.html     # 方案文档
 ├── ARCHITECTURE.md              # 本架构文档
 └── rca-backend/
-    ├── app/                      # 18 个 Python 模块
+    ├── app/                      # 20 个 Python 模块
     │   ├── main.py              # FastAPI（17 唯一路径）
     │   ├── engine.py            # RCAEngine + SSEEventBus + StateStore
-    │   ├── agents.py            # A1/A2/A3/A5 四个 Agent（A4 由 engine 直接调用 dual_graph）
+    │   ├── opencode_serve_adapter.py  # opencode serve HTTP 适配器（V3 会话）
+    │   ├── rca_prompt.py        # CRAG 自评 prompt 模板
     │   ├── pipeline.py          # V2 Pipeline（6 步：拉单→克隆→分析→调用图→检索→综合）
-    │   ├── gates.py             # CRAG + HIL 双闸门（含重写信号）
+    │   ├── gates.py             # HIL 闸门 + CRAG 评估工具
     │   ├── dual_graph.py        # 四维融合评分 + cross_validate
-    │   ├── code2cn.py           # 代码中文化（A5 进程内调用）
-    │   ├── lightrag_adapter.py  # RAG 检索（A5 进程内调用）
+    │   ├── code2cn.py           # 代码中文化
+    │   ├── lightrag_adapter.py  # RAG 检索
     │   ├── retriever.py         # 知识检索（ChromaDB）
     │   ├── flywheel.py          # 知识飞轮
-    │   ├── opencode_adapter.py  # OpenCode 代码分析适配器
+    │   ├── opencode_adapter.py  # OpenCode 代码分析适配器（V2 子进程模式）
     │   ├── callgraph.py         # 调用图辅助
     │   ├── runtime_mode.py      # 降级模式矩阵
-    │   ├── models.py            # 数据模型（RCAState 16 字段）
-    │   ├── config.py            # 配置（GateConfig + ScoreWeights）
+    │   ├── models.py            # 数据模型（RCAState 16 字段 + AnalyzeRequest.repo_path）
+    │   ├── config.py            # 配置（GateConfig + OpenCodeServeConfig + ScoreWeights）
     │   ├── mock_data.py         # Mock 样本数据
     │   ├── env_check.py         # 环境检查
     │   └── __init__.py          # 包初始化
-    └── tests/                   # 198 测试用例（12 测试文件）
+    └── tests/                   # 212 测试用例（13 测试文件）
 ```
 
 ---
 
 ## 12. 测试体系
 
-全量回归：**198 passed, 0 failed**（0 RuntimeWarning，3 个第三方 chromadb DeprecationWarning）。
+全量回归：**212 passed, 0 failed**（3 个第三方 chromadb DeprecationWarning）。
 
 | 测试文件 | 用例数 | 覆盖范围 |
 |---------|--------|---------|
 | [test_e2e_full.py](file:///workspace/rca-backend/tests/test_e2e_full.py) | 28 | V2/V3 全端点端到端 |
-| [test_engine.py](file:///workspace/rca-backend/tests/test_engine.py) | 26 | RCAEngine 流水线 |
-| [test_gates_flywheel.py](file:///workspace/rca-backend/tests/test_gates_flywheel.py) | 25 | 双闸门 + 飞轮 |
+| [test_engine.py](file:///workspace/rca-backend/tests/test_engine.py) | 27 | RCAEngine 会话编排 + 降级 + 断点续跑 |
+| [test_gates_flywheel.py](file:///workspace/rca-backend/tests/test_gates_flywheel.py) | 25 | HIL 闸门 + 飞轮 |
 | [test_dual_graph.py](file:///workspace/rca-backend/tests/test_dual_graph.py) | 24 | 四维评分 + 交叉验证 |
 | [test_lightrag_api.py](file:///workspace/rca-backend/tests/test_lightrag_api.py) | 18 | RAG 适配器 |
 | [test_deploy.py](file:///workspace/rca-backend/tests/test_deploy.py) | 18 | 部署验证 |
+| [test_opencode_serve_adapter.py](file:///workspace/rca-backend/tests/test_opencode_serve_adapter.py) | 13 | serve 适配器（JSON 提取 / 健康降级 / SSE 消费） |
 | [test_degradation.py](file:///workspace/rca-backend/tests/test_degradation.py) | 12 | 降级模式 |
 | [test_integration.py](file:///workspace/rca-backend/tests/test_integration.py) | 11 | 集成测试 |
 | [test_code2cn.py](file:///workspace/rca-backend/tests/test_code2cn.py) | 11 | 代码中文化 |
@@ -443,17 +470,26 @@ flowchart LR
 
 ## 13. 配置参数
 
-### 13.1 GateConfig（[config.py:63](file:///workspace/rca-backend/app/config.py#L63)）
+### 13.1 OpenCodeServeConfig（[config.py:126](file:///workspace/rca-backend/app/config.py#L126)）
 
 | 字段 | 默认值 | 环境变量 | 说明 |
 |------|--------|---------|------|
-| `confidence_threshold` | 0.6 | `GATE_CONFIDENCE_THRESHOLD` | CRAG 直通阈值 |
-| `hil_confidence_threshold` | 0.7 | `HIL_CONFIDENCE_THRESHOLD` | HIL 触发阈值 |
-| `max_rewrite_rounds` | 3 | `GATE_MAX_REWRITE_ROUNDS` | CRAG 重写循环上限 |
+| `base_url` | `http://localhost:4096` | `OPENCODE_SERVE_URL` | opencode serve 地址 |
+| `auth_token` | `""` | `OPENCODE_SERVE_TOKEN` | Bearer 认证令牌 |
+| `timeout` | `300` | `OPENCODE_SERVE_TIMEOUT` | HTTP 超时（秒） |
+| `poll_interval` | `0.5` | `OPENCODE_SERVE_POLL_INTERVAL` | SSE 轮询间隔（秒） |
+
+### 13.2 GateConfig（[config.py:63](file:///workspace/rca-backend/app/config.py#L63)）
+
+| 字段 | 默认值 | 环境变量 | 说明 |
+|------|--------|---------|------|
+| `confidence_threshold` | 0.6 | `GATE_CONFIDENCE_THRESHOLD` | CRAG relevant 阈值（prompt 内引用） |
+| `hil_confidence_threshold` | 0.7 | `HIL_CONFIDENCE_THRESHOLD` | HIL 挂起阈值 |
+| `max_rewrite_rounds` | 3 | `GATE_MAX_REWRITE_ROUNDS` | CRAG 自评迭代上限（写入 prompt） |
 | `max_supplement_rounds` | 2 | `GATE_MAX_SUPPLEMENT_ROUNDS` | 补充轮次上限 |
 | `dedup_cosine_threshold` | 0.95 | `GATE_DEDUP_COSINE_THRESHOLD` | 飞轮去重相似度阈值 |
 
-### 13.2 ScoreWeights（[config.py:43](file:///workspace/rca-backend/app/config.py#L43)）
+### 13.3 ScoreWeights（[config.py:43](file:///workspace/rca-backend/app/config.py#L43)）
 
 | 权重 | 维度 | 默认值 | 环境变量 |
 |------|------|--------|---------|
@@ -462,7 +498,7 @@ flowchart LR
 | `w3` | metric_corr | 0.2 | `SCORE_W3` |
 | `w4` | change_recency | 0.2 | `SCORE_W4` |
 
-> `ScoreWeights.normalize()` 原地归一化四维权重；`hil_default()` 返回 HIL 场景专用权重（0.35/0.30/0.20/0.15）。
+> 四维权重作为 prompt 内 codegraph 分析与 CRAG 自评的证据维度参考；`dual_graph.compute_score` 在进程内调用时使用归一化权重。
 
 ---
 
