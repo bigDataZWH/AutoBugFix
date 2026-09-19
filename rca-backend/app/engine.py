@@ -17,6 +17,7 @@ from typing import Any, Optional
 
 from .agents import AgentA1, AgentA2, AgentA3, AgentA5, RCAError
 from .config import config
+from .opencode_adapter import OpenCodeAdapter
 from .dual_graph import cross_validate
 from .flywheel import flywheel
 from .gates import crag_gate, hil_gate, process_hil_decision
@@ -115,10 +116,14 @@ class RCAEngine:
     """5-Agent 引擎编排入口。"""
 
     def __init__(self, redis_client: Optional[Any] = None) -> None:
-        self.a1 = AgentA1()
-        self.a2 = AgentA2()
-        self.a3 = AgentA3()
-        self.a5 = AgentA5()
+        shared_oc = OpenCodeAdapter(
+            binary=config.opencode_binary,
+            model=config.opencode_model or config.llm.query_model,
+        )
+        self.a1 = AgentA1(opencode=shared_oc)
+        self.a2 = AgentA2(opencode=shared_oc)
+        self.a3 = AgentA3(opencode=shared_oc)
+        self.a5 = AgentA5(opencode=shared_oc)
         self.events = SSEEventBus(redis_client)
         self.store = StateStore(redis_client)
 

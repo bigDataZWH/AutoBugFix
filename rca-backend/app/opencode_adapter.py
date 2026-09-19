@@ -39,6 +39,19 @@ class OpenCodeAdapter:
         except Exception:
             return ""
 
+    def query_structured(self, prompt: str, cwd: Optional[str] = None) -> dict:
+        """headless 结构化查询：调用 run_llm 并解析 JSON，失败返回 {}。
+
+        各 Agent 通过该接口以 opencode headless 模式驱动 LLM 推理，
+        解析失败/二进制不可用时返回空 dict，由调用方降级到 mock。
+        """
+        if not self.available:
+            return {}
+        out = self.run_llm(prompt, cwd=cwd)
+        if not out:
+            return {}
+        return self._extract_json(out)
+
     def analyze_code(self, repo: str, branch: str, workdir: Optional[str] = None) -> dict:
         if not self.available or not workdir:
             result = dict(MOCK_OPENCODE_OUTPUT)
