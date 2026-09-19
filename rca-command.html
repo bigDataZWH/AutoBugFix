@@ -392,65 +392,6 @@ main{position:relative;z-index:2;max-width:1480px;margin:0 auto;padding:16px 24p
 .flow-mini .step .arr{color:var(--txt-2)}
 .flow-mini .note{color:var(--txt-2);font-size:8px;margin-top:6px;padding:6px;background:var(--bg-2);border-radius:4px;border-left:2px solid var(--violet)}
 
-/* ===== SERVICE TOPOLOGY VIEW ===== */
-.topo-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
-.topo-header h2{font-family:'Space Grotesk';font-size:15px;font-weight:600}
-.topo-canvas{
-  background:var(--bg-1);border:1px solid var(--border);border-radius:12px;padding:20px;min-height:400px;
-  display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;
-}
-.topo-canvas svg{width:100%;max-height:500px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.3))}
-.topo-info{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
-.topo-info-card{background:var(--bg-1);border:1px solid var(--border);border-radius:8px;padding:12px}
-.topo-info-card h4{font-family:'Space Grotesk';font-size:11px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px}
-.topo-info-card h4 .ic{color:var(--cyan)}
-.topo-table{width:100%;font-size:11px;border-collapse:collapse}
-.topo-table th{text-align:left;color:var(--txt-2);font-weight:500;padding:4px 6px;border-bottom:1px solid var(--border-soft);font-size:9px;text-transform:uppercase}
-.topo-table td{padding:5px 6px;border-bottom:1px solid var(--border-soft)}
-.topo-table tr:last-child td{border-bottom:none}
-
-/* ===== CODEGRAPH VIEW ===== */
-.cg-toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
-.cg-toolbar .input-wrap{flex:1;min-width:200px}
-.cg-toolbar .input-wrap input{font-size:12px}
-.cg-panels{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.cg-panel{background:var(--bg-1);border:1px solid var(--border);border-radius:8px;padding:14px;min-height:120px}
-.cg-panel.full{grid-column:1/-1}
-.cg-panel h4{font-family:'Space Grotesk';font-size:11px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px}
-.cg-panel h4 .ic{color:var(--cyan)}
-.cg-panel .empty{color:var(--txt-2);font-size:11px;padding:10px 0;text-align:center}
-.cg-table{width:100%;font-size:11px;border-collapse:collapse}
-.cg-table th{text-align:left;color:var(--txt-2);font-weight:500;padding:3px 6px;border-bottom:1px solid var(--border-soft);font-size:9px}
-.cg-table td{padding:4px 6px;border-bottom:1px solid var(--border-soft);font-size:11px;font-family:'JetBrains Mono'}
-.cg-table tr:last-child td{border-bottom:none}
-
-/* ===== CODE2CN VIEW ===== */
-.c2cn-toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-end}
-.c2cn-toolbar .field{flex:1;min-width:180px}
-.c2cn-outline{
-  background:var(--bg-1);border:1px solid var(--border);border-radius:8px;padding:16px;
-}
-.c2cn-outline .cn-symbol{font-family:'Space Grotesk';font-size:16px;font-weight:600;margin-bottom:4px}
-.c2cn-outline .cn-file{font-size:10px;color:var(--txt-2);font-family:'JetBrains Mono';margin-bottom:10px}
-.c2cn-outline .cn-summary{font-size:13px;color:var(--txt-0);line-height:1.7;padding:10px;background:var(--bg-2);border-radius:6px;border-left:3px solid var(--cyan);margin-bottom:12px}
-.c2cn-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.c2cn-meta-card{background:var(--bg-2);border:1px solid var(--border-soft);border-radius:6px;padding:10px}
-.c2cn-meta-card h5{font-size:10px;color:var(--txt-2);font-weight:500;margin-bottom:5px;font-family:'JetBrains Mono';text-transform:uppercase}
-.c2cn-meta-card ul{list-style:none}
-.c2cn-meta-card li{font-size:11px;padding:3px 0;border-bottom:1px solid var(--border-soft);display:flex;gap:5px}
-.c2cn-meta-card li:last-child{border-bottom:none}
-.c2cn-tokens{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.c2cn-token{background:var(--bg-3);border:1px solid var(--border);padding:4px 8px;border-radius:4px;font-size:10px;font-family:'JetBrains Mono';color:var(--txt-1)}
-
-/* ===== RAG VIEW ===== */
-.rag-toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-end}
-.rag-toolbar .field{flex:1;min-width:200px}
-.rag-result{background:var(--bg-1);border:1px solid var(--border);border-radius:8px;padding:16px;min-height:120px}
-.rag-result .rag-meta{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}
-.rag-meta-item{font-size:10px;color:var(--txt-2);font-family:'JetBrains Mono'}
-.rag-meta-item b{color:var(--txt-0)}
-.rag-content{font-size:13px;color:var(--txt-0);line-height:1.7;padding:12px;background:var(--bg-2);border-radius:6px;border-left:3px solid var(--violet);white-space:pre-wrap}
-
 /* ===== KB MAINTENANCE VIEW ===== */
 .kb-section{background:var(--bg-1);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px}
 .kb-section h4{font-family:'Space Grotesk';font-size:11px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px}
@@ -463,6 +404,10 @@ main{position:relative;z-index:2;max-width:1480px;margin:0 auto;padding:16px 24p
 .kb-empty{color:var(--txt-2);font-size:11px;padding:14px 0;text-align:center}
 .kb-row-del{color:var(--red);cursor:pointer;font-size:10px;border:1px solid var(--border);border-radius:5px;padding:2px 8px;background:transparent;font-family:'Space Grotesk'}
 .kb-row-del:hover{border-color:var(--red);background:rgba(244,63,94,.08)}
+.cg-table{width:100%;font-size:11px;border-collapse:collapse}
+.cg-table th{text-align:left;color:var(--txt-2);font-weight:500;padding:3px 6px;border-bottom:1px solid var(--border-soft);font-size:9px}
+.cg-table td{padding:4px 6px;border-bottom:1px solid var(--border-soft);font-size:11px;font-family:'JetBrains Mono'}
+.cg-table tr:last-child td{border-bottom:none}
 
 /* ===== FOOTER ===== */
 .foot{margin-top:20px;padding-top:14px;border-top:1px solid var(--border-soft);display:flex;align-items:center;gap:10px;font-size:10px;color:var(--txt-2);font-family:'JetBrains Mono'}
@@ -489,8 +434,6 @@ main{position:relative;z-index:2;max-width:1480px;margin:0 auto;padding:16px 24p
   .side-card{flex:1;min-width:240px}
   .candidate-grid{grid-template-columns:1fr}
   .evidence-grid{grid-template-columns:repeat(2,1fr)}
-  .cg-panels{grid-template-columns:1fr}
-  .topo-info{grid-template-columns:1fr}
 }
 @media(max-width:720px){
   .field-grid{grid-template-columns:1fr}
@@ -503,7 +446,6 @@ main{position:relative;z-index:2;max-width:1480px;margin:0 auto;padding:16px 24p
   .status-cluster{gap:8px}
   .status-pill{display:none}
   main{padding:10px}
-  .c2cn-meta{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -519,10 +461,6 @@ main{position:relative;z-index:2;max-width:1480px;margin:0 auto;padding:16px 24p
   </div>
   <nav class="header-nav" id="topNav">
     <button class="nav-btn active" data-view="dashboard"><span>◈</span> 分析台</button>
-    <button class="nav-btn" data-view="topology"><span>◉</span> 服务拓扑</button>
-    <button class="nav-btn" data-view="codegraph"><span>◐</span> 代码图谱</button>
-    <button class="nav-btn" data-view="code2cn"><span>文</span> 中文大纲</button>
-    <button class="nav-btn" data-view="rag"><span>◎</span> 知识检索</button>
     <button class="nav-btn" data-view="kb"><span>⛏</span> 知识库</button>
   </nav>
   <div class="header-spacer"></div>
@@ -743,95 +681,6 @@ main{position:relative;z-index:2;max-width:1480px;margin:0 auto;padding:16px 24p
 </div>
 </div>
 
-<!-- ===== VIEW: SERVICE TOPOLOGY ===== -->
-<div class="view" id="view-topology">
-  <div class="topo-header">
-    <h2>服务级拓扑图</h2>
-    <div class="input-wrap" style="flex:1;max-width:300px">
-      <input type="text" id="topoSvcInput" placeholder="输入服务名称过滤 (回车)" value="order-service">
-    </div>
-    <button class="btn btn-primary btn-sm" id="topoRenderBtn">◉ 渲染拓扑</button>
-    <button class="btn btn-ghost btn-sm" id="topoResetBtn">重置</button>
-  </div>
-  <div class="topo-canvas" id="topoCanvas">
-    <div class="empty" style="color:var(--txt-2);font-size:13px">点击「渲染拓扑」查看服务级拓扑图</div>
-  </div>
-  <div class="topo-info">
-    <div class="topo-info-card">
-      <h4><span class="ic">◉</span> 服务节点</h4>
-      <table class="topo-table" id="topoNodeTable"><thead><tr><th>服务</th><th>Owner</th><th>语言</th><th>状态</th></tr></thead><tbody id="topoNodeBody"><tr><td colspan="4" style="text-align:center;color:var(--txt-2)">暂无数据</td></tr></tbody></table>
-    </div>
-    <div class="topo-info-card">
-      <h4><span class="ic">→</span> 调用边</h4>
-      <table class="topo-table" id="topoEdgeTable"><thead><tr><th>源</th><th>目标</th><th>类型</th><th>延迟</th></tr></thead><tbody id="topoEdgeBody"><tr><td colspan="4" style="text-align:center;color:var(--txt-2)">暂无数据</td></tr></tbody></table>
-    </div>
-  </div>
-</div>
-
-<!-- ===== VIEW: CODEGRAPH ===== -->
-<div class="view" id="view-codegraph">
-  <div class="cg-toolbar">
-    <div class="input-wrap" style="flex:1;max-width:350px">
-      <input type="text" id="cgSymbol" placeholder="输入符号名 (如 OrderLockService.acquire)" value="OrderLockService.acquire">
-    </div>
-    <button class="btn btn-primary btn-sm" id="cgNodeBtn">🔍 节点信息</button>
-    <button class="btn btn-cyan btn-sm" id="cgCallersBtn">← 调用者</button>
-    <button class="btn btn-cyan btn-sm" id="cgCalleesBtn">→ 被调用者</button>
-    <button class="btn btn-cyan btn-sm" id="cgExploreBtn">◉ 邻域探索</button>
-  </div>
-  <div class="cg-panels">
-    <div class="cg-panel">
-      <h4><span class="ic">◈</span> 节点信息</h4>
-      <div id="cgNodeInfo" class="empty">输入符号名后点击「节点信息」</div>
-    </div>
-    <div class="cg-panel">
-      <h4><span class="ic">←</span> 调用者 (Callers)</h4>
-      <div id="cgCallers" class="empty">—</div>
-    </div>
-    <div class="cg-panel">
-      <h4><span class="ic">→</span> 被调用者 (Callees)</h4>
-      <div id="cgCallees" class="empty">—</div>
-    </div>
-    <div class="cg-panel">
-      <h4><span class="ic">◉</span> 邻域探索</h4>
-      <div id="cgExplore" class="empty">—</div>
-    </div>
-  </div>
-</div>
-
-<!-- ===== VIEW: CODE2CN ===== -->
-<div class="view" id="view-code2cn">
-  <div class="c2cn-toolbar">
-    <div class="field"><label>符号名</label><div class="input-wrap"><input type="text" id="c2cnSymbol" value="OrderLockService.acquire"></div></div>
-    <div class="field"><label>文件路径</label><div class="input-wrap"><input type="text" id="c2cnFile" value="OrderLockService.java"></div></div>
-    <div class="field" style="flex:2"><label>源码 (可选)</label><div class="input-wrap"><input type="text" id="c2cnSource" placeholder="留空则使用 mock 数据"></div></div>
-    <button class="btn btn-primary btn-sm" id="c2cnGenBtn">文 生成中文大纲</button>
-  </div>
-  <div class="c2cn-outline" id="c2cnOutline">
-    <div style="text-align:center;padding:30px;color:var(--txt-2);font-size:13px">点击「生成中文大纲」查看结果</div>
-  </div>
-</div>
-
-<!-- ===== VIEW: RAG ===== -->
-<div class="view" id="view-rag">
-  <div class="rag-toolbar">
-    <div class="field" style="max-width:200px"><label>检索意图</label>
-      <div class="input-wrap"><select id="ragIntent">
-        <option value="history">历史经验匹配 (history)</option>
-        <option value="propagation">根因传播追溯 (propagation)</option>
-        <option value="architecture">全局架构理解 (architecture)</option>
-      </select><span class="select-chev">▾</span></div>
-    </div>
-    <div class="field" style="flex:1"><label>查询</label>
-      <div class="input-wrap"><input type="text" id="ragQuery" value="订单超时锁竞争"></div>
-    </div>
-    <button class="btn btn-primary btn-sm" id="ragSearchBtn">◎ 检索</button>
-  </div>
-  <div class="rag-result" id="ragResult">
-    <div style="text-align:center;padding:30px;color:var(--txt-2);font-size:13px">输入查询后点击「检索」</div>
-  </div>
-</div>
-
 <!-- ===== VIEW: KB MAINTENANCE ===== -->
 <div class="view" id="view-kb">
   <div class="kb-section">
@@ -878,9 +727,9 @@ main{position:relative;z-index:2;max-width:1480px;margin:0 auto;padding:16px 24p
 <div class="foot">
   <span>RCA·Command v3.0.0</span>
   <span class="sep">|</span>
-  <span>5-Agent 引擎 · 双图谱交叉验证 · 双闸门机制 · 服务级拓扑 · 三级降级</span>
+  <span>5-Agent 引擎 · 双图谱交叉验证 · 双闸门机制 · 三级降级</span>
   <span class="sep">|</span>
-  <span>Spec1-Code2CN / Spec2-CodeGraph / Spec3-LightRAG / Spec4-5Agent / Spec5-双图谱 / Spec6-双闸门 / Spec7-部署</span>
+  <span>Spec4-5Agent / Spec5-双图谱 / Spec6-双闸门 / Spec7-部署</span>
 </div>
 </main>
 
@@ -951,7 +800,6 @@ function setHealth(up,label){
 function switchView(v){
   $$('.view').forEach(function(el){el.classList.toggle('active',el.id==='view-'+v)});
   $$('.nav-btn').forEach(function(b){b.classList.toggle('active',b.dataset.view===v)});
-  if(v==='topology')renderTopology();
   if(v==='kb')kbList();
 }
 
@@ -1323,283 +1171,6 @@ function sendHilDecision(action){
   }).catch(function(err){toast(err.message,true)});
 }
 
-function renderTopology(){
-  var data={
-    services:[
-      {name:'api-gateway',owner:'平台组',language:'Go',status:'normal'},
-      {name:'order-service',owner:'订单中心',language:'Java',status:'normal'},
-      {name:'order-core',owner:'订单中心',language:'Java',status:'anomaly'},
-      {name:'user-service',owner:'用户中心',language:'Java',status:'normal'},
-      {name:'inventory-service',owner:'仓储组',language:'Go',status:'normal'},
-      {name:'pay-service',owner:'支付组',language:'Java',status:'normal'},
-      {name:'notification-service',owner:'消息组',language:'Python',status:'normal'}
-    ],
-    calls:[
-      {src:'api-gateway',tgt:'order-service',type:'REST',latency:180},
-      {src:'order-service',tgt:'order-core',type:'RPC',latency:320},
-      {src:'order-service',tgt:'user-service',type:'REST',latency:42},
-      {src:'order-service',tgt:'inventory-service',type:'REST',latency:66},
-      {src:'order-core',tgt:'pay-service',type:'RPC',latency:210},
-      {src:'order-core',tgt:'notification-service',type:'MQ',latency:15},
-      {src:'api-gateway',tgt:'user-service',type:'REST',latency:30}
-    ],
-    contains:[
-      {service:'order-core',functions:['OrderLockService.acquire','OrderPersistService.save','StockDeductService.deduct']},
-      {service:'order-service',functions:['OrderCreateController.create','OrderService.createOrder']},
-      {service:'pay-service',functions:['PayCallbackController.handle','PayRefundService.refund']}
-    ],
-    anomalyPath:['api-gateway','order-service','order-core']
-  };
-  var svc=$('#topoSvcInput').value.trim();
-  if(svc&&data.services.every(function(s){return s.name!==svc})){toast('服务「'+svc+'」不在拓扑中',true);}
-  var canvas=$('#topoCanvas');
-  var W=880,H=560,CX=W/2,CY=H/2,RX=300,RY=200;
-  var NS='http://www.w3.org/2000/svg';
-  var svg=document.createElementNS(NS,'svg');
-  svg.setAttribute('viewBox','0 0 '+W+' '+H);
-  svg.setAttribute('xmlns',NS);
-  var defs=document.createElementNS(NS,'defs');
-  svg.appendChild(defs);
-  var m0=document.createElementNS(NS,'marker');
-  m0.setAttribute('id','arr');m0.setAttribute('markerWidth','8');m0.setAttribute('markerHeight','8');m0.setAttribute('refX','7');m0.setAttribute('refY','4');m0.setAttribute('orient','auto');
-  var mp=document.createElementNS(NS,'path');
-  mp.setAttribute('d','M0,0 L8,4 L0,8 Z');mp.setAttribute('fill','#5e6878');
-  m0.appendChild(mp);defs.appendChild(m0);
-  var m1=document.createElementNS(NS,'marker');
-  m1.setAttribute('id','arrA');m1.setAttribute('markerWidth','8');m1.setAttribute('markerHeight','8');m1.setAttribute('refX','7');m1.setAttribute('refY','4');m1.setAttribute('orient','auto');
-  var mp2=document.createElementNS(NS,'path');
-  mp2.setAttribute('d','M0,0 L8,4 L0,8 Z');mp2.setAttribute('fill','#f43f5e');
-  m1.appendChild(mp2);defs.appendChild(m1);
-  var pos={};
-  data.services.forEach(function(s,i){
-    var ang=(-90+(360*i/data.services.length))*Math.PI/180;
-    pos[s.name]={x:CX+RX*Math.cos(ang),y:CY+RY*Math.sin(ang)};
-  });
-  var anomalyEdges={};
-  for(var i=0;i<data.anomalyPath.length-1;i++)anomalyEdges[data.anomalyPath[i]+'->'+data.anomalyPath[i+1]]=true;
-  data.calls.forEach(function(c){
-    var a=pos[c.src],b=pos[c.tgt];
-    if(!a||!b)return;
-    var anom=anomalyEdges[c.src+'->'+c.tgt];
-    var off=anom?0:20;
-    var dx=b.x-a.x,dy=b.y-a.y;
-    var len=Math.sqrt(dx*dx+dy*dy)||1;
-    var px=-dy/len*off,py=dx/len*off;
-    var d='M'+a.x+' '+a.y+' Q'+( (a.x+b.x)/2+px)+' '+((a.y+b.y)/2+py)+' '+b.x+' '+b.y;
-    var e=document.createElementNS(NS,'path');
-    e.setAttribute('d',d);e.setAttribute('fill','none');
-    e.setAttribute('stroke',anom?'#f43f5e':'#2b3445');
-    e.setAttribute('stroke-width',anom?'2.5':'1.4');
-    e.setAttribute('opacity',anom?'1':'.7');
-    e.setAttribute('marker-end','url(#'+(anom?'arrA':'arr')+')');
-    svg.appendChild(e);
-    var lab=document.createElementNS(NS,'text');
-    lab.setAttribute('x',(a.x+b.x)/2+px);lab.setAttribute('y',(a.y+b.y)/2+py-6);
-    lab.setAttribute('text-anchor','middle');lab.setAttribute('font-size','9');
-    lab.setAttribute('fill',anom?'#f43f5e':'#5e6878');lab.setAttribute('font-family','JetBrains Mono');
-    lab.textContent=(c.latency||'')+'ms';
-    svg.appendChild(lab);
-  });
-  data.contains.forEach(function(ct){
-    var s=pos[ct.service];
-    if(!s)return;
-    ct.functions.forEach(function(fn,fi){
-      var fx=s.x+(fi-(ct.functions.length-1)/2)*150;
-      var fy=s.y+52+fi*14;
-      var ln=document.createElementNS(NS,'line');
-      ln.setAttribute('x1',s.x);ln.setAttribute('y1',s.y+30);
-      ln.setAttribute('x2',fx);ln.setAttribute('y2',fy);
-      ln.setAttribute('stroke','#8b5cf6');ln.setAttribute('stroke-width','1');ln.setAttribute('stroke-dasharray','3 3');ln.setAttribute('opacity','.6');
-      svg.appendChild(ln);
-      var t=document.createElementNS(NS,'text');
-      t.setAttribute('x',fx);t.setAttribute('y',fy+3);t.setAttribute('text-anchor','middle');
-      t.setAttribute('font-size','8');t.setAttribute('fill','#8b5cf6');t.setAttribute('font-family','JetBrains Mono');
-      t.textContent=fn;
-      svg.appendChild(t);
-    });
-  });
-  data.services.forEach(function(s){
-    var p=pos[s.name];
-    var anom=s.status==='anomaly';
-    var g=document.createElementNS(NS,'g');
-    g.setAttribute('transform','translate('+p.x+' '+p.y+')');
-    g.setAttribute('style','cursor:pointer');
-    var ring=document.createElementNS(NS,'circle');
-    ring.setAttribute('r','30');
-    ring.setAttribute('fill',anom?'rgba(244,63,94,.08)':'rgba(45,212,191,.05)');
-    ring.setAttribute('stroke',anom?'#f43f5e':'#2dd4bf');
-    ring.setAttribute('stroke-width',anom?'2.5':'1.5');
-    if(anom){
-      var an=document.createElementNS(NS,'animate');
-      an.setAttribute('attributeName','opacity');an.setAttribute('values','1;.35;1');an.setAttribute('dur','1.6s');an.setAttribute('repeatCount','indefinite');
-      ring.appendChild(an);
-    }
-    g.appendChild(ring);
-    var core=document.createElementNS(NS,'circle');
-    core.setAttribute('r','10');core.setAttribute('fill',anom?'#f43f5e':'#2dd4bf');
-    g.appendChild(core);
-    var t1=document.createElementNS(NS,'text');
-    t1.setAttribute('y','44');t1.setAttribute('text-anchor','middle');t1.setAttribute('font-size','11');
-    t1.setAttribute('fill','#e6ecf3');t1.setAttribute('font-family','Space Grotesk');t1.setAttribute('font-weight','600');
-    t1.textContent=s.name;
-    g.appendChild(t1);
-    var t2=document.createElementNS(NS,'text');
-    t2.setAttribute('y','56');t2.setAttribute('text-anchor','middle');t2.setAttribute('font-size','8');
-    t2.setAttribute('fill','#5e6878');t2.setAttribute('font-family','JetBrains Mono');
-    t2.textContent=(s.owner||'')+' · '+(s.language||'');
-    g.appendChild(t2);
-    g.addEventListener('click',function(){toast(s.name+' · '+s.owner+' · '+s.language+' · status='+s.status);});
-    svg.appendChild(g);
-  });
-  var lg=document.createElementNS(NS,'g');
-  lg.setAttribute('transform','translate(18 22)');
-  var lg1=document.createElementNS(NS,'circle');
-  lg1.setAttribute('cx','6');lg1.setAttribute('cy','6');lg1.setAttribute('r','5');lg1.setAttribute('fill','#2dd4bf');
-  lg.appendChild(lg1);
-  var lt1=document.createElementNS(NS,'text');
-  lt1.setAttribute('x','16');lt1.setAttribute('y','9');lt1.setAttribute('font-size','9');lt1.setAttribute('fill','#9ba6b8');
-  lt1.textContent='正常服务';
-  lg.appendChild(lt1);
-  var lg2=document.createElementNS(NS,'circle');
-  lg2.setAttribute('cx','6');lg2.setAttribute('cy','24');lg2.setAttribute('r','5');lg2.setAttribute('fill','#f43f5e');
-  lg.appendChild(lg2);
-  var lt2=document.createElementNS(NS,'text');
-  lt2.setAttribute('x','16');lt2.setAttribute('y','27');lt2.setAttribute('font-size','9');lt2.setAttribute('fill','#9ba6b8');
-  lt2.textContent='异常服务';
-  lg.appendChild(lt2);
-  var ll=document.createElementNS(NS,'line');
-  ll.setAttribute('x1','6');ll.setAttribute('y1','42');ll.setAttribute('x2','40');ll.setAttribute('y2','42');
-  ll.setAttribute('stroke','#f43f5e');ll.setAttribute('stroke-width','2');
-  lg.appendChild(ll);
-  var lt3=document.createElementNS(NS,'text');
-  lt3.setAttribute('x','46');lt3.setAttribute('y','45');lt3.setAttribute('font-size','9');lt3.setAttribute('fill','#9ba6b8');
-  lt3.textContent='异常传播路径';
-  lg.appendChild(lt3);
-  var ld=document.createElementNS(NS,'line');
-  ld.setAttribute('x1','6');ld.setAttribute('y1','60');ld.setAttribute('x2','40');ld.setAttribute('y2','60');
-  ld.setAttribute('stroke','#8b5cf6');ld.setAttribute('stroke-width','1');ld.setAttribute('stroke-dasharray','3 3');
-  lg.appendChild(ld);
-  var lt4=document.createElementNS(NS,'text');
-  lt4.setAttribute('x','46');lt4.setAttribute('y','63');lt4.setAttribute('font-size','9');lt4.setAttribute('fill','#9ba6b8');
-  lt4.textContent='CONTAINS 下钻 (服务→函数)';
-  lg.appendChild(lt4);
-  svg.appendChild(lg);
-  canvas.innerHTML='';
-  canvas.appendChild(svg);
-  $('#topoNodeBody').innerHTML=data.services.map(function(s){
-    return '<tr><td>'+esc(s.name)+(s.status==='anomaly'?' <span class="chip red">异常</span>':'')+'</td><td>'+esc(s.owner||'')+'</td><td>'+esc(s.language||'')+'</td><td>'+esc(s.status||'')+'</td></tr>';
-  }).join('');
-  $('#topoEdgeBody').innerHTML=data.calls.map(function(c){
-    return '<tr><td>'+esc(c.src)+'</td><td>'+esc(c.tgt)+'</td><td>'+esc(c.type||'')+'</td><td>'+(c.latency||'')+'ms</td></tr>';
-  }).join('');
-  toast('拓扑已渲染 · 异常路径高亮');
-}
-
-function resetTopo(){
-  $('#topoCanvas').innerHTML='<div class="empty" style="color:var(--txt-2);font-size:13px">点击「渲染拓扑」查看服务级拓扑图</div>';
-  $('#topoNodeBody').innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--txt-2)">暂无数据</td></tr>';
-  $('#topoEdgeBody').innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--txt-2)">暂无数据</td></tr>';
-}
-
-function cgNode(){
-  var sym=$('#cgSymbol').value.trim();
-  if(!sym){toast('请输入符号名',true);return;}
-  api('/api/v1/codegraph/node/'+encodeURIComponent(sym)).then(function(node){
-    var rows=[['symbol',node.symbol],['type',node.type],['file',node.file],['line',node.line],['fan_in',node.fan_in],['fan_out',node.fan_out],['complexity',node.complexity],['signature',node.signature]];
-    var h='<table class="cg-table">'+rows.map(function(r){return '<tr><th>'+r[0]+'</th><td>'+esc(r[1]==null?'':r[1])+'</td></tr>'}).join('');
-    if(node.cn_summary)h+='<tr><th>cn_summary</th><td style="white-space:pre-wrap">'+esc(node.cn_summary)+'</td></tr>';
-    h+='</table>';
-    $('#cgNodeInfo').innerHTML=h;
-  }).catch(function(err){$('#cgNodeInfo').innerHTML='<div class="empty" style="color:var(--red)">'+esc(err.message)+'</div>'});
-}
-
-function cgCallers(){
-  var sym=$('#cgSymbol').value.trim();
-  if(!sym){toast('请输入符号名',true);return;}
-  api('/api/v1/codegraph/callers/'+encodeURIComponent(sym)+'?depth=2').then(function(data){
-    var list=data.callers||[];
-    var h=list.length
-      ?'<table class="cg-table"><tr><th>调用者</th><th>类型</th><th>文件</th><th>行</th></tr>'+list.map(function(c){
-        return '<tr><td>'+esc(c.symbol||c.name||c)+'</td><td>'+esc(c.type||'')+'</td><td>'+esc(c.file||'')+'</td><td>'+(c.line||'')+'</td></tr>';
-      }).join('')+'</table>'
-      :'<div class="empty">无调用者</div>';
-    if(data.truncated)h+='<div style="color:var(--txt-2);font-size:10px;margin-top:6px">结果已截断</div>';
-    $('#cgCallers').innerHTML=h;
-  }).catch(function(err){$('#cgCallers').innerHTML='<div class="empty" style="color:var(--red)">'+esc(err.message)+'</div>'});
-}
-
-function cgCallees(){
-  var sym=$('#cgSymbol').value.trim();
-  if(!sym){toast('请输入符号名',true);return;}
-  api('/api/v1/codegraph/callees/'+encodeURIComponent(sym)).then(function(data){
-    var list=data.callees||[];
-    var h=list.length
-      ?'<table class="cg-table"><tr><th>被调用者</th><th>类型</th><th>文件</th><th>行</th></tr>'+list.map(function(c){
-        return '<tr><td>'+esc(c.symbol||c.name||c)+'</td><td>'+esc(c.type||'')+'</td><td>'+esc(c.file||'')+'</td><td>'+(c.line||'')+'</td></tr>';
-      }).join('')+'</table>'
-      :'<div class="empty">无被调用者</div>';
-    $('#cgCallees').innerHTML=h;
-  }).catch(function(err){$('#cgCallees').innerHTML='<div class="empty" style="color:var(--red)">'+esc(err.message)+'</div>'});
-}
-
-function cgExplore(){
-  var sym=$('#cgSymbol').value.trim();
-  if(!sym){toast('请输入符号名',true);return;}
-  api('/api/v1/codegraph/explore/'+encodeURIComponent(sym)+'?hops=2').then(function(data){
-    var nodes=data.nodes||[];
-    var edges=data.edges||[];
-    var h='<div style="font-size:11px;margin-bottom:6px;color:var(--txt-1)">中心: <b style="color:var(--cyan)">'+esc(data.center||sym)+'</b> · 节点 '+nodes.length+' · 边 '+edges.length+'</div>';
-    if(nodes.length){
-      h+='<table class="cg-table"><tr><th>节点</th><th>类型</th><th>文件</th><th>行</th></tr>'+nodes.slice(0,40).map(function(n){
-        return '<tr><td>'+esc(n.symbol||n.name||n)+'</td><td>'+esc(n.type||'')+'</td><td>'+esc(n.file||'')+'</td><td>'+(n.line||'')+'</td></tr>';
-      }).join('')+'</table>';
-    }else{
-      h+='<div class="empty">无节点</div>';
-    }
-    if(edges.length){
-      h+='<div style="font-size:10px;color:var(--txt-2);margin-top:6px">调用边: '+edges.map(function(e){return esc(e.src||e.src_id)+' → '+esc(e.tgt||e.tgt_id)}).join(' · ')+'</div>';
-    }
-    $('#cgExplore').innerHTML=h;
-  }).catch(function(err){$('#cgExplore').innerHTML='<div class="empty" style="color:var(--red)">'+esc(err.message)+'</div>'});
-}
-
-function c2cnGen(){
-  var symbol=$('#c2cnSymbol').value.trim();
-  var file=$('#c2cnFile').value.trim();
-  var source=$('#c2cnSource').value.trim();
-  if(!symbol){toast('请输入符号名',true);return;}
-  api('/api/v1/code2cn/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:symbol,file:file,source_code:source,language:'java'})}).then(function(data){
-    var h='<div class="cn-symbol">'+esc(data.symbol||symbol)+'</div>';
-    h+='<div class="cn-file">'+esc(data.file||file||'')+(data.cached?' · cached':(data.degraded?' · degraded':' · '+esc(data.model||'')))+'</div>';
-    h+='<div class="cn-summary">'+esc(data.cn_summary||'（无摘要）')+'</div>';
-    h+='<div class="c2cn-meta">';
-    h+='<div class="c2cn-meta-card"><h5>外部调用</h5><ul>'+(data.external_calls&&data.external_calls.length?data.external_calls.map(function(c){return '<li>'+esc(c)+'</li>'}).join(''):'<li style="color:var(--txt-2)">无</li>')+'</ul></div>';
-    h+='<div class="c2cn-meta-card"><h5>失败路径</h5><ul>'+(data.failure_paths&&data.failure_paths.length?data.failure_paths.map(function(c){return '<li>'+esc(c)+'</li>'}).join(''):'<li style="color:var(--txt-2)">无</li>')+'</ul></div>';
-    h+='</div>';
-    var t=data.tokens||{};
-    if(Object.keys(t).length){h+='<div class="c2cn-tokens">'+Object.keys(t).map(function(k){return '<span class="c2cn-token">'+esc(k)+': '+esc(t[k])+'</span>'}).join('')+'</div>';}
-    $('#c2cnOutline').innerHTML=h;
-  }).catch(function(err){$('#c2cnOutline').innerHTML='<div style="text-align:center;padding:30px;color:var(--red);font-size:13px">'+esc(err.message)+'</div>'});
-}
-
-function ragSearch(){
-  var q=$('#ragQuery').value.trim();
-  if(!q){toast('请输入查询',true);return;}
-  var intent=$('#ragIntent').value;
-  api('/api/v1/rag/query?query='+encodeURIComponent(q)+'&intent='+encodeURIComponent(intent)+'&top_k=10',{method:'POST'}).then(function(data){
-    var h='<div class="rag-meta">';
-    h+='<span class="rag-meta-item">意图 <b>'+esc(intent)+'</b></span>';
-    h+='<span class="rag-meta-item">模式 <b>'+esc(data.mode||'')+'</b></span>';
-    h+='<span class="rag-meta-item">Top-K <b>'+esc(data.top_k||0)+'</b></span>';
-    h+='<span class="rag-meta-item">耗时 <b>'+(data.elapsed_ms||0)+'ms</b></span>';
-    h+='<span class="rag-meta-item">路由 <b>'+esc(data.route||'')+'</b></span>';
-    if(data.degraded)h+='<span class="rag-meta-item" style="color:var(--amber)"><b>DEGRADED</b></span>';
-    h+='</div>';
-    h+='<div class="rag-content">'+esc(data.content||'（无结果 — LightRAG 不可用时返回降级响应）')+'</div>';
-    $('#ragResult').innerHTML=h;
-  }).catch(function(err){$('#ragResult').innerHTML='<div style="text-align:center;padding:30px;color:var(--red);font-size:13px">'+esc(err.message)+'</div>'});
-}
-
 function kbYunjieImport(){
   var raw=$('#kbYunjieRefs').value.trim();
   if(!raw){toast('请输入问题单链接/编号',true);return;}
@@ -1742,17 +1313,6 @@ function init(){
   $('#runBtn').addEventListener('click',startAnalysis);
   $('#resetBtn').addEventListener('click',resetAll);
   $('#refreshKb').addEventListener('click',refreshKb);
-  $('#topoRenderBtn').addEventListener('click',renderTopology);
-  $('#topoResetBtn').addEventListener('click',resetTopo);
-  $('#topoSvcInput').addEventListener('keydown',function(e){if(e.key==='Enter')renderTopology()});
-  $('#cgNodeBtn').addEventListener('click',cgNode);
-  $('#cgCallersBtn').addEventListener('click',cgCallers);
-  $('#cgCalleesBtn').addEventListener('click',cgCallees);
-  $('#cgExploreBtn').addEventListener('click',cgExplore);
-  $('#cgSymbol').addEventListener('keydown',function(e){if(e.key==='Enter')cgNode()});
-  $('#c2cnGenBtn').addEventListener('click',c2cnGen);
-  $('#ragSearchBtn').addEventListener('click',ragSearch);
-  $('#ragQuery').addEventListener('keydown',function(e){if(e.key==='Enter')ragSearch()});
   $('#kbYunjieBtn').addEventListener('click',kbYunjieImport);
   $('#kbManualBtn').addEventListener('click',kbManualImport);
   $('#kbSearchBtn').addEventListener('click',kbSearch);

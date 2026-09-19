@@ -157,40 +157,6 @@ class TestDegradedMode:
         assert result.failure_paths == []
 
 
-class TestCode2CnRestApi:
-    """UT 5: REST API 端点"""
-
-    @pytest.mark.asyncio
-    async def test_generate_endpoint(self, asgi_client):
-        resp = await asgi_client.post("/api/v1/code2cn/generate", json={
-            "symbol": "test.fn", "file": "test.py",
-            "source_code": "def fn(): pass", "language": "python"
-        })
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "symbol" in data
-        assert "cn_summary" in data
-        assert "degraded" in data
-
-    @pytest.mark.asyncio
-    async def test_outline_not_found(self, asgi_client):
-        resp = await asgi_client.get("/api/v1/code2cn/outline/nonexistent_fn")
-        assert resp.status_code == 404
-
-    @pytest.mark.asyncio
-    async def test_generate_then_get_outline(self, asgi_client):
-        # 先 generate
-        resp = await asgi_client.post("/api/v1/code2cn/generate", json={
-            "symbol": "test.symbol123", "file": "test.py",
-            "source_code": "def f(): pass", "language": "python"
-        })
-        assert resp.status_code == 200
-        # 再 get outline
-        resp2 = await asgi_client.get("/api/v1/code2cn/outline/test.symbol123")
-        assert resp2.status_code == 200
-        assert resp2.json()["symbol"] == "test.symbol123"
-
-
 class TestCode2CnFixtures:
     """UT 6: 测试 fixtures 校验"""
 

@@ -87,59 +87,6 @@ class TestLightRAGDegraded:
             assert ok is False
 
 
-class TestRagRestApi:
-    """UT: LightRAG REST API 端点"""
-
-    @pytest.mark.asyncio
-    async def test_query_endpoint(self, asgi_client):
-        resp = await asgi_client.post("/api/v1/rag/query", params={
-            "query": "订单创建超时", "intent": "history", "top_k": 5
-        })
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "mode" in data
-        assert "route" in data
-        assert "degraded" in data
-
-    @pytest.mark.asyncio
-    async def test_query_architecture_intent(self, asgi_client):
-        resp = await asgi_client.post("/api/v1/rag/query", params={
-            "query": "全局架构概览", "intent": "architecture"
-        })
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["mode"] == "high_level"
-
-    @pytest.mark.asyncio
-    async def test_query_propagation_intent(self, asgi_client):
-        resp = await asgi_client.post("/api/v1/rag/query", params={
-            "query": "调用链追溯", "intent": "propagation"
-        })
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["mode"] == "hybrid"
-
-    @pytest.mark.asyncio
-    async def test_insert_endpoint(self, asgi_client):
-        resp = await asgi_client.post("/api/v1/rag/insert", params={"text": "测试文档"})
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "success" in data
-        assert "degraded" in data
-
-    @pytest.mark.asyncio
-    async def test_insert_kg_endpoint(self, asgi_client):
-        resp = await asgi_client.post("/api/v1/rag/insert_kg", json={
-            "entities": [
-                {"entity_name": "func:test", "type": "function", "description": "测试函数"}
-            ],
-            "relationships": []
-        })
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "success" in data
-
-
 class TestLightragFixtures:
     """UT: 测试 fixtures 校验"""
 
@@ -160,36 +107,3 @@ class TestLightragFixtures:
         assert "OrderService" in data["history"]
         assert "JedisPool" in data["propagation"]
         assert "订单中心" in data["architecture"]
-
-
-class TestFullPipelineIntegration:
-    """集成测试: code2cn → lightrag 注入 → 检索全链路"""
-
-    @pytest.mark.asyncio
-    async def test_code2cn_to_rag_insert(self, asgi_client):
-        """生成大纲 → 注入 LightRAG → 查询"""
-        # Step 1: 生成中文大纲
-        resp1 = await asgi_client.post("/api/v1/code2cn/generate", json={
-            "symbol": "test.PipelineIntegration", "file": "test.py",
-            "source_code": "def f(): pass", "language": "python"
-        })
-        assert resp1.status_code == 200
-        outline = resp1.json()
-
-        # Step 2: 注入到 LightRAG (如果不可用会返回 degraded)
-        resp2 = await asgi_client.post("/api/v1/rag/insert_kg", json={
-            "entities": [
-                {"entity_name": f"func:{outline['symbol']}", "type": "function",
-                 "description": outline.get("cn_summary", "test")}
-            ],
-            "relationships": []
-        })
-        assert resp2.status_code == 200
-        assert "success" in resp2.json()
-
-        # Step 3: 查询
-        resp3 = await asgi_client.post("/api/v1/rag/query", params={
-            "query": "test function", "intent": "history", "top_k": 3
-        })
-        assert resp3.status_code == 200
-        assert "route" in resp3.json()

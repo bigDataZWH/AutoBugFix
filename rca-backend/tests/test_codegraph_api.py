@@ -4,40 +4,6 @@ from __future__ import annotations
 import pytest
 
 
-class TestCodeGraphRestApi:
-    """CodeGraph REST API 端点测试"""
-
-    @pytest.mark.asyncio
-    async def test_node_not_found(self, asgi_client):
-        resp = await asgi_client.get("/api/v1/codegraph/node/nonexistent_symbol_999")
-        assert resp.status_code == 404
-
-    @pytest.mark.asyncio
-    async def test_callers_endpoint(self, asgi_client):
-        resp = await asgi_client.get("/api/v1/codegraph/callers/nonexistent_symbol_999")
-        assert resp.status_code in (200, 404)
-        if resp.status_code == 200:
-            data = resp.json()
-            assert "callers" in data
-
-    @pytest.mark.asyncio
-    async def test_callees_endpoint(self, asgi_client):
-        resp = await asgi_client.get("/api/v1/codegraph/callees/nonexistent_symbol_999")
-        assert resp.status_code in (200, 404)
-        if resp.status_code == 200:
-            data = resp.json()
-            assert "callees" in data
-
-    @pytest.mark.asyncio
-    async def test_explore_endpoint(self, asgi_client):
-        resp = await asgi_client.get("/api/v1/codegraph/explore/nonexistent_symbol_999")
-        assert resp.status_code in (200, 404)
-        if resp.status_code == 200:
-            data = resp.json()
-            assert "nodes" in data
-            assert "edges" in data
-
-
 class TestCodeGraphSchema:
     """CodeGraph schema 与存储验证"""
 
