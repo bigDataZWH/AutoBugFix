@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from .mock_data import SAMPLE_TICKETS
 from .models import (
-    AnalyzeRequest, AnalyzeResponse, AnalysisReport, ConfirmRequest, KBImportRequest, KBImportItem, RCAState,
+    AnalyzeRequest, AnalyzeRequestV2, AnalyzeResponse, AnalysisReport, ConfirmRequest, KBImportRequest, KBImportItem, RCAState,
     Code2CnRequest, CodeOutline, AstKg, AstKgEntity, AstKgRelationship,
 )
 from .opencode_adapter import OpenCodeAdapter
@@ -89,9 +89,18 @@ async def analyze(req: AnalyzeRequest):
     queue: asyncio.Queue = asyncio.Queue()
     tasks[task_id_] = {"queue": queue, "report": None, "status": "running"}
 
+    v2_req = AnalyzeRequestV2(
+        ticket_url=req.bug_link or "",
+        repo_url=req.repo or "",
+        branch=req.branch,
+        microservice=req.suspect_service,
+        description=req.bug_desc or None,
+        depth=req.depth,
+    )
+
     async def _run():
         try:
-            async for evt in pipeline.run_async(req):
+            async for evt in pipeline.run_async(v2_req):
                 await queue.put(evt)
                 if evt.get("type") == "report":
                     tasks[task_id_]["report"] = AnalysisReport(**evt["data"])

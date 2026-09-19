@@ -31,11 +31,17 @@ class TestEnvValidation:
         assert ok is True
 
     def test_port_occupied(self):
-        # 8000 端口已在运行服务
-        ok, msg = check_port(8000)
-        # 如果端口被占用，应该返回 False
-        assert ok is False
-        assert "占用" in msg
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(("127.0.0.1", 0))
+        sock.listen(1)
+        occupied_port = sock.getsockname()[1]
+        try:
+            ok, msg = check_port(occupied_port)
+            assert ok is False
+            assert "占用" in msg
+        finally:
+            sock.close()
 
     def test_memory_check(self):
         ok, msg = check_memory()

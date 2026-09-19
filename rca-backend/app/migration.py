@@ -193,16 +193,18 @@ def get_git_diff_functions(
                 affected.append(symbol)
             # callers
             callers_resp = cg.callers(symbol, depth=1)
-            for c in callers_resp.callers:
-                sym = c.get("symbol") if isinstance(c, dict) else None
-                if sym and sym not in affected:
-                    affected.append(sym)
+            if callers_resp is not None:
+                for c in callers_resp.callers:
+                    sym = c.get("symbol") if isinstance(c, dict) else None
+                    if sym and sym not in affected:
+                        affected.append(sym)
             # callees
             callees_resp = cg.callees(symbol)
-            for c in callees_resp.callees:
-                sym = c.get("symbol") if isinstance(c, dict) else None
-                if sym and sym not in affected:
-                    affected.append(sym)
+            if callees_resp is not None:
+                for c in callees_resp.callees:
+                    sym = c.get("symbol") if isinstance(c, dict) else None
+                    if sym and sym not in affected:
+                        affected.append(sym)
     finally:
         conn.close()
 

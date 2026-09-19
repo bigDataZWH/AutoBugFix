@@ -136,10 +136,10 @@ class CodeGraph:
             complexity=data["complexity"], cn_summary=data.get("cn_summary"),
         )
 
-    def callers(self, symbol: str, depth: int = 2) -> CallersResponse:
+    def callers(self, symbol: str, depth: int = 2) -> Optional[CallersResponse]:
         node = self._get_node_by_symbol(symbol)
         if node is None:
-            return CallersResponse(callers=[], edges=[], truncated=False)
+            return None
 
         actual_symbol = node["symbol"]
         seen: set[str] = set()
@@ -175,10 +175,10 @@ class CodeGraph:
             truncated=False,
         )
 
-    def callees(self, symbol: str) -> CalleesResponse:
+    def callees(self, symbol: str) -> Optional[CalleesResponse]:
         node = self._get_node_by_symbol(symbol)
         if node is None:
-            return CalleesResponse(callees=[], edges=[])
+            return None
 
         actual_symbol = node["symbol"]
         callees: list[CPGNode] = []
@@ -200,10 +200,10 @@ class CodeGraph:
             edges=[e.model_dump() for e in edges],
         )
 
-    def explore(self, symbol: str, hops: int = 2) -> ExploreResponse:
+    def explore(self, symbol: str, hops: int = 2) -> Optional[ExploreResponse]:
         node = self._get_node_by_symbol(symbol)
         if node is None:
-            return ExploreResponse(nodes=[], edges=[], center=symbol)
+            return None
 
         actual_symbol = node["symbol"]
         seen: set[str] = {actual_symbol}
