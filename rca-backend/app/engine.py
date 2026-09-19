@@ -1,7 +1,11 @@
-"""Spec 4: 5-Agent 智能引擎编排器。
+"""opencode serve headless RCA 引擎编排器。
 
-拓扑: START->A1->(A2||A3 fan-out)->A4(cross_validate)->CRAG->HIL->A5->END。
-SSE 事件推送 + Redis 状态持久化 + 断点续跑 + HIL 挂起/回灌。
+V3 RCAEngine 将原 5-Agent 编排（A1→A2‖A3→A4→CRAG→HIL→A5）替换为单次 opencode serve
+会话：opencode 在用户指定本地代码仓上完成 理解→codegraph 分析→Top-3 定位→CRAG 自评迭代→方案生成，
+Python 层仅保留 HIL 人工闸门、SSE 事件代理、RCAState 状态持久化与断点续跑。
+
+拓扑: START->OPENCODE_SESSION(单会话)->HIL->END。
+serve 不可用或 mock_demo 模式时降级到 mock 路径（SAMPLE_TICKETS 派生 top3/solution）。
 """
 
 from __future__ import annotations
@@ -11,21 +15,20 @@ import logging
 import threading
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any, Optional
 
-from .agents import AgentA1, AgentA2, AgentA3, AgentA5, RCAError
+from .agents import RCAError
 from .config import config
-from .dual_graph import cross_validate
 from .flywheel import flywheel
-from .gates import crag_gate, hil_gate, process_hil_decision
-from .lightrag_adapter import lightrag
+from .gates import hil_gate, process_hil_decision
+from .mock_data import SAMPLE_TICKETS
 from .models import (
-    A1Output, AnomalyPath, BugInfo, Candidate, ChangeRecord, ChangeRecords,
-    CragTriage, Evidence, GateStatus, HilDecision, HilResult, MetricAnomalies,
-    RCAState, RootCause, Solution, Stage, SuspectFunction,
+    AnomalyPath, Candidate, Evidence, GateStatus, HilDecision, HilResult,
+    RCAState, RootCause, Solution, SolutionDiff, SolutionStep, Stage,
 )
+from .opencode_serve_adapter import OpenCodeServeAdapter, OpenCodeServeError
+from .rca_prompt import build_patch_prompt, build_rca_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -112,19 +115,19 @@ class StateStore:
 
 
 class RCAEngine:
-    """5-Agent 引擎编排入口。"""
+    """opencode serve headless RCA 编排入口。"""
 
     def __init__(self, redis_client: Optional[Any] = None) -> None:
-        self.a1 = AgentA1()
-        self.a2 = AgentA2()
-        self.a3 = AgentA3()
-        self.a5 = AgentA5()
+        self.serve: Optional[OpenCodeServeAdapter] = None
         self.events = SSEEventBus(redis_client)
         self.store = StateStore(redis_client)
 
     def set_redis(self, redis_client: Any) -> None:
         self.events._set_redis(redis_client)
         self.store._set_redis(redis_client)
+
+    def set_serve_adapter(self, adapter: Optional[OpenCodeServeAdapter]) -> None:
+        self.serve = adapter
 
     @staticmethod
     def generate_task_id() -> str:
@@ -140,23 +143,20 @@ class RCAEngine:
             self._ensure_task_id(state)
             self.store.save(state)
 
-            if state.stage.index < 1:
-                state = self._apply_a1(state)
-
-            if state.stage.index < 2:
-                state = self._apply_a2a3_parallel(state)
-
+            # Stage 1: opencode serve 单会话（分析+CRAG自评+方案）
             if state.stage.index < 4:
-                state = self._apply_a4(state)
+                state = self._apply_opencode_session(state)
 
-            if state.stage.index < 5 or state.gate_status.hil == "pending":
-                state = self._apply_gates(state)
+            # Stage 2: HIL 后置闸门（Python）
+            if state.gate_status.hil == "pending":
+                self.store.save(state)
+                return state
+
+            if state.gate_status.hil not in ("confirmed", "modified", "rejected"):
+                state = self._apply_hil(state)
                 if state.gate_status.hil == "pending":
                     self.store.save(state)
                     return state
-
-            if state.stage.index < 5:
-                state = self._apply_a5(state)
 
             state.stage = Stage(index=6, name="COMPLETED", status="completed")
             state.gate_status = GateStatus(
@@ -201,87 +201,52 @@ class RCAEngine:
         if not state.task_id:
             state.task_id = self.generate_task_id()
 
-    def _apply_a1(self, state: RCAState) -> RCAState:
-        self._publish_stage(state, "A1", "start", {})
-        a1_out = self.a1.run(state.bug_info)
-        state.symptoms = a1_out.symptoms
-        state.error_type = a1_out.error_type
-        state.query = a1_out.query
-        state.suspect_services = a1_out.suspect_services
-        state.stage = Stage(index=1, name="A1", status="completed")
-        self.store.save(state)
-        self._publish_stage(state, "A1", "complete", {"suspect_services": state.suspect_services})
-        return state
+    def _apply_opencode_session(self, state: RCAState) -> RCAState:
+        self._publish_stage(state, "OPENCODE_SESSION", "start", {})
+        repo_path = self._resolve_repo_path(state)
 
-    def _apply_a2a3_parallel(self, state: RCAState) -> RCAState:
-        self._publish_stage(state, "A2A3", "start", {})
-
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            future_a2 = pool.submit(self.a2.run, state.suspect_services, state.bug_info.stack)
-            future_a3 = pool.submit(self.a3.run, state.suspect_services)
-            state.S_static = future_a2.result()
-            state.P_runtime = future_a3.result()
-
-        state.metric_anomalies, state.change_records = self._collect_supplementary_data(state)
-        state.stage = Stage(index=2, name="A2A3", status="completed")
-        self.store.save(state)
-        self._publish_stage(state, "A2A3", "complete", {
-            "static_count": len(state.S_static),
-            "runtime_anomaly": state.P_runtime.runtime_anomaly,
-            "has_metrics": state.metric_anomalies is not None,
-            "has_changes": state.change_records is not None,
-        })
-        return state
-
-    def _apply_a4(self, state: RCAState) -> RCAState:
-        self._publish_stage(state, "A4", "start", {})
-        candidates = cross_validate(
-            state.S_static,
-            state.P_runtime,
-            metric_anomalies=state.metric_anomalies,
-            change_records=state.change_records,
-            weights=config.score_weights,
+        use_serve = (
+            state.runtime_mode != "mock_demo"
+            and self.serve is not None
+            and self.serve.available
+            and bool(repo_path)
         )
-        state.top3 = self._candidates_to_rootcauses(candidates)
-        top_confidence = state.top3[0].confidence if state.top3 else 0.0
-        state.stage = Stage(index=4, name="A4", status="completed")
+
+        if use_serve:
+            sid: Optional[str] = None
+            try:
+                prompt = build_rca_prompt(state.bug_info, repo_path, config.gate.max_rewrite_rounds)
+                sid = self.serve.create_session(repo_path)  # type: ignore[union-attr]
+                raw = self.serve.prompt_async(  # type: ignore[union-attr]
+                    sid, prompt,
+                    on_event=lambda e: self._proxy_event(state, e),
+                )
+                self._map_opencode_output(raw, state)
+            except OpenCodeServeError as e:
+                logger.warning("opencode serve 会话失败，降级 mock: task_id=%s code=%s", state.task_id, e.code)
+                self._fallback_mock(state)
+            except Exception as e:  # noqa: BLE001
+                logger.warning("opencode serve 会话异常，降级 mock: task_id=%s err=%s", state.task_id, e)
+                self._fallback_mock(state)
+            finally:
+                if sid and self.serve is not None:
+                    self.serve.close_session(sid)
+        else:
+            self._fallback_mock(state)
+
+        state.stage = Stage(index=4, name="OPENCODE_SESSION", status="completed")
         self.store.save(state)
-        self._publish_stage(state, "A4", "complete", {
-            "top_confidence": top_confidence,
-            "top3": [r.model_dump() for r in state.top3],
+        self._publish_stage(state, "OPENCODE_SESSION", "complete", {
+            "degraded": state.degraded,
+            "top3_count": len(state.top3),
         })
         return state
 
-    def _apply_gates(self, state: RCAState) -> RCAState:
-        if state.gate_status.hil in ("pending", "confirmed", "modified", "rejected"):
+    def _apply_hil(self, state: RCAState) -> RCAState:
+        if state.gate_status.hil in ("confirmed", "modified", "rejected"):
             return state
         candidates = [self._rootcause_to_candidate(rc) for rc in state.top3]
         valid = [c for c in candidates if c is not None]
-
-        triage = crag_gate([c.evidence for c in valid])
-        rewrite_rounds = 0
-
-        while triage.verdict != "relevant" and rewrite_rounds < config.gate.max_rewrite_rounds:
-            rewrite_rounds += 1
-            hint = triage.rewritten_query or ""
-            logger.info(
-                "CRAG rewrite round %d/%d: verdict=%s hint=%s task_id=%s",
-                rewrite_rounds, config.gate.max_rewrite_rounds,
-                triage.verdict, hint, state.task_id,
-            )
-            supplemented, did_supplement = self._supplement_evidence(state, hint)
-            if not did_supplement:
-                break
-            valid = supplemented
-            state.top3 = self._candidates_to_rootcauses(valid)
-            triage = crag_gate([c.evidence for c in valid if c is not None])
-
-        state.gate_status.crag = triage.verdict
-        if rewrite_rounds > 0:
-            logger.info(
-                "CRAG rewrite 完成: rounds=%d final_verdict=%s task_id=%s",
-                rewrite_rounds, triage.verdict, state.task_id,
-            )
 
         top_confidence = state.top3[0].confidence if state.top3 else 0.0
         hil_result = hil_gate(valid, top_confidence, task_id=state.task_id)
@@ -301,13 +266,25 @@ class RCAEngine:
         self.store.save(state)
         return state
 
-    def _apply_a5(self, state: RCAState) -> RCAState:
-        self._publish_stage(state, "A5", "start", {})
-        solution = self.a5.run(state.top3, state.error_type)
-        state.solution = solution
-        state.stage = Stage(index=5, name="A5", status="completed")
-        self.store.save(state)
-        self._publish_stage(state, "A5", "complete", {"patch_length": len(solution.patch_suggestion)})
+    def _apply_patch_session(self, state: RCAState, modified_top3: list[dict[str, Any]]) -> RCAState:
+        if not self.serve or not self.serve.available:
+            return state
+        sid: Optional[str] = None
+        try:
+            prompt = build_patch_prompt(modified_top3, state.bug_info)
+            sid = self.serve.create_session(self._resolve_repo_path(state))
+            raw = self.serve.prompt_async(
+                sid, prompt,
+                on_event=lambda e: self._proxy_event(state, e),
+            )
+            sol = raw.get("solution") if isinstance(raw, dict) else None
+            if isinstance(sol, dict):
+                state.solution = self._map_solution(sol)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("patch 会话失败，保留原 solution: task_id=%s err=%s", state.task_id, e)
+        finally:
+            if sid:
+                self.serve.close_session(sid)
         return state
 
     # ------------------------------------------------------------------
@@ -329,11 +306,17 @@ class RCAEngine:
             self.events.publish(state.task_id, "gate_resolved", {"gate": "HIL", "action": "rejected"})
             return state
 
-        state.top3 = self._candidates_to_rootcauses(updated)
+        if updated and isinstance(updated[0], dict):
+            state.top3 = self._map_top3_dicts(updated)
+        else:
+            state.top3 = self._candidates_to_rootcauses(updated)
         state.gate_status.hil = "confirmed" if action == "confirmed" else "modified"
-        state.stage = Stage(index=4, name="A4", status="completed")
+        state.stage = Stage(index=4, name="OPENCODE_SESSION", status="completed")
         self.store.save(state)
         self.events.publish(state.task_id, "gate_resolved", {"gate": "HIL", "action": action})
+
+        if action == "modified" and decision.modified_top3:
+            state = self._apply_patch_session(state, decision.modified_top3)
 
         result = self.run_sequential(state)
         self.events.publish(result.task_id, "final", {
@@ -355,97 +338,175 @@ class RCAEngine:
         return self.store.load(task_id)
 
     # ------------------------------------------------------------------
+    # opencode 输出映射 / 事件代理
+    # ------------------------------------------------------------------
+    def _proxy_event(self, state: RCAState, evt: dict[str, Any]) -> None:
+        try:
+            etype = evt.get("event") or evt.get("type") or "opencode"
+            self.events.publish(state.task_id, "opencode_event", {
+                "stage": "OPENCODE_SESSION",
+                "event": etype,
+                "data": evt,
+            })
+        except Exception as e:  # noqa: BLE001
+            logger.debug("proxy_event 失败（已忽略）: %s", e)
+
+    def _map_opencode_output(self, raw: Any, state: RCAState) -> None:
+        if not isinstance(raw, dict) or not raw:
+            self._fallback_mock(state)
+            return
+
+        state.symptoms = raw.get("symptoms") or state.symptoms or []
+        if raw.get("error_type"):
+            state.error_type = str(raw["error_type"])
+        if raw.get("query"):
+            state.query = str(raw["query"])
+        state.suspect_services = raw.get("suspect_services") or state.suspect_services or []
+
+        verdict = raw.get("crag_verdict")
+        if verdict in ("relevant", "ambiguous", "irrelevant"):
+            state.gate_status.crag = verdict
+
+        raw_top3 = raw.get("top3")
+        if isinstance(raw_top3, list) and raw_top3:
+            state.top3 = self._map_top3_dicts(raw_top3)
+
+        sol = raw.get("solution")
+        if isinstance(sol, dict):
+            state.solution = self._map_solution(sol)
+
+        funcs = [r.located_function for r in state.top3 if r.located_function]
+        state.P_runtime = AnomalyPath(functions=funcs)
+        state.degraded = False
+
+    def _map_top3_dicts(self, dicts: list[Any]) -> list[RootCause]:
+        top3: list[RootCause] = []
+        for d in dicts:
+            if not isinstance(d, dict):
+                continue
+            ev_raw = d.get("evidence") or {}
+            ev = Evidence(
+                static_depth=self._as_float(ev_raw.get("static_depth")),
+                runtime_anomaly=self._as_float(ev_raw.get("runtime_anomaly")),
+                metric_corr=self._as_float(ev_raw.get("metric_corr")),
+                change_recency=self._as_float(ev_raw.get("change_recency")),
+            )
+            top3.append(RootCause(
+                root_cause=str(d.get("root_cause", "")),
+                confidence=round(min(max(self._as_float(d.get("confidence")), 0.0), 1.0), 2),
+                evidence_chain=[str(x) for x in (d.get("evidence_chain") or [])],
+                located_function=str(d.get("located_function", "")),
+                file=str(d.get("file", "")),
+                line=self._as_int(d.get("line")),
+                evidence=ev,
+            ))
+        while len(top3) < 3:
+            top3.append(RootCause(root_cause="insufficient_evidence", confidence=0.0))
+        return top3[:3]
+
+    def _map_solution(self, sol: dict[str, Any]) -> Solution:
+        diffs: list[SolutionDiff] = []
+        for d in (sol.get("diffs") or []):
+            if isinstance(d, dict):
+                diffs.append(SolutionDiff(
+                    file=str(d.get("file", "")),
+                    before=str(d.get("before", "")),
+                    after=str(d.get("after", "")),
+                    summary=str(d.get("summary", "")),
+                ))
+        steps: list[SolutionStep] = []
+        for s in (sol.get("steps") or []):
+            if isinstance(s, dict):
+                steps.append(SolutionStep(
+                    step=self._as_int(s.get("step")) or (len(steps) + 1),
+                    action=str(s.get("action", "")),
+                    detail=str(s.get("detail", "")),
+                ))
+        return Solution(
+            diffs=diffs,
+            steps=steps,
+            verify_expected=dict(sol.get("verify_expected") or {}),
+            patch_suggestion=str(sol.get("patch_suggestion", "")),
+            test_cases=[str(t) for t in (sol.get("test_cases") or [])],
+        )
+
+    # ------------------------------------------------------------------
+    # 降级 mock
+    # ------------------------------------------------------------------
+    def _fallback_mock(self, state: RCAState) -> None:
+        state.degraded = True
+        tickets = SAMPLE_TICKETS[:3]
+        top3: list[RootCause] = []
+        for i, t in enumerate(tickets):
+            ev = Evidence(
+                static_depth=round(0.70 - i * 0.10, 2),
+                runtime_anomaly=round(0.65 - i * 0.10, 2),
+                metric_corr=round(0.60 - i * 0.10, 2),
+                change_recency=round(0.55 - i * 0.10, 2),
+            )
+            top3.append(RootCause(
+                root_cause=t.get("root_cause", ""),
+                confidence=round(min(0.65 - i * 0.10, 0.98), 2),
+                evidence_chain=[
+                    f"静态可达 static_depth={ev.static_depth:.2f}",
+                    f"运行时异常 runtime_anomaly={ev.runtime_anomaly:.2f}",
+                    f"指标关联 metric_corr={ev.metric_corr:.2f}",
+                    f"变更时效 change_recency={ev.change_recency:.2f}",
+                ],
+                located_function=t.get("module", ""),
+                file="",
+                line=0,
+                evidence=ev,
+            ))
+        while len(top3) < 3:
+            top3.append(RootCause(root_cause="insufficient_evidence", confidence=0.0))
+        state.top3 = top3
+        state.symptoms = [t.get("title", "") for t in tickets] or ["insufficient_symptoms"]
+        state.error_type = SAMPLE_TICKETS[0].get("error_code", "") if SAMPLE_TICKETS else ""
+        state.suspect_services = [t.get("microservice", "") for t in tickets]
+        state.gate_status.crag = "relevant"
+        state.P_runtime = AnomalyPath(functions=[r.located_function for r in top3 if r.located_function])
+        state.solution = self._mock_solution()
+
+    def _mock_solution(self) -> Solution:
+        t = SAMPLE_TICKETS[0] if SAMPLE_TICKETS else {}
+        return Solution(
+            diffs=[SolutionDiff(
+                file="",
+                before="",
+                after=t.get("fix_code", ""),
+                summary=t.get("title", ""),
+            )],
+            steps=[SolutionStep(step=1, action="修复", detail=t.get("fix_code", ""))],
+            patch_suggestion=t.get("fix_code", ""),
+            test_cases=["验证问题不再复现"],
+            historical_cases=[t.get("title", "历史相似问题")] if t else [],
+            best_practices=[
+                "对高并发写路径增加分段锁与原子校验",
+                "扣减后增加非负校验并记录告警",
+            ],
+        )
+
+    # ------------------------------------------------------------------
     # 辅助方法
     # ------------------------------------------------------------------
-    def _collect_supplementary_data(
-        self, state: RCAState
-    ) -> tuple[Optional[MetricAnomalies], Optional[ChangeRecords]]:
-        """采集指标异常 + 变更记录，供 cross_validate 的 w3/w4 维度使用。
+    def _resolve_repo_path(self, state: RCAState) -> str:
+        env = state.bug_info.environment or {}
+        return str(env.get("repo_path", "") or state.bug_info.link or "")
 
-        mock_demo 模式：基于 P_runtime.functions 生成模拟数据。
-        online_full / offline_light：暂无监控/CI 集成，返回 None（降级）。
-        """
-        func_ids = state.P_runtime.functions or [f.function_id for f in state.S_static]
-        if not func_ids:
-            return None, None
+    @staticmethod
+    def _as_float(v: Any) -> float:
+        try:
+            return float(v) if v is not None else 0.0
+        except (TypeError, ValueError):
+            return 0.0
 
-        if state.runtime_mode != "mock_demo":
-            logger.info("supplementary data 跳过（非 mock_demo 模式）: task_id=%s", state.task_id)
-            return None, None
-
-        metrics = self._generate_fallback_metrics(state, func_ids)
-        changes = self._generate_fallback_changes(state, func_ids)
-
-        logger.debug(
-            "supplementary data 采集完成: task_id=%s metrics_funcs=%d change_records=%d",
-            state.task_id, len(metrics.functions), len(changes.records),
-        )
-        return metrics, changes
-
-    def _generate_fallback_metrics(
-        self, state: RCAState, func_ids: list[str]
-    ) -> MetricAnomalies:
-        """生成兜底指标异常数据（mock / CRAG 重写补充场景）。"""
-        return MetricAnomalies(
-            functions={fid: round(0.60 + 0.30 * (1.0 - i * 0.15), 2) for i, fid in enumerate(func_ids[:5])},
-            services={svc: 0.80 for svc in state.suspect_services[:3]},
-        )
-
-    def _generate_fallback_changes(
-        self, state: RCAState, func_ids: list[str]
-    ) -> ChangeRecords:
-        """生成兜底变更记录（mock / CRAG 重写补充场景）。"""
-        now = time.time()
-        return ChangeRecords(records=[
-            ChangeRecord(function_id=fid, timestamp=now - 2 * 86400, commits=3 + i)
-            for i, fid in enumerate(func_ids[:5])
-        ])
-
-    def _supplement_evidence(
-        self, state: RCAState, hint: str
-    ) -> tuple[list[Candidate], bool]:
-        """根据 CRAG 重写提示补充弱维度证据，重新 cross_validate。
-
-        hint="broaden": 全维度补充（irrelevant 场景）。
-        hint 含 "metric_corr": 补充指标关联数据。
-        hint 含 "change_recency": 补充变更时效数据。
-        返回 (补充后的候选列表, 是否实际补充)。
-        """
-        func_ids = state.P_runtime.functions or [f.function_id for f in state.S_static]
-        if not func_ids:
-            return [], False
-
-        need_metrics = hint == "broaden" or "metric_corr" in hint
-        need_changes = hint == "broaden" or "change_recency" in hint
-
-        metrics = state.metric_anomalies
-        changes = state.change_records
-        supplemented = False
-
-        if need_metrics and (metrics is None or not metrics.functions):
-            metrics = self._generate_fallback_metrics(state, func_ids)
-            supplemented = True
-            logger.info(
-                "CRAG 补充 metric_corr: funcs=%d task_id=%s",
-                len(metrics.functions), state.task_id,
-            )
-        if need_changes and (changes is None or not changes.records):
-            changes = self._generate_fallback_changes(state, func_ids)
-            supplemented = True
-            logger.info(
-                "CRAG 补充 change_recency: records=%d task_id=%s",
-                len(changes.records), state.task_id,
-            )
-
-        if not supplemented:
-            return [], False
-
-        candidates = cross_validate(
-            state.S_static, state.P_runtime,
-            metric_anomalies=metrics, change_records=changes,
-            weights=config.score_weights,
-        )
-        return candidates, True
+    @staticmethod
+    def _as_int(v: Any) -> int:
+        try:
+            return int(v) if v is not None else 0
+        except (TypeError, ValueError):
+            return 0
 
     def _publish_stage(self, state: RCAState, stage: str, status: str, summary: dict[str, Any]) -> None:
         if status == "start":

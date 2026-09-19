@@ -369,6 +369,7 @@ class AnalyzeRequest(BaseModel):
     branch: str = "main"
     bug_link: str = ""
     bug_desc: str = ""
+    repo_path: str = ""
     runtime_mode: Literal["online_full", "offline_light", "mock_demo"] = "online_full"
     depth: str = "standard"
 

@@ -1,19 +1,16 @@
-"""Spec 4 5-Agent 引擎 UT 测试套件：状态机、Agent、编排、SSE、降级、断点恢复。"""
+"""引擎 UT 测试套件：opencode serve 会话编排、状态机、SSE、降级、断点恢复、HIL 回灌。"""
 from __future__ import annotations
 
 import json
-import asyncio
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
 from app.engine import RCAEngine, SSEEventBus, StateStore
 from app.models import (
-    RCAState, BugInfo, AnomalyPath, Stage, RootCause,
-    Solution, GateStatus, SuspectFunction, HilDecision,
+    RCAState, BugInfo, AnomalyPath, RootCause,
+    Solution, GateStatus, HilDecision,
 )
-from app.agents import AgentA1, AgentA2, AgentA3, AgentA5
 
 FIXTURES = Path(__file__).parent / "fixtures" / "engine"
 
@@ -74,7 +71,7 @@ class TestRCAStateSchema:
 
 
 class TestSequentialOrchestrator:
-    """UT 2: SequentialOrchestrator 全链路 A1→A2∥A3→A4→gates→A5"""
+    """UT: SequentialOrchestrator 全链路 OPENCODE_SESSION→HIL→COMPLETED"""
 
     def test_run_sequential_completes(self):
         engine = RCAEngine()
@@ -110,28 +107,35 @@ class TestSequentialOrchestrator:
         assert result.task_id != ""
 
 
-class TestAgentA1:
-    """UT 3: A1 问题理解 Agent"""
+class TestOpenCodeSessionFlow:
+    """UT: opencode serve 会话编排 (mock_demo 降级 / serve 不可用降级)"""
 
-    def test_a1_extracts_fields(self):
-        a1 = AgentA1()
-        bug = BugInfo(bug_id="MSP-001", title="超时", description="订单超时", stack=["fn:1"])
-        out = a1.run(bug)
-        assert len(out.symptoms) > 0
-        assert out.error_type != ""
-        assert out.query != ""
-        assert len(out.suspect_services) > 0
+    def test_mock_demo_uses_fallback(self):
+        engine = RCAEngine()
+        state = _make_state()
+        result = engine.run_sequential(state)
+        # mock_demo 模式直接走 _fallback_mock，仍产出 Top-3 与方案
+        assert len(result.top3) > 0
+        assert result.solution is not None
 
-    def test_a1_empty_stack(self):
-        a1 = AgentA1()
-        bug = BugInfo(bug_id="MSP-002", title="错误", description="服务异常")
-        out = a1.run(bug)
-        # 报错栈缺失时 error_type=unknown/UNKNOWN
-        assert out.error_type.lower() in ("unknown", "timeout", "error")
+    def test_serve_unavailable_degrades_to_mock(self):
+        engine = RCAEngine()
+        engine.set_serve_adapter(None)
+        state = _make_state(runtime_mode="online_full")
+        result = engine.run_sequential(state)
+        assert result.stage.status == "completed"
+        assert len(result.top3) > 0
+
+    def test_serve_none_online_full_degrades(self):
+        engine = RCAEngine()
+        engine.set_serve_adapter(None)
+        state = _make_state(runtime_mode="online_full")
+        result = engine.run_sequential(state)
+        assert result.degraded is True
 
 
 class TestRootCauseAnalysis:
-    """UT 4: A4 根因分析阶段 (cross_validate → score 排序 + Top-3)"""
+    """UT: 根因分析阶段 (opencode session 输出 / mock 降级 → Top-3 排序)"""
 
     def test_a4_top3_length(self):
         engine = RCAEngine()
@@ -158,32 +162,31 @@ class TestRootCauseAnalysis:
                 assert rc.located_function != ""
 
 
-class TestAgentA5:
-    """UT 5: A5 方案生成 Agent"""
+class TestSolutionGeneration:
+    """UT: 方案生成阶段 (opencode session / mock 降级输出 Solution)"""
 
-    def test_a5_generates_solution(self):
+    def test_solution_generated(self):
         engine = RCAEngine()
         state = _make_state()
         result = engine.run_sequential(state)
         sol = result.solution
         assert sol is not None
         assert sol.patch_suggestion != ""
-        # steps 可能为空（mock_demo 模式），但 test_cases 应有
+        # mock 降级模式 test_cases 应有
         assert len(sol.test_cases) > 0 or len(sol.historical_cases) > 0
 
-    def test_a5_test_cases(self):
+    def test_solution_test_cases(self):
         engine = RCAEngine()
         state = _make_state()
         result = engine.run_sequential(state)
         assert len(result.solution.test_cases) > 0
 
-    def test_a5_best_practices(self):
+    def test_solution_best_practices_is_list(self):
         engine = RCAEngine()
         state = _make_state()
         result = engine.run_sequential(state)
-        assert len(result.solution.best_practices) > 0
-        # best_practices 是 list[str]
-        assert isinstance(result.solution.best_practices[0], str)
+        # mock 降级不保证填充 best_practices，仅校验结构
+        assert isinstance(result.solution.best_practices, list)
 
 
 class TestSSEEventBus:

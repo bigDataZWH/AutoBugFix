@@ -22,7 +22,8 @@ from .opencode_adapter import OpenCodeAdapter
 from .pipeline import Pipeline
 from .retriever import Retriever
 from .engine import engine, RCAEngine
-from .agents import AgentA1, AgentA5
+from .opencode_serve_adapter import OpenCodeServeAdapter
+from .config import config
 from .runtime_mode import get_current_mode, component_status as _component_status
 from .lightrag_adapter import lightrag
 
@@ -41,8 +42,14 @@ opencode = OpenCodeAdapter(
 )
 pipeline = Pipeline(retriever=retriever, opencode=opencode, repos_dir=str(DATA_DIR / "repos"))
 
-engine.a1 = AgentA1(opencode=opencode)
-engine.a5 = AgentA5(retriever=retriever, opencode=opencode)
+engine.set_serve_adapter(
+    OpenCodeServeAdapter(
+        base_url=config.opencode_serve.base_url,
+        auth_token=config.opencode_serve.auth_token,
+        timeout=config.opencode_serve.timeout,
+        poll_interval=config.opencode_serve.poll_interval,
+    )
+)
 
 tasks: dict[str, dict] = {}
 v3_tasks: dict[str, dict] = {}
@@ -207,6 +214,7 @@ async def v3_analyze(req: AnalyzeRequest) -> AnalyzeResponse:
             "description": req.bug_desc,
             "error_type": req.error_type or "",
             "link": req.bug_link,
+            "environment": {"repo_path": req.repo_path} if req.repo_path else {},
         },
     )
     queue: asyncio.Queue = asyncio.Queue()
