@@ -163,20 +163,22 @@ class RCAEngine:
                 "solution": state.solution.model_dump() if state.solution else {},
                 "gate_status": state.gate_status.model_dump(),
             })
-            try:
-                payload = flywheel.extract_payload(
-                    root_cause=state.top3[0].root_cause if state.top3 else "",
-                    root_cause_function=state.top3[0].located_function if state.top3 else "",
-                    call_path=state.P_runtime.functions,
-                    fix_patch=state.solution.patch_suggestion if state.solution else "",
-                    verify_case="; ".join(state.solution.test_cases) if state.solution else "",
-                    ticket_id=state.bug_info.bug_id,
-                    title=state.bug_info.title,
-                    description=state.bug_info.description,
-                )
-                flywheel.writeback_sync(payload)
-            except Exception:
-                pass
+            payload = flywheel.extract_payload(
+                root_cause=state.top3[0].root_cause if state.top3 else "",
+                root_cause_function=state.top3[0].located_function if state.top3 else "",
+                call_path=state.P_runtime.functions,
+                fix_patch=state.solution.patch_suggestion if state.solution else "",
+                verify_case="; ".join(state.solution.test_cases) if state.solution else "",
+                ticket_id=state.bug_info.bug_id,
+                title=state.bug_info.title,
+                description=state.bug_info.description,
+            )
+            wb_result = flywheel.writeback_sync(payload)
+            if wb_result.inserted == 0:
+                self.events.publish(state.task_id, "flywheel_skipped", {
+                    "reason": "dedup_or_error",
+                    "ticket_id": state.bug_info.bug_id,
+                })
             return state
         except RCAError as exc:
             return self._fail(state, exc.code, exc.message)
@@ -354,6 +356,7 @@ class RCAEngine:
                 located_function=c.function_name or c.function_id,
                 file=c.file,
                 line=c.line,
+                evidence=c.evidence,
             ))
         while len(top3) < 3:
             top3.append(RootCause(
@@ -367,6 +370,15 @@ class RCAEngine:
     def _rootcause_to_candidate(self, rc: RootCause) -> Optional[Candidate]:
         if not rc.located_function:
             return None
+        if rc.evidence is not None:
+            return Candidate(
+                function_id=rc.located_function,
+                function_name=rc.located_function,
+                file=rc.file,
+                line=rc.line,
+                score=rc.confidence,
+                evidence=rc.evidence,
+            )
         evidence = Evidence()
         if rc.evidence_chain:
             for line in rc.evidence_chain:

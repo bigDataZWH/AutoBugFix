@@ -59,9 +59,23 @@ class Flywheel:
 
     def writeback_sync(self, payload: FlywheelPayload) -> WritebackResult:
         import asyncio
+        coro = self.writeback(payload)
         try:
-            return asyncio.run(self.writeback(payload))
+            try:
+                asyncio.get_running_loop()
+                running = True
+            except RuntimeError:
+                running = False
+            if running:
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    return pool.submit(asyncio.run, coro).result()
+            return asyncio.run(coro)
         except Exception:
+            try:
+                coro.close()
+            except Exception:
+                pass
             return WritebackResult(inserted=0, similar_edges=[])
 
     def extract_payload(

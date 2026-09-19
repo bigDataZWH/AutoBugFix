@@ -331,6 +331,7 @@ class RootCause(BaseModel):
     located_function: str = ""
     file: str = ""
     line: int = 0
+    evidence: Optional[Evidence] = None
 
 
 class Stage(BaseModel):

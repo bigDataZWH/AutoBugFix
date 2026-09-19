@@ -154,6 +154,7 @@ async def yunjie_import(req: YunjieImportRequest):
         except Exception:
             continue
     n = retriever.import_tickets(items)
+    failed: list[str] = []
     for it in items:
         text = (
             f"问题单 {it.ticket_id}: {it.title}\n"
@@ -164,8 +165,8 @@ async def yunjie_import(req: YunjieImportRequest):
         try:
             await lightrag.ainsert(text, ids=f"yunjie:{it.ticket_id}")
         except Exception:
-            pass
-    return {"imported": n, "total": retriever.count(), "lightrag_degraded": not lightrag.available}
+            failed.append(it.ticket_id)
+    return {"imported": n, "total": retriever.count(), "lightrag_degraded": not lightrag.available, "lightrag_failed_ids": failed}
 
 
 class KbDeleteRequest(BaseModel):
